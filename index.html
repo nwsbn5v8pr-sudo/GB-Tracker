@@ -20,6 +20,8 @@
     --gold: #ffd60a;
     --sticky-bg: #ffffff;
     --section-header-bg: #e5e5ea;
+    --tab-bg: #e3e3e8;
+    --tab-active-bg: #ffffff;
   }
 
   @media (prefers-color-scheme: dark) {
@@ -34,6 +36,8 @@
       --sticky-bg: #1c1c1e;
       --success-bg: rgba(52, 199, 89, 0.2);
       --section-header-bg: #2c2c2e;
+      --tab-bg: #2c2c2e;
+      --tab-active-bg: #3a3a3c;
     }
   }
 
@@ -58,10 +62,10 @@
     align-items: center;
     flex-wrap: wrap;
     gap: 10px;
-    margin-bottom: 14px;
+    margin-bottom: 12px;
   }
   .app-title {
-    font-size: 21px;
+    font-size: 22px;
     font-weight: 700;
     letter-spacing: -0.4px;
     display: flex;
@@ -103,7 +107,7 @@
     justify-content: center;
     gap: 5px;
     touch-action: manipulation;
-    transition: opacity 0.15s ease;
+    transition: all 0.15s ease;
   }
   button:active {
     opacity: 0.8;
@@ -118,11 +122,76 @@
     color: #ff453a;
     border: 1px solid rgba(255, 69, 58, 0.25);
   }
+  button.success {
+    background: rgba(52, 199, 89, 0.15);
+    color: #34c759;
+    border: 1px solid rgba(52, 199, 89, 0.3);
+  }
+
+  /* Segmented Navigation Tabs */
+  .timeframe-nav {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 10px;
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    padding: 6px 8px;
+    margin-bottom: 14px;
+  }
+  .segmented-control {
+    display: inline-flex;
+    background: var(--tab-bg);
+    padding: 3px;
+    border-radius: 10px;
+    gap: 3px;
+    overflow-x: auto;
+    max-width: 100%;
+  }
+  .tab-btn {
+    min-height: 32px;
+    padding: 6px 14px;
+    border-radius: 8px;
+    font-size: 12px;
+    font-weight: 600;
+    background: transparent;
+    color: var(--text-secondary);
+    border: none;
+    cursor: pointer;
+    white-space: nowrap;
+    transition: all 0.15s ease;
+  }
+  .tab-btn.active {
+    background: var(--tab-active-bg);
+    color: var(--text-primary);
+    box-shadow: 0 2px 6px rgba(0,0,0,0.08);
+  }
+
+  .timeframe-controls {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-wrap: wrap;
+  }
+  .period-selector {
+    height: 34px;
+    padding: 0 10px;
+    border-radius: 8px;
+    border: 1px solid var(--border-strong);
+    background: var(--bg-primary);
+    color: var(--text-primary);
+    font-size: 13px;
+    font-weight: 600;
+    outline: none;
+    cursor: pointer;
+  }
 
   /* KPI Grid */
   .kpi-grid {
     display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(125px, 1fr));
+    grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
     gap: 8px;
     margin-bottom: 14px;
   }
@@ -197,7 +266,7 @@
     overflow: hidden;
   }
   .table-wrapper {
-    max-height: 68vh;
+    max-height: 64vh;
     overflow-x: auto;
     overflow-y: auto;
     -webkit-overflow-scrolling: touch;
@@ -361,6 +430,11 @@
     font-weight: 700;
     font-size: 14px;
   }
+  .aggregate-val {
+    font-size: 14px;
+    font-weight: 700;
+    color: var(--text-primary);
+  }
 
   .badge-grand-slam {
     display: inline-flex;
@@ -438,89 +512,40 @@
     z-index: 30;
   }
 
-  .empty-state {
-    padding: 48px 20px;
-    text-align: center;
-    color: var(--text-secondary);
-  }
-  .empty-state h3 {
-    font-size: 17px;
-    font-weight: 600;
-    color: var(--text-primary);
-    margin-bottom: 6px;
-  }
-  .empty-state p {
-    font-size: 13px;
-    margin-bottom: 16px;
-  }
-
-  /* Modal */
-  .modal-backdrop {
-    display: none;
-    position: fixed;
-    top: 0;
-    left: 0;
-    right: 0;
-    bottom: 0;
-    background: rgba(0, 0, 0, 0.5);
-    z-index: 100;
-    align-items: center;
-    justify-content: center;
-    padding: 20px;
-  }
-  .modal-backdrop.active {
+  /* History Log View */
+  .history-list {
     display: flex;
+    flex-direction: column;
+    gap: 10px;
+    padding: 14px;
   }
-  .modal-card {
-    background: var(--bg-card);
+  .history-item {
+    background: var(--bg-primary);
     border: 1px solid var(--border);
-    border-radius: 16px;
-    max-width: 500px;
-    width: 100%;
-    padding: 22px;
-    box-shadow: 0 20px 40px rgba(0, 0, 0, 0.2);
-  }
-  .modal-header {
+    border-radius: 10px;
+    padding: 12px 16px;
     display: flex;
     justify-content: space-between;
     align-items: center;
-    margin-bottom: 16px;
+    flex-wrap: wrap;
+    gap: 10px;
   }
-  .modal-title {
-    font-size: 17px;
+  .history-info {
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+  }
+  .history-date {
+    font-size: 15px;
     font-weight: 700;
   }
-  .form-group {
-    margin-bottom: 14px;
-  }
-  .form-label {
-    display: block;
+  .history-meta {
     font-size: 12px;
-    font-weight: 600;
     color: var(--text-secondary);
-    margin-bottom: 6px;
-    text-transform: uppercase;
   }
-  .form-input, .form-textarea {
-    width: 100%;
-    padding: 10px 12px;
-    border-radius: 8px;
-    border: 1px solid var(--border-strong);
-    background: var(--bg-primary);
-    color: var(--text-primary);
-    font-size: 14px;
-    outline: none;
-  }
-  .form-textarea {
-    min-height: 120px;
-    font-family: inherit;
-    resize: vertical;
-  }
-  .modal-actions {
+  .history-actions {
     display: flex;
-    justify-content: flex-end;
     gap: 8px;
-    margin-top: 18px;
   }
 </style>
 </head>
@@ -531,18 +556,36 @@
     <div class="app-title">
       🧰 GB Tracker
       <span class="sync-badge" id="syncStatus">🔄 Connecting Cloud Sync...</span>
+      <span class="sync-badge" id="autoSaveBadge">⏰ Auto-Archive: 11:00 PM Daily</span>
     </div>
     <div class="btn-group">
-      <button class="secondary" onclick="checkAll(false)">◻️ Clear Check-Ins</button>
+      <button class="success" id="btnArchive" onclick="archiveCurrentDay()">💾 Save / Archive Day</button>
+      <button class="secondary" id="btnClearCheckins" onclick="checkAll(false)">◻️ Clear Check-Ins</button>
       <button class="secondary" onclick="exportCSV()">📥 Export CSV</button>
-      <button class="danger" onclick="resetCounts()">🔄 Reset</button>
+      <button class="danger" id="btnReset" onclick="resetCounts()">🔄 Reset Day</button>
+    </div>
+  </div>
+
+  <!-- Timeframe Navigation Tabs -->
+  <div class="timeframe-nav">
+    <div class="segmented-control">
+      <button class="tab-btn active" id="tab-daily" onclick="switchTab('daily')">📅 Daily (Live)</button>
+      <button class="tab-btn" id="tab-weekly" onclick="switchTab('weekly')">📊 Weekly</button>
+      <button class="tab-btn" id="tab-monthly" onclick="switchTab('monthly')">🗓️ Monthly</button>
+      <button class="tab-btn" id="tab-quarterly" onclick="switchTab('quarterly')">📈 Quarterly</button>
+      <button class="tab-btn" id="tab-history" onclick="switchTab('history')">📜 History Logs</button>
+    </div>
+    <div class="timeframe-controls">
+      <select id="periodSelector" class="period-selector" style="display: none;" onchange="onPeriodChange()">
+        <!-- Populated dynamically based on selected tab -->
+      </select>
     </div>
   </div>
 
   <!-- Summary Cards -->
   <div class="kpi-grid">
     <div class="kpi-card checkin">
-      <span class="kpi-label">👥 Checked In</span>
+      <span class="kpi-label" id="lbl-kpi-checkin">👥 Checked In</span>
       <span class="kpi-num" id="kpi-checkin" style="color: #34c759;">0 / 61</span>
     </div>
     <div class="kpi-card gold">
@@ -568,7 +611,7 @@
   </div>
 
   <!-- Filters -->
-  <div class="filter-panel">
+  <div class="filter-panel" id="filterPanel">
     <div class="filter-inputs">
       <input type="search" id="searchInput" placeholder="🔍 Search name..." oninput="filterTable()">
       <select id="roleFilter" onchange="filterTable()">
@@ -580,8 +623,8 @@
       </select>
       <select id="checkinFilter" onchange="filterTable()">
         <option value="ALL">All Attendance</option>
-        <option value="IN">✅ Checked In Only</option>
-        <option value="OUT">◻️ Not Checked In</option>
+        <option value="IN">✅ Checked In / Active Only</option>
+        <option value="OUT">◻️ Inactive / Not Checked In</option>
       </select>
       <select id="stepFilter" onchange="filterTable()">
         <option value="ALL">All Steps of Services</option>
@@ -593,19 +636,19 @@
       </select>
       <select id="slamFilter" onchange="filterTable()">
         <option value="ALL">All Performers</option>
-        <option value="SLAM">🏆 4/4 Grand Slam (Completed)</option>
-        <option value="NEAR">🎯 3/4 (1 Category Away)</option>
+        <option value="SLAM">🏆 4/4 Grand Slam</option>
+        <option value="NEAR">🎯 3/4 (1 Away)</option>
       </select>
     </div>
     <div class="team-count-badge" id="teamCount">61 Team Members</div>
   </div>
 
   <!-- Table Card -->
-  <div class="table-card">
+  <div class="table-card" id="mainTableCard">
     <div class="table-wrapper">
       <table>
         <thead>
-          <tr>
+          <tr id="tableHeaderRow">
             <th class="col-sticky" id="th-name" onclick="setColumnSort('name')">
               Check-in & Team Member <span class="sort-icon" id="sort-icon-name">↕️</span>
             </th>
@@ -627,31 +670,39 @@
             <th style="text-align:center;" id="th-step" onclick="setColumnSort('step')">
               Apple Steps of Services <span class="sort-icon" id="sort-icon-step">↕️</span>
             </th>
-            <th>Notes / Focus</th>
+            <th id="th-notes">Notes / Focus</th>
           </tr>
         </thead>
         <tbody id="tableBody">
           <!-- Dynamically populated -->
         </tbody>
         <tfoot>
-          <tr>
-            <td class="col-sticky">TOTAL STORE SCORE</td>
+          <tr id="tableFooterRow">
+            <td class="col-sticky" id="tot-label">TOTAL STORE SCORE</td>
             <td style="text-align:center;" id="tot-slam">0 / 61</td>
             <td style="text-align:center;" id="tot-ac">0</td>
             <td style="text-align:center;" id="tot-pz">0</td>
             <td style="text-align:center;" id="tot-biz">0</td>
             <td style="text-align:center;" id="tot-acc">0</td>
-            <td style="text-align:center;">-</td>
-            <td>-</td>
+            <td style="text-align:center;" id="tot-step">-</td>
+            <td id="tot-notes">-</td>
           </tr>
         </tfoot>
       </table>
     </div>
   </div>
 
+  <!-- History Container (Shown when on History Tab) -->
+  <div class="table-card" id="historyCard" style="display: none;">
+    <div class="history-list" id="historyListContainer">
+      <!-- Populated dynamically -->
+    </div>
+  </div>
+
 <script>
-  const STORAGE_KEY = "retail_store_attach_tracker_v9_pz_conversion";
-  const SYNC_TOPIC = "apple_retail_attach_tracker_v9_pz_conversion";
+  const STORAGE_KEY_LIVE = "gb_tracker_live_v10";
+  const STORAGE_KEY_HISTORY = "gb_tracker_history_records_v10";
+  const SYNC_TOPIC = "apple_retail_gb_tracker_sync_v10";
   const CLIENT_ID = "client_" + Math.random().toString(36).substring(2, 10);
   
   const INITIAL_ROSTER = [
@@ -718,6 +769,10 @@
     {"name": "Taks Takamori", "role": "Technical Specialist"}
   ];
 
+  let currentTab = 'daily'; // 'daily' | 'weekly' | 'monthly' | 'quarterly' | 'history'
+  let selectedPeriodKey = 'current';
+
+  // Live active shift data
   let data = INITIAL_ROSTER.map((item, idx) => ({
     id: idx,
     name: item.name,
@@ -730,6 +785,9 @@
     step: "",
     notes: ""
   }));
+
+  // Historical archived daily shifts: Array of { date: 'YYYY-MM-DD', timestamp: number, data: [...] }
+  let historyRecords = [];
   let lastVersion = 0;
   let mqttClient = null;
 
@@ -742,11 +800,36 @@
       .replace(/"/g, '&quot;');
   }
 
+  function getTodayString() {
+    const d = new Date();
+    const year = d.getFullYear();
+    const month = String(d.getMonth() + 1).padStart(2, '0');
+    const day = String(d.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
+  }
+
+  function getWeekNumber(date) {
+    const d = new Date(Date.UTC(date.getFullYear(), date.getMonth(), date.getDate()));
+    const dayNum = d.getUTCDay() || 7;
+    d.setUTCDate(d.getUTCDate() + 4 - dayNum);
+    const yearStart = new Date(Date.UTC(d.getUTCFullYear(),0,1));
+    return Math.ceil((((d - yearStart) / 86400000) + 1)/7);
+  }
+
+  function getQuarterString(date) {
+    const q = Math.floor(date.getMonth() / 3) + 1;
+    return `Q${q} ${date.getFullYear()}`;
+  }
+
+  function getMonthString(date) {
+    return date.toLocaleString('default', { month: 'long', year: 'numeric' });
+  }
+
   // 1. Restore local cache immediately
   try {
-    const saved = localStorage.getItem(STORAGE_KEY);
-    if (saved) {
-      const parsed = JSON.parse(saved);
+    const savedLive = localStorage.getItem(STORAGE_KEY_LIVE);
+    if (savedLive) {
+      const parsed = JSON.parse(savedLive);
       if (Array.isArray(parsed.data) && parsed.data.length > 0) {
         lastVersion = parsed.version || 0;
         data = parsed.data;
@@ -754,9 +837,20 @@
     }
   } catch(e) {}
 
+  try {
+    const savedHist = localStorage.getItem(STORAGE_KEY_HISTORY);
+    if (savedHist) {
+      const parsed = JSON.parse(savedHist);
+      if (Array.isArray(parsed)) {
+        historyRecords = parsed;
+      }
+    }
+  } catch(e) {}
+
   function saveLocalState() {
     try {
-      localStorage.setItem(STORAGE_KEY, JSON.stringify({ data: data, version: lastVersion }));
+      localStorage.setItem(STORAGE_KEY_LIVE, JSON.stringify({ data: data, version: lastVersion }));
+      localStorage.setItem(STORAGE_KEY_HISTORY, JSON.stringify(historyRecords));
     } catch(e) {}
   }
 
@@ -802,14 +896,119 @@
     return hits;
   }
 
+  function getDisplayList() {
+    if (currentTab === 'daily') {
+      return data;
+    }
+
+    // Filter historical records based on selected period
+    let relevantRecords = [];
+    const now = new Date();
+
+    if (currentTab === 'weekly') {
+      if (selectedPeriodKey === 'current') {
+        const curWeek = getWeekNumber(now);
+        const curYear = now.getFullYear();
+        relevantRecords = historyRecords.filter(r => {
+          const rd = new Date(r.date);
+          return getWeekNumber(rd) === curWeek && rd.getFullYear() === curYear;
+        });
+      } else {
+        relevantRecords = historyRecords.filter(r => {
+          const rd = new Date(r.date);
+          return `${rd.getFullYear()}-W${getWeekNumber(rd)}` === selectedPeriodKey;
+        });
+      }
+    } else if (currentTab === 'monthly') {
+      if (selectedPeriodKey === 'current') {
+        const curMonth = now.getMonth();
+        const curYear = now.getFullYear();
+        relevantRecords = historyRecords.filter(r => {
+          const rd = new Date(r.date);
+          return rd.getMonth() === curMonth && rd.getFullYear() === curYear;
+        });
+      } else {
+        relevantRecords = historyRecords.filter(r => {
+          const rd = new Date(r.date);
+          const key = `${rd.getFullYear()}-${String(rd.getMonth() + 1).padStart(2, '0')}`;
+          return key === selectedPeriodKey;
+        });
+      }
+    } else if (currentTab === 'quarterly') {
+      if (selectedPeriodKey === 'current') {
+        const curQ = getQuarterString(now);
+        relevantRecords = historyRecords.filter(r => getQuarterString(new Date(r.date)) === curQ);
+      } else {
+        relevantRecords = historyRecords.filter(r => getQuarterString(new Date(r.date)) === selectedPeriodKey);
+      }
+    }
+
+    // Aggregate metrics by member name
+    const memberMap = {};
+    INITIAL_ROSTER.forEach((m, idx) => {
+      memberMap[m.name] = {
+        id: idx,
+        name: m.name,
+        role: m.role,
+        checkedIn: false,
+        shiftsWorked: 0,
+        ac: 0,
+        pz: 0,
+        biz: 0,
+        acc: 0,
+        slamsAchieved: 0,
+        step: "-",
+        notes: ""
+      };
+    });
+
+    // If viewing current period, include live active shift
+    if (selectedPeriodKey === 'current') {
+      data.forEach(p => {
+        if (memberMap[p.name]) {
+          if (p.checkedIn) {
+            memberMap[p.name].shiftsWorked += 1;
+            memberMap[p.name].checkedIn = true;
+          }
+          memberMap[p.name].ac += p.ac;
+          memberMap[p.name].pz += p.pz;
+          memberMap[p.name].biz += p.biz;
+          memberMap[p.name].acc += p.acc;
+          if (getHitCount(p) === 4) memberMap[p.name].slamsAchieved += 1;
+        }
+      });
+    }
+
+    // Sum historical records
+    relevantRecords.forEach(rec => {
+      if (Array.isArray(rec.data)) {
+        rec.data.forEach(p => {
+          if (memberMap[p.name]) {
+            if (p.checkedIn) {
+              memberMap[p.name].shiftsWorked += 1;
+              memberMap[p.name].checkedIn = true;
+            }
+            memberMap[p.name].ac += (p.ac || 0);
+            memberMap[p.name].pz += (p.pz || 0);
+            memberMap[p.name].biz += (p.biz || 0);
+            memberMap[p.name].acc += (p.acc || 0);
+            if (getHitCount(p) === 4) memberMap[p.name].slamsAchieved += 1;
+          }
+        });
+      }
+    });
+
+    return Object.values(memberMap);
+  }
+
   function sortComparator(a, b) {
     let valA, valB;
     if (currentSort.column === 'name') {
       valA = a.name.toLowerCase();
       valB = b.name.toLowerCase();
     } else if (currentSort.column === 'slam') {
-      valA = getHitCount(a);
-      valB = getHitCount(b);
+      valA = currentTab === 'daily' ? getHitCount(a) : (a.slamsAchieved || 0);
+      valB = currentTab === 'daily' ? getHitCount(b) : (b.slamsAchieved || 0);
     } else if (currentSort.column === 'step') {
       valA = (a.step || '').toLowerCase();
       valB = (b.step || '').toLowerCase();
@@ -824,64 +1023,92 @@
   }
 
   function buildRowElement(p) {
+    const isLive = (currentTab === 'daily');
     const tr = document.createElement('tr');
     tr.id = `row-${p.id}`;
     if (p.checkedIn) tr.classList.add('checked-in-row');
-    if (getHitCount(p) === 4) tr.classList.add('grand-slam-row');
+    if (isLive && getHitCount(p) === 4) tr.classList.add('grand-slam-row');
 
-    tr.innerHTML = `
-      <td class="col-sticky">
-        <div class="name-cell-wrap" onclick="toggleCheckIn(${p.id})">
-          <span class="chk-badge" id="chk-badge-${p.id}">${p.checkedIn ? '✅' : '◻️'}</span>
-          <div class="name-cell">
-            <span class="member-name" id="name-${p.id}">${escapeHtml(p.name)}</span>
-            <span class="role-tag">${escapeHtml(p.role)}</span>
+    if (isLive) {
+      tr.innerHTML = `
+        <td class="col-sticky">
+          <div class="name-cell-wrap" onclick="toggleCheckIn(${p.id})">
+            <span class="chk-badge" id="chk-badge-${p.id}">${p.checkedIn ? '✅' : '◻️'}</span>
+            <div class="name-cell">
+              <span class="member-name" id="name-${p.id}">${escapeHtml(p.name)}</span>
+              <span class="role-tag">${escapeHtml(p.role)}</span>
+            </div>
           </div>
-        </div>
-      </td>
-      <td style="text-align:center;" id="val-slam-${p.id}"></td>
-      <td style="text-align:center;">
-        <div class="counter-box">
-          <button type="button" class="cnt-btn minus" onclick="event.stopPropagation(); updateCounts(${p.id}, 'ac', -1)">−</button>
-          <span class="cnt-val" id="val-ac-${p.id}">${p.ac}</span>
-          <button type="button" class="cnt-btn plus" onclick="event.stopPropagation(); updateCounts(${p.id}, 'ac', 1)">+</button>
-        </div>
-      </td>
-      <td style="text-align:center;">
-        <div class="counter-box">
-          <button type="button" class="cnt-btn minus" onclick="event.stopPropagation(); updateCounts(${p.id}, 'pz', -1)">−</button>
-          <span class="cnt-val" id="val-pz-${p.id}">${p.pz}</span>
-          <button type="button" class="cnt-btn plus" onclick="event.stopPropagation(); updateCounts(${p.id}, 'pz', 1)">+</button>
-        </div>
-      </td>
-      <td style="text-align:center;">
-        <div class="counter-box">
-          <button type="button" class="cnt-btn minus" onclick="event.stopPropagation(); updateCounts(${p.id}, 'biz', -1)">−</button>
-          <span class="cnt-val" id="val-biz-${p.id}">${p.biz}</span>
-          <button type="button" class="cnt-btn plus" onclick="event.stopPropagation(); updateCounts(${p.id}, 'biz', 1)">+</button>
-        </div>
-      </td>
-      <td style="text-align:center;">
-        <div class="counter-box">
-          <button type="button" class="cnt-btn minus" onclick="event.stopPropagation(); updateCounts(${p.id}, 'acc', -1)">−</button>
-          <span class="cnt-val" id="val-acc-${p.id}">${p.acc}</span>
-          <button type="button" class="cnt-btn plus" onclick="event.stopPropagation(); updateCounts(${p.id}, 'acc', 1)">+</button>
-        </div>
-      </td>
-      <td style="text-align:center;">
-        <select class="step-select" id="step-${p.id}" onchange="saveStep(${p.id}, this.value)">
-          <option value="">-- None --</option>
-          <option value="Approach" ${p.step === 'Approach' ? 'selected' : ''}>Approach</option>
-          <option value="Probe" ${p.step === 'Probe' ? 'selected' : ''}>Probe</option>
-          <option value="Present" ${p.step === 'Present' ? 'selected' : ''}>Present</option>
-          <option value="Listen" ${p.step === 'Listen' ? 'selected' : ''}>Listen</option>
-          <option value="Extend" ${p.step === 'Extend' ? 'selected' : ''}>Extend</option>
-        </select>
-      </td>
-      <td>
-        <input class="notes-input" id="notes-${p.id}" type="text" placeholder="Add note / focus..." value="${escapeHtml(p.notes || '')}" onclick="event.stopPropagation()" oninput="saveNote(${p.id}, this.value)">
-      </td>
-    `;
+        </td>
+        <td style="text-align:center;" id="val-slam-${p.id}"></td>
+        <td style="text-align:center;">
+          <div class="counter-box">
+            <button type="button" class="cnt-btn minus" onclick="event.stopPropagation(); updateCounts(${p.id}, 'ac', -1)">−</button>
+            <span class="cnt-val" id="val-ac-${p.id}">${p.ac}</span>
+            <button type="button" class="cnt-btn plus" onclick="event.stopPropagation(); updateCounts(${p.id}, 'ac', 1)">+</button>
+          </div>
+        </td>
+        <td style="text-align:center;">
+          <div class="counter-box">
+            <button type="button" class="cnt-btn minus" onclick="event.stopPropagation(); updateCounts(${p.id}, 'pz', -1)">−</button>
+            <span class="cnt-val" id="val-pz-${p.id}">${p.pz}</span>
+            <button type="button" class="cnt-btn plus" onclick="event.stopPropagation(); updateCounts(${p.id}, 'pz', 1)">+</button>
+          </div>
+        </td>
+        <td style="text-align:center;">
+          <div class="counter-box">
+            <button type="button" class="cnt-btn minus" onclick="event.stopPropagation(); updateCounts(${p.id}, 'biz', -1)">−</button>
+            <span class="cnt-val" id="val-biz-${p.id}">${p.biz}</span>
+            <button type="button" class="cnt-btn plus" onclick="event.stopPropagation(); updateCounts(${p.id}, 'biz', 1)">+</button>
+          </div>
+        </td>
+        <td style="text-align:center;">
+          <div class="counter-box">
+            <button type="button" class="cnt-btn minus" onclick="event.stopPropagation(); updateCounts(${p.id}, 'acc', -1)">−</button>
+            <span class="cnt-val" id="val-acc-${p.id}">${p.acc}</span>
+            <button type="button" class="cnt-btn plus" onclick="event.stopPropagation(); updateCounts(${p.id}, 'acc', 1)">+</button>
+          </div>
+        </td>
+        <td style="text-align:center;">
+          <select class="step-select" id="step-${p.id}" onchange="saveStep(${p.id}, this.value)">
+            <option value="">-- None --</option>
+            <option value="Approach" ${p.step === 'Approach' ? 'selected' : ''}>Approach</option>
+            <option value="Probe" ${p.step === 'Probe' ? 'selected' : ''}>Probe</option>
+            <option value="Present" ${p.step === 'Present' ? 'selected' : ''}>Present</option>
+            <option value="Listen" ${p.step === 'Listen' ? 'selected' : ''}>Listen</option>
+            <option value="Extend" ${p.step === 'Extend' ? 'selected' : ''}>Extend</option>
+          </select>
+        </td>
+        <td>
+          <input class="notes-input" id="notes-${p.id}" type="text" placeholder="Add note / focus..." value="${escapeHtml(p.notes || '')}" onclick="event.stopPropagation()" oninput="saveNote(${p.id}, this.value)">
+        </td>
+      `;
+    } else {
+      // Aggregate view (Weekly, Monthly, Quarterly)
+      const slamBadge = p.slamsAchieved > 0 
+        ? `<span class="badge-grand-slam">🏆 ${p.slamsAchieved} Grand Slam${p.slamsAchieved > 1 ? 's' : ''}</span>`
+        : `<span class="badge-progress">0 Slams</span>`;
+      
+      tr.innerHTML = `
+        <td class="col-sticky">
+          <div class="name-cell-wrap" style="cursor: default;">
+            <span class="chk-badge" style="font-size: 13px; font-weight: 700;">${p.shiftsWorked}d</span>
+            <div class="name-cell">
+              <span class="member-name">${escapeHtml(p.name)}</span>
+              <span class="role-tag">${escapeHtml(p.role)} • ${p.shiftsWorked} Shifts</span>
+            </div>
+          </div>
+        </td>
+        <td style="text-align:center;">${slamBadge}</td>
+        <td style="text-align:center;"><span class="aggregate-val">${p.ac}</span></td>
+        <td style="text-align:center;"><span class="aggregate-val">${p.pz}</span></td>
+        <td style="text-align:center;"><span class="aggregate-val">${p.biz}</span></td>
+        <td style="text-align:center;"><span class="aggregate-val">${p.acc}</span></td>
+        <td style="text-align:center;"><span style="color: var(--text-secondary); font-size: 12px;">${p.shiftsWorked > 0 ? (p.ac / p.shiftsWorked).toFixed(1) + ' AC/shift' : '-'}</span></td>
+        <td><span style="color: var(--text-secondary); font-size: 12px;">PZ: ${p.shiftsWorked > 0 ? (p.pz / p.shiftsWorked).toFixed(1) : '0'}/shift</span></td>
+      `;
+    }
+
     return tr;
   }
 
@@ -890,14 +1117,18 @@
     if (!tbody) return;
     tbody.innerHTML = '';
 
-    data.forEach(p => {
+    const list = getDisplayList();
+    list.forEach(p => {
       const row = buildRowElement(p);
       tbody.appendChild(row);
-      renderRow(p.id);
+      if (currentTab === 'daily') {
+        renderRow(p.id);
+      }
     });
   }
 
   function toggleCheckIn(index) {
+    if (currentTab !== 'daily') return;
     const member = data.find(d => d.id === index);
     if (!member) return;
     member.checkedIn = !member.checkedIn;
@@ -908,6 +1139,7 @@
   }
 
   function renderCheckInVisual(index) {
+    if (currentTab !== 'daily') return;
     const member = data.find(d => d.id === index);
     if (!member) return;
     const row = document.getElementById(`row-${index}`);
@@ -922,6 +1154,7 @@
   }
 
   function checkAll(status) {
+    if (currentTab !== 'daily') return;
     data.forEach(d => {
       d.checkedIn = status;
       renderCheckInVisual(d.id);
@@ -933,35 +1166,47 @@
 
   function reorderRows() {
     const tbody = document.getElementById('tableBody');
-    if (!tbody || data.length === 0) return;
+    const list = getDisplayList();
+    if (!tbody || list.length === 0) return;
 
     const existingDividers = tbody.querySelectorAll('.section-divider-row');
     existingDividers.forEach(d => d.remove());
 
-    const checkedMembers = data.filter(d => d.checkedIn).sort(sortComparator);
-    const uncheckedMembers = data.filter(d => !d.checkedIn).sort(sortComparator);
+    const isLive = (currentTab === 'daily');
 
-    if (checkedMembers.length > 0) {
-      const divIn = document.createElement('tr');
-      divIn.className = 'section-divider-row';
-      divIn.id = 'header-checked-in';
-      divIn.innerHTML = `<td colspan="8" class="col-sticky">🟢 On Shift / Checked In (${checkedMembers.length})</td>`;
-      tbody.appendChild(divIn);
+    if (isLive) {
+      const checkedMembers = list.filter(d => d.checkedIn).sort(sortComparator);
+      const uncheckedMembers = list.filter(d => !d.checkedIn).sort(sortComparator);
 
-      checkedMembers.forEach(d => {
-        const row = document.getElementById(`row-${d.id}`);
-        if (row) tbody.appendChild(row);
-      });
-    }
+      if (checkedMembers.length > 0) {
+        const divIn = document.createElement('tr');
+        divIn.className = 'section-divider-row';
+        divIn.id = 'header-checked-in';
+        divIn.innerHTML = `<td colspan="8" class="col-sticky">🟢 On Shift / Checked In (${checkedMembers.length})</td>`;
+        tbody.appendChild(divIn);
 
-    if (uncheckedMembers.length > 0) {
-      const divOut = document.createElement('tr');
-      divOut.className = 'section-divider-row';
-      divOut.id = 'header-not-checked-in';
-      divOut.innerHTML = `<td colspan="8" class="col-sticky">⚪ Other Team Members (${uncheckedMembers.length})</td>`;
-      tbody.appendChild(divOut);
+        checkedMembers.forEach(d => {
+          const row = document.getElementById(`row-${d.id}`);
+          if (row) tbody.appendChild(row);
+        });
+      }
 
-      uncheckedMembers.forEach(d => {
+      if (uncheckedMembers.length > 0) {
+        const divOut = document.createElement('tr');
+        divOut.className = 'section-divider-row';
+        divOut.id = 'header-not-checked-in';
+        divOut.innerHTML = `<td colspan="8" class="col-sticky">⚪ Other Team Members (${uncheckedMembers.length})</td>`;
+        tbody.appendChild(divOut);
+
+        uncheckedMembers.forEach(d => {
+          const row = document.getElementById(`row-${d.id}`);
+          if (row) tbody.appendChild(row);
+        });
+      }
+    } else {
+      // Aggregate view - sort directly
+      const sorted = [...list].sort(sortComparator);
+      sorted.forEach(d => {
         const row = document.getElementById(`row-${d.id}`);
         if (row) tbody.appendChild(row);
       });
@@ -971,6 +1216,7 @@
   }
 
   function updateCounts(index, metric, delta) {
+    if (currentTab !== 'daily') return;
     const member = data.find(d => d.id === index);
     if (!member) return;
 
@@ -990,6 +1236,7 @@
   }
 
   function saveStep(index, val) {
+    if (currentTab !== 'daily') return;
     const member = data.find(d => d.id === index);
     if (!member) return;
     member.step = val;
@@ -1000,6 +1247,7 @@
   }
 
   function saveNote(index, val) {
+    if (currentTab !== 'daily') return;
     const member = data.find(d => d.id === index);
     if (!member) return;
     member.notes = val;
@@ -1007,6 +1255,7 @@
   }
 
   function renderRow(i) {
+    if (currentTab !== 'daily') return;
     const member = data.find(d => d.id === i);
     if (!member) return;
 
@@ -1050,26 +1299,35 @@
   }
 
   function updateTotals() {
+    const list = getDisplayList();
     let totAc = 0, totPz = 0, totBiz = 0, totAcc = 0, totSlam = 0, totCheckin = 0;
-    data.forEach(d => {
-      renderCheckInVisual(d.id);
-      renderRow(d.id);
-      if (d.checkedIn) totCheckin++;
+
+    list.forEach(d => {
+      if (currentTab === 'daily') {
+        renderCheckInVisual(d.id);
+        renderRow(d.id);
+        if (d.checkedIn) totCheckin++;
+        if (getHitCount(d) === 4) totSlam++;
+      } else {
+        if (d.shiftsWorked > 0) totCheckin += d.shiftsWorked;
+        totSlam += (d.slamsAchieved || 0);
+      }
       totAc += d.ac;
       totPz += d.pz;
       totBiz += d.biz;
       totAcc += d.acc;
-      if (getHitCount(d) === 4) totSlam++;
     });
 
-    document.getElementById("kpi-checkin").textContent = `${totCheckin} / ${data.length}`;
+    const isLive = (currentTab === 'daily');
+    document.getElementById("lbl-kpi-checkin").textContent = isLive ? "👥 Checked In" : "👥 Total Shifts";
+    document.getElementById("kpi-checkin").textContent = isLive ? `${totCheckin} / ${list.length}` : `${totCheckin} Shifts`;
     document.getElementById("kpi-grandslam").textContent = totSlam;
     document.getElementById("kpi-ac").textContent = totAc;
     document.getElementById("kpi-pz").textContent = totPz;
     document.getElementById("kpi-biz").textContent = totBiz;
     document.getElementById("kpi-acc").textContent = totAcc;
 
-    document.getElementById("tot-slam").textContent = `${totSlam} / ${data.length}`;
+    document.getElementById("tot-slam").textContent = isLive ? `${totSlam} / ${list.length}` : `${totSlam} Slams`;
     document.getElementById("tot-ac").textContent = totAc;
     document.getElementById("tot-pz").textContent = totPz;
     document.getElementById("tot-biz").textContent = totBiz;
@@ -1077,7 +1335,8 @@
   }
 
   function filterTable() {
-    if (data.length === 0) {
+    const list = getDisplayList();
+    if (list.length === 0) {
       document.getElementById("teamCount").textContent = "0 Team Members";
       return;
     }
@@ -1089,15 +1348,17 @@
     const slamFilter = document.getElementById("slamFilter").value;
     let visibleCount = 0;
 
-    data.forEach(p => {
+    list.forEach(p => {
       const matchName = p.name.toLowerCase().includes(q);
       const matchRole = (role === "ALL" || p.role.toLowerCase() === role.toLowerCase());
-      const matchCheckin = (checkinFilter === "ALL" || (checkinFilter === "IN" && p.checkedIn) || (checkinFilter === "OUT" && !p.checkedIn));
-      const matchStep = (stepFilter === "ALL" || p.step === stepFilter);
-      const hits = getHitCount(p);
+      const isChecked = currentTab === 'daily' ? p.checkedIn : (p.shiftsWorked > 0);
+      const matchCheckin = (checkinFilter === "ALL" || (checkinFilter === "IN" && isChecked) || (checkinFilter === "OUT" && !isChecked));
+      const matchStep = (currentTab !== 'daily' || stepFilter === "ALL" || p.step === stepFilter);
+      
+      const hits = currentTab === 'daily' ? getHitCount(p) : (p.slamsAchieved > 0 ? 4 : 0);
       let matchSlam = true;
-      if (slamFilter === "SLAM") matchSlam = (hits === 4);
-      if (slamFilter === "NEAR") matchSlam = (hits === 3);
+      if (slamFilter === "SLAM") matchSlam = (currentTab === 'daily' ? hits === 4 : p.slamsAchieved > 0);
+      if (slamFilter === "NEAR") matchSlam = (currentTab === 'daily' ? hits === 3 : false);
 
       const rowEl = document.getElementById(`row-${p.id}`);
       if (rowEl) {
@@ -1118,8 +1379,264 @@
     document.getElementById("teamCount").textContent = `${visibleCount} Team Members`;
   }
 
+  /* 📑 TAB SWITCHING LOGIC */
+  function switchTab(tab) {
+    currentTab = tab;
+    document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+    document.getElementById(`tab-${tab}`).classList.add('active');
+
+    const periodSelector = document.getElementById('periodSelector');
+    const mainTableCard = document.getElementById('mainTableCard');
+    const historyCard = document.getElementById('historyCard');
+    const filterPanel = document.getElementById('filterPanel');
+    const btnArchive = document.getElementById('btnArchive');
+    const btnClearCheckins = document.getElementById('btnClearCheckins');
+    const btnReset = document.getElementById('btnReset');
+
+    if (tab === 'history') {
+      mainTableCard.style.display = 'none';
+      historyCard.style.display = 'block';
+      periodSelector.style.display = 'none';
+      filterPanel.style.display = 'none';
+      btnArchive.style.display = 'none';
+      btnClearCheckins.style.display = 'none';
+      btnReset.style.display = 'none';
+      renderHistoryList();
+      return;
+    }
+
+    mainTableCard.style.display = 'block';
+    historyCard.style.display = 'none';
+    filterPanel.style.display = 'flex';
+
+    if (tab === 'daily') {
+      periodSelector.style.display = 'none';
+      btnArchive.style.display = 'inline-flex';
+      btnClearCheckins.style.display = 'inline-flex';
+      btnReset.style.display = 'inline-flex';
+      document.getElementById('th-notes').textContent = 'Notes / Focus';
+      document.getElementById('tot-notes').textContent = '-';
+    } else {
+      periodSelector.style.display = 'inline-block';
+      btnArchive.style.display = 'none';
+      btnClearCheckins.style.display = 'none';
+      btnReset.style.display = 'none';
+      document.getElementById('th-notes').textContent = 'Performance Pace';
+      document.getElementById('tot-notes').textContent = 'Store Summary';
+      populatePeriodSelector(tab);
+    }
+
+    renderTableStructure();
+    updateSortHeaderIcons();
+    updateTotals();
+    reorderRows();
+  }
+
+  function populatePeriodSelector(tab) {
+    const sel = document.getElementById('periodSelector');
+    sel.innerHTML = '';
+    const now = new Date();
+
+    if (tab === 'weekly') {
+      const curWeek = getWeekNumber(now);
+      sel.innerHTML += `<option value="current">📅 This Week (Week ${curWeek}, ${now.getFullYear()})</option>`;
+      
+      // Get unique weeks from history
+      const weekSet = new Set();
+      historyRecords.forEach(r => {
+        const d = new Date(r.date);
+        weekSet.add(`${d.getFullYear()}-W${getWeekNumber(d)}`);
+      });
+      weekSet.forEach(w => {
+        sel.innerHTML += `<option value="${w}">📊 Week ${w.split('-W')[1]} (${w.split('-W')[0]})</option>`;
+      });
+    } else if (tab === 'monthly') {
+      sel.innerHTML += `<option value="current">📅 This Month (${getMonthString(now)})</option>`;
+      
+      const monthSet = new Set();
+      historyRecords.forEach(r => {
+        const d = new Date(r.date);
+        const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+        monthSet.add(key);
+      });
+      monthSet.forEach(m => {
+        const [y, mon] = m.split('-');
+        const dateObj = new Date(parseInt(y), parseInt(mon) - 1, 1);
+        sel.innerHTML += `<option value="${m}">🗓️ ${getMonthString(dateObj)}</option>`;
+      });
+    } else if (tab === 'quarterly') {
+      sel.innerHTML += `<option value="current">📅 Current Quarter (${getQuarterString(now)})</option>`;
+      
+      const qSet = new Set();
+      historyRecords.forEach(r => {
+        qSet.add(getQuarterString(new Date(r.date)));
+      });
+      qSet.forEach(q => {
+        sel.innerHTML += `<option value="${q}">📈 ${q}</option>`;
+      });
+    }
+
+    selectedPeriodKey = sel.value;
+  }
+
+  function onPeriodChange() {
+    selectedPeriodKey = document.getElementById('periodSelector').value;
+    renderTableStructure();
+    updateTotals();
+    reorderRows();
+  }
+
+  /* 💾 ARCHIVE & HISTORY LOGIC */
+  function archiveCurrentDay(silent = false, targetDate = null) {
+    const today = targetDate || getTodayString();
+    const existingIdx = historyRecords.findIndex(r => r.date === today);
+
+    const snapshot = {
+      date: today,
+      timestamp: Date.now(),
+      data: JSON.parse(JSON.stringify(data))
+    };
+
+    if (existingIdx >= 0) {
+      if (silent || confirm(`A snapshot for today (${today}) already exists. Overwrite with current shift metrics?`)) {
+        historyRecords[existingIdx] = snapshot;
+        saveLocalState();
+        if (!silent) {
+          alert(`✅ Today's shift (${today}) successfully archived!`);
+        } else {
+          flashAutoSaveBadge(`✅ Auto-Archived (${today}) at 11:00 PM`);
+        }
+      }
+    } else {
+      historyRecords.unshift(snapshot);
+      saveLocalState();
+      if (!silent) {
+        alert(`✅ Today's shift (${today}) saved to archive!`);
+      } else {
+        flashAutoSaveBadge(`✅ Auto-Archived (${today}) at 11:00 PM`);
+      }
+    }
+  }
+
+  function flashAutoSaveBadge(txt) {
+    const badge = document.getElementById('autoSaveBadge');
+    if (badge) {
+      badge.textContent = txt;
+      badge.style.borderColor = '#34c759';
+      badge.style.color = '#34c759';
+      setTimeout(() => {
+        badge.textContent = '⏰ Auto-Archive: 11:00 PM Daily';
+        badge.style.borderColor = '';
+        badge.style.color = '';
+      }, 10000);
+    }
+  }
+
+  /* ⏰ 11:00 PM DAILY AUTO-ARCHIVE ENGINE */
+  function setupDailyAutoArchive() {
+    function scheduleNext11PM() {
+      const now = new Date();
+      const target = new Date();
+      target.setHours(23, 0, 0, 0); // 11:00:00 PM local time
+
+      if (now.getTime() >= target.getTime()) {
+        // Already passed 11 PM today, schedule for tomorrow 11 PM
+        target.setDate(target.getDate() + 1);
+      }
+
+      const msUntil11PM = target.getTime() - now.getTime();
+      setTimeout(() => {
+        // Trigger auto-archive at 11 PM
+        const hasActiveData = data.some(d => d.checkedIn || d.ac > 0 || d.pz > 0 || d.biz > 0 || d.acc > 0);
+        if (hasActiveData) {
+          archiveCurrentDay(true);
+        }
+        // Reschedule for next day
+        scheduleNext11PM();
+      }, msUntil11PM);
+    }
+
+    // Interval backup (every 60s) in case iPad/Mac wakes up after 11 PM
+    setInterval(() => {
+      const now = new Date();
+      if (now.getHours() === 23 && now.getMinutes() === 0) {
+        const today = getTodayString();
+        const alreadyArchivedToday = historyRecords.some(r => r.date === today);
+        const hasActiveData = data.some(d => d.checkedIn || d.ac > 0 || d.pz > 0 || d.biz > 0 || d.acc > 0);
+        if (hasActiveData && !alreadyArchivedToday) {
+          archiveCurrentDay(true);
+        }
+      }
+    }, 60000);
+
+    scheduleNext11PM();
+  }
+
+  function renderHistoryList() {
+    const container = document.getElementById('historyListContainer');
+    if (!container) return;
+    container.innerHTML = '';
+
+    if (historyRecords.length === 0) {
+      container.innerHTML = `
+        <div style="padding: 30px; text-align: center; color: var(--text-secondary);">
+          <h3>No Archived Shifts Yet</h3>
+          <p style="margin-top: 6px; font-size: 13px;">Tap "Save / Archive Day" at the end of each shift to build your historical performance logs.</p>
+        </div>
+      `;
+      return;
+    }
+
+    historyRecords.forEach((rec, idx) => {
+      let recAc = 0, recPz = 0, recBiz = 0, recAcc = 0, recSlam = 0, recChecked = 0;
+      rec.data.forEach(p => {
+        if (p.checkedIn) recChecked++;
+        recAc += (p.ac || 0);
+        recPz += (p.pz || 0);
+        recBiz += (p.biz || 0);
+        recAcc += (p.acc || 0);
+        if (getHitCount(p) === 4) recSlam++;
+      });
+
+      const item = document.createElement('div');
+      item.className = 'history-item';
+      item.innerHTML = `
+        <div class="history-info">
+          <div class="history-date">📅 ${rec.date}</div>
+          <div class="history-meta">👥 ${recChecked} Checked In • 🏆 ${recSlam} Grand Slams • 🍎 ${recAc} AC+ • 🔄 ${recPz} PZ • 💼 ${recBiz} Biz • 🎧 ${recAcc} Acc</div>
+        </div>
+        <div class="history-actions">
+          <button class="secondary" style="min-height: 32px; padding: 4px 10px; font-size: 12px;" onclick="exportHistoryCSV(${idx})">📥 Export Day CSV</button>
+          <button class="secondary" style="min-height: 32px; padding: 4px 10px; font-size: 12px;" onclick="restoreHistoryToLive(${idx})">🔄 Restore to Live</button>
+          <button class="danger" style="min-height: 32px; padding: 4px 8px; font-size: 12px;" onclick="deleteHistoryRecord(${idx})">🗑️</button>
+        </div>
+      `;
+      container.appendChild(item);
+    });
+  }
+
+  function restoreHistoryToLive(idx) {
+    const rec = historyRecords[idx];
+    if (!rec) return;
+    if (confirm(`Load shift from ${rec.date} into your Live Daily tracker? Current unsaved live counts will be overwritten.`)) {
+      data = JSON.parse(JSON.stringify(rec.data));
+      lastVersion = Date.now();
+      saveLocalState();
+      switchTab('daily');
+      broadcastChange();
+    }
+  }
+
+  function deleteHistoryRecord(idx) {
+    if (confirm(`Permanently remove record for ${historyRecords[idx].date}?`)) {
+      historyRecords.splice(idx, 1);
+      saveLocalState();
+      renderHistoryList();
+    }
+  }
+
   function resetCounts() {
-    if (confirm("Reset all sales metrics, steps, and check-ins to 0 across all devices?")) {
+    if (confirm("Reset today's active metrics, steps, and check-ins to 0?")) {
       data.forEach(d => {
         d.checkedIn = false;
         d.ac = 0;
@@ -1143,19 +1660,51 @@
   }
 
   function exportCSV() {
+    const list = getDisplayList();
+    const isLive = (currentTab === 'daily');
+    let titleHeader = isLive ? "Daily_Shift" : `${currentTab}_Report_${selectedPeriodKey}`;
+    
+    let csv = "";
+    if (isLive) {
+      csv = "Checked In,Name,Job Title,Grand Slam Status (🏆),AppleCare+ (🍎),PZ Conversion (🔄),Business (💼),Accessories (🎧),Apple Steps of Services,Notes\n";
+      const exportData = [...list].sort((a, b) => (b.checkedIn ? 1 : 0) - (a.checkedIn ? 1 : 0));
+      exportData.forEach(p => {
+        const hits = getHitCount(p);
+        const slamLabel = hits === 4 ? "GRAND SLAM (4/4) 🏆" : `${hits}/4`;
+        const inStatus = p.checkedIn ? "Yes" : "No";
+        csv += `"${inStatus}","${p.name}","${p.role}","${slamLabel}",${p.ac},${p.pz},${p.biz},${p.acc},"${p.step || ''}","${p.notes}"\n`;
+      });
+    } else {
+      csv = "Name,Job Title,Shifts Worked,Grand Slams (🏆),Total AppleCare+ (🍎),Total PZ Conversion (🔄),Total Business (💼),Total Accessories (🎧)\n";
+      const exportData = [...list].sort((a, b) => b.ac - a.ac);
+      exportData.forEach(p => {
+        csv += `"${p.name}","${p.role}",${p.shiftsWorked},${p.slamsAchieved || 0},${p.ac},${p.pz},${p.biz},${p.acc}\n`;
+      });
+    }
+
+    const blob = new Blob([csv], { type: "text/csv" });
+    const url = window.URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.setAttribute("href", url);
+    a.setAttribute("download", `GB_Tracker_${titleHeader}.csv`);
+    a.click();
+  }
+
+  function exportHistoryCSV(idx) {
+    const rec = historyRecords[idx];
+    if (!rec) return;
     let csv = "Checked In,Name,Job Title,Grand Slam Status (🏆),AppleCare+ (🍎),PZ Conversion (🔄),Business (💼),Accessories (🎧),Apple Steps of Services,Notes\n";
-    const exportData = [...data].sort((a, b) => (b.checkedIn ? 1 : 0) - (a.checkedIn ? 1 : 0));
-    exportData.forEach(p => {
+    rec.data.forEach(p => {
       const hits = getHitCount(p);
       const slamLabel = hits === 4 ? "GRAND SLAM (4/4) 🏆" : `${hits}/4`;
       const inStatus = p.checkedIn ? "Yes" : "No";
-      csv += `"${inStatus}","${p.name}","${p.role}","${slamLabel}",${p.ac},${p.pz},${p.biz},${p.acc},"${p.step || ''}","${p.notes}"\n`;
+      csv += `"${inStatus}","${p.name}","${p.role}","${slamLabel}",${p.ac || 0},${p.pz || 0},${p.biz || 0},${p.acc || 0},"${p.step || ''}","${p.notes || ''}"\n`;
     });
     const blob = new Blob([csv], { type: "text/csv" });
     const url = window.URL.createObjectURL(blob);
     const a = document.createElement("a");
     a.setAttribute("href", url);
-    a.setAttribute("download", "GB_Tracker.csv");
+    a.setAttribute("download", `GB_Tracker_${rec.date}.csv`);
     a.click();
   }
 
@@ -1239,6 +1788,7 @@
   updateTotals();
   reorderRows();
   initCloudSync();
+  setupDailyAutoArchive();
 </script>
 </body>
 </html>
