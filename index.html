@@ -188,6 +188,73 @@
     cursor: pointer;
   }
 
+  /* Top Performers Section */
+  .top-performers-card {
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    padding: 14px 16px;
+    margin-bottom: 14px;
+  }
+  .top-performers-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 12px;
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+  .top-performers-title {
+    font-size: 14px;
+    font-weight: 700;
+    letter-spacing: -0.2px;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+  .top-performers-subtitle {
+    font-size: 11px;
+    font-weight: 600;
+    color: var(--text-secondary);
+    text-transform: uppercase;
+  }
+  .performers-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+    gap: 10px;
+  }
+  .performer-category-box {
+    background: var(--bg-primary);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 10px 12px;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+  }
+  .category-header {
+    font-size: 11px;
+    font-weight: 700;
+    color: var(--text-secondary);
+    text-transform: uppercase;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+  .lead-specialist-name {
+    font-size: 13px;
+    font-weight: 700;
+    color: var(--text-primary);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .lead-specialist-metric {
+    font-size: 11px;
+    font-weight: 600;
+    color: var(--accent);
+  }
+
   /* KPI Grid */
   .kpi-grid {
     display: grid;
@@ -266,7 +333,7 @@
     overflow: hidden;
   }
   .table-wrapper {
-    max-height: 64vh;
+    max-height: 58vh;
     overflow-x: auto;
     overflow-y: auto;
     -webkit-overflow-scrolling: touch;
@@ -570,6 +637,7 @@
   <div class="timeframe-nav">
     <div class="segmented-control">
       <button class="tab-btn active" id="tab-daily" onclick="switchTab('daily')">📅 Daily (Live)</button>
+      <button class="tab-btn" id="tab-prior" onclick="switchTab('prior')">⏮️ Prior Day</button>
       <button class="tab-btn" id="tab-weekly" onclick="switchTab('weekly')">📊 Weekly</button>
       <button class="tab-btn" id="tab-monthly" onclick="switchTab('monthly')">🗓️ Monthly</button>
       <button class="tab-btn" id="tab-quarterly" onclick="switchTab('quarterly')">📈 Quarterly</button>
@@ -579,6 +647,58 @@
       <select id="periodSelector" class="period-selector" style="display: none;" onchange="onPeriodChange()">
         <!-- Populated dynamically based on selected tab -->
       </select>
+    </div>
+  </div>
+
+  <!-- 🌟 Top Performers Section -->
+  <div class="top-performers-card" id="topPerformersCard">
+    <div class="top-performers-header">
+      <div class="top-performers-title">
+        <span>🌟 Top Performers</span>
+      </div>
+      <div class="top-performers-subtitle" id="topPerformersSubtitle">Daily Shift Leaders</div>
+    </div>
+    <div class="performers-grid">
+      <div class="performer-category-box">
+        <div class="category-header">
+          <span>🍎 AppleCare+</span>
+          <span>🥇 Leader</span>
+        </div>
+        <div class="lead-specialist-name" id="lead-ac-name">-</div>
+        <div class="lead-specialist-metric" id="lead-ac-val">0 attaches</div>
+      </div>
+      <div class="performer-category-box">
+        <div class="category-header">
+          <span>🔄 PZ Conversion</span>
+          <span>🥇 Leader</span>
+        </div>
+        <div class="lead-specialist-name" id="lead-pz-name">-</div>
+        <div class="lead-specialist-metric" id="lead-pz-val">0 conversions</div>
+      </div>
+      <div class="performer-category-box">
+        <div class="category-header">
+          <span>💼 Business</span>
+          <span>🥇 Leader</span>
+        </div>
+        <div class="lead-specialist-name" id="lead-biz-name">-</div>
+        <div class="lead-specialist-metric" id="lead-biz-val">0 leads</div>
+      </div>
+      <div class="performer-category-box">
+        <div class="category-header">
+          <span>🎧 Accessories</span>
+          <span>🥇 Leader</span>
+        </div>
+        <div class="lead-specialist-name" id="lead-acc-name">-</div>
+        <div class="lead-specialist-metric" id="lead-acc-val">0 units</div>
+      </div>
+      <div class="performer-category-box">
+        <div class="category-header">
+          <span>🏆 Overall Grand Slam</span>
+          <span>⭐ Star</span>
+        </div>
+        <div class="lead-specialist-name" id="lead-slam-name">-</div>
+        <div class="lead-specialist-metric" id="lead-slam-val">0 categories hit</div>
+      </div>
     </div>
   </div>
 
@@ -769,7 +889,7 @@
     {"name": "Taks Takamori", "role": "Technical Specialist"}
   ];
 
-  let currentTab = 'daily'; // 'daily' | 'weekly' | 'monthly' | 'quarterly' | 'history'
+  let currentTab = 'daily'; // 'daily' | 'prior' | 'weekly' | 'monthly' | 'quarterly' | 'history'
   let selectedPeriodKey = 'current';
 
   // Live active shift data
@@ -802,6 +922,15 @@
 
   function getTodayString() {
     const d = new Date();
+    const year = d.getFullYear();
+    const month = String(d.getMonth() + 1).padStart(2, '0');
+    const day = String(d.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
+  }
+
+  function getPriorDayString() {
+    const d = new Date();
+    d.setDate(d.getDate() - 1);
     const year = d.getFullYear();
     const month = String(d.getMonth() + 1).padStart(2, '0');
     const day = String(d.getDate()).padStart(2, '0');
@@ -901,7 +1030,32 @@
       return data;
     }
 
-    // Filter historical records based on selected period
+    if (currentTab === 'prior') {
+      const priorDate = getPriorDayString();
+      const priorRec = historyRecords.find(r => r.date === priorDate);
+      if (priorRec && Array.isArray(priorRec.data)) {
+        return priorRec.data;
+      }
+      // If no snapshot for yesterday yet, check latest available history record or return zeroed template
+      if (historyRecords.length > 0 && selectedPeriodKey !== 'yesterday') {
+        const match = historyRecords.find(r => r.date === selectedPeriodKey);
+        if (match && Array.isArray(match.data)) return match.data;
+      }
+      return INITIAL_ROSTER.map((m, idx) => ({
+        id: idx,
+        name: m.name,
+        role: m.role,
+        checkedIn: false,
+        ac: 0,
+        pz: 0,
+        biz: 0,
+        acc: 0,
+        step: "-",
+        notes: "No archived log for this date"
+      }));
+    }
+
+    // Filter historical records based on selected period for Weekly, Monthly, Quarterly
     let relevantRecords = [];
     const now = new Date();
 
@@ -1007,8 +1161,8 @@
       valA = a.name.toLowerCase();
       valB = b.name.toLowerCase();
     } else if (currentSort.column === 'slam') {
-      valA = currentTab === 'daily' ? getHitCount(a) : (a.slamsAchieved || 0);
-      valB = currentTab === 'daily' ? getHitCount(b) : (b.slamsAchieved || 0);
+      valA = (currentTab === 'daily' || currentTab === 'prior') ? getHitCount(a) : (a.slamsAchieved || 0);
+      valB = (currentTab === 'daily' || currentTab === 'prior') ? getHitCount(b) : (b.slamsAchieved || 0);
     } else if (currentSort.column === 'step') {
       valA = (a.step || '').toLowerCase();
       valB = (b.step || '').toLowerCase();
@@ -1022,12 +1176,64 @@
     return a.name.localeCompare(b.name);
   }
 
+  function updateTopPerformers() {
+    const list = getDisplayList();
+    const sub = document.getElementById('topPerformersSubtitle');
+    if (sub) {
+      if (currentTab === 'daily') sub.textContent = "Today's Shift Leaders";
+      else if (currentTab === 'prior') sub.textContent = `Prior Day Leaders (${selectedPeriodKey === 'yesterday' ? getPriorDayString() : selectedPeriodKey})`;
+      else if (currentTab === 'weekly') sub.textContent = "Weekly Attach Leaders";
+      else if (currentTab === 'monthly') sub.textContent = "Monthly Attach Leaders";
+      else if (currentTab === 'quarterly') sub.textContent = "Quarterly Benchmark Leaders";
+    }
+
+    function getTopSpecialist(metric) {
+      const sorted = [...list].filter(p => (p[metric] || 0) > 0).sort((a, b) => (b[metric] || 0) - (a[metric] || 0));
+      return sorted[0] || null;
+    }
+
+    // Top AppleCare+
+    const topAc = getTopSpecialist('ac');
+    document.getElementById('lead-ac-name').textContent = topAc ? topAc.name : '—';
+    document.getElementById('lead-ac-val').textContent = topAc ? `${topAc.ac} AppleCare+` : '0 attaches';
+
+    // Top PZ Conversion
+    const topPz = getTopSpecialist('pz');
+    document.getElementById('lead-pz-name').textContent = topPz ? topPz.name : '—';
+    document.getElementById('lead-pz-val').textContent = topPz ? `${topPz.pz} PZ Converted` : '0 conversions';
+
+    // Top Business
+    const topBiz = getTopSpecialist('biz');
+    document.getElementById('lead-biz-name').textContent = topBiz ? topBiz.name : '—';
+    document.getElementById('lead-biz-val').textContent = topBiz ? `${topBiz.biz} Leads` : '0 leads';
+
+    // Top Accessories
+    const topAcc = getTopSpecialist('acc');
+    document.getElementById('lead-acc-name').textContent = topAcc ? topAcc.name : '—';
+    document.getElementById('lead-acc-val').textContent = topAcc ? `${topAcc.acc} Accessories` : '0 units';
+
+    // Top Grand Slam Leader
+    let topSlam = null;
+    if (currentTab === 'daily' || currentTab === 'prior') {
+      const slamSorted = [...list].map(p => ({ ...p, hits: getHitCount(p) })).filter(p => p.hits > 0).sort((a, b) => b.hits - a.hits || b.ac - a.ac);
+      topSlam = slamSorted[0] || null;
+      document.getElementById('lead-slam-name').textContent = topSlam ? topSlam.name : '—';
+      document.getElementById('lead-slam-val').textContent = topSlam ? (topSlam.hits === 4 ? '🏆 4/4 GRAND SLAM' : `${topSlam.hits}/4 Categories`) : '0 categories hit';
+    } else {
+      const slamSorted = [...list].filter(p => (p.slamsAchieved || 0) > 0).sort((a, b) => b.slamsAchieved - a.slamsAchieved || b.ac - a.ac);
+      topSlam = slamSorted[0] || null;
+      document.getElementById('lead-slam-name').textContent = topSlam ? topSlam.name : '—';
+      document.getElementById('lead-slam-val').textContent = topSlam ? `🏆 ${topSlam.slamsAchieved} Grand Slam${topSlam.slamsAchieved > 1 ? 's' : ''}` : '0 Grand Slams';
+    }
+  }
+
   function buildRowElement(p) {
     const isLive = (currentTab === 'daily');
+    const isPrior = (currentTab === 'prior');
     const tr = document.createElement('tr');
     tr.id = `row-${p.id}`;
     if (p.checkedIn) tr.classList.add('checked-in-row');
-    if (isLive && getHitCount(p) === 4) tr.classList.add('grand-slam-row');
+    if ((isLive || isPrior) && getHitCount(p) === 4) tr.classList.add('grand-slam-row');
 
     if (isLive) {
       tr.innerHTML = `
@@ -1082,6 +1288,31 @@
         <td>
           <input class="notes-input" id="notes-${p.id}" type="text" placeholder="Add note / focus..." value="${escapeHtml(p.notes || '')}" onclick="event.stopPropagation()" oninput="saveNote(${p.id}, this.value)">
         </td>
+      `;
+    } else if (isPrior) {
+      // Prior Day Read-Only View
+      const hits = getHitCount(p);
+      let slamBadge = `<span class="badge-progress">${hits}/4</span>`;
+      if (hits === 4) slamBadge = `<span class="badge-grand-slam">🏆 GRAND SLAM!</span>`;
+      else if (hits === 3) slamBadge = `<span class="badge-progress almost">🎯 3/4 (1 Away)</span>`;
+
+      tr.innerHTML = `
+        <td class="col-sticky">
+          <div class="name-cell-wrap" style="cursor: default;">
+            <span class="chk-badge">${p.checkedIn ? '✅' : '◻️'}</span>
+            <div class="name-cell">
+              <span class="member-name">${escapeHtml(p.name)}</span>
+              <span class="role-tag">${escapeHtml(p.role)}</span>
+            </div>
+          </div>
+        </td>
+        <td style="text-align:center;">${slamBadge}</td>
+        <td style="text-align:center;"><span class="aggregate-val">${p.ac || 0}</span></td>
+        <td style="text-align:center;"><span class="aggregate-val">${p.pz || 0}</span></td>
+        <td style="text-align:center;"><span class="aggregate-val">${p.biz || 0}</span></td>
+        <td style="text-align:center;"><span class="aggregate-val">${p.acc || 0}</span></td>
+        <td style="text-align:center;"><span style="font-weight:600; font-size:12px;">${escapeHtml(p.step || '-')}</span></td>
+        <td><span style="font-size: 12px; color: var(--text-secondary);">${escapeHtml(p.notes || '-')}</span></td>
       `;
     } else {
       // Aggregate view (Weekly, Monthly, Quarterly)
@@ -1173,8 +1404,9 @@
     existingDividers.forEach(d => d.remove());
 
     const isLive = (currentTab === 'daily');
+    const isPrior = (currentTab === 'prior');
 
-    if (isLive) {
+    if (isLive || isPrior) {
       const checkedMembers = list.filter(d => d.checkedIn).sort(sortComparator);
       const uncheckedMembers = list.filter(d => !d.checkedIn).sort(sortComparator);
 
@@ -1182,7 +1414,7 @@
         const divIn = document.createElement('tr');
         divIn.className = 'section-divider-row';
         divIn.id = 'header-checked-in';
-        divIn.innerHTML = `<td colspan="8" class="col-sticky">🟢 On Shift / Checked In (${checkedMembers.length})</td>`;
+        divIn.innerHTML = `<td colspan="8" class="col-sticky">🟢 ${isLive ? 'On Shift / Checked In' : 'Active on Shift'} (${checkedMembers.length})</td>`;
         tbody.appendChild(divIn);
 
         checkedMembers.forEach(d => {
@@ -1308,30 +1540,48 @@
         renderRow(d.id);
         if (d.checkedIn) totCheckin++;
         if (getHitCount(d) === 4) totSlam++;
+      } else if (currentTab === 'prior') {
+        if (d.checkedIn) totCheckin++;
+        if (getHitCount(d) === 4) totSlam++;
       } else {
         if (d.shiftsWorked > 0) totCheckin += d.shiftsWorked;
         totSlam += (d.slamsAchieved || 0);
       }
-      totAc += d.ac;
-      totPz += d.pz;
-      totBiz += d.biz;
-      totAcc += d.acc;
+      totAc += (d.ac || 0);
+      totPz += (d.pz || 0);
+      totBiz += (d.biz || 0);
+      totAcc += (d.acc || 0);
     });
 
     const isLive = (currentTab === 'daily');
-    document.getElementById("lbl-kpi-checkin").textContent = isLive ? "👥 Checked In" : "👥 Total Shifts";
-    document.getElementById("kpi-checkin").textContent = isLive ? `${totCheckin} / ${list.length}` : `${totCheckin} Shifts`;
+    const isPrior = (currentTab === 'prior');
+
+    if (isLive) {
+      document.getElementById("lbl-kpi-checkin").textContent = "👥 Checked In";
+      document.getElementById("kpi-checkin").textContent = `${totCheckin} / ${list.length}`;
+      document.getElementById("tot-slam").textContent = `${totSlam} / ${list.length}`;
+    } else if (isPrior) {
+      document.getElementById("lbl-kpi-checkin").textContent = "👥 Prior Shift Staff";
+      document.getElementById("kpi-checkin").textContent = `${totCheckin} / ${list.length}`;
+      document.getElementById("tot-slam").textContent = `${totSlam} / ${list.length}`;
+    } else {
+      document.getElementById("lbl-kpi-checkin").textContent = "👥 Total Shifts";
+      document.getElementById("kpi-checkin").textContent = `${totCheckin} Shifts`;
+      document.getElementById("tot-slam").textContent = `${totSlam} Slams`;
+    }
+
     document.getElementById("kpi-grandslam").textContent = totSlam;
     document.getElementById("kpi-ac").textContent = totAc;
     document.getElementById("kpi-pz").textContent = totPz;
     document.getElementById("kpi-biz").textContent = totBiz;
     document.getElementById("kpi-acc").textContent = totAcc;
 
-    document.getElementById("tot-slam").textContent = isLive ? `${totSlam} / ${list.length}` : `${totSlam} Slams`;
     document.getElementById("tot-ac").textContent = totAc;
     document.getElementById("tot-pz").textContent = totPz;
     document.getElementById("tot-biz").textContent = totBiz;
     document.getElementById("tot-acc").textContent = totAcc;
+
+    updateTopPerformers();
   }
 
   function filterTable() {
@@ -1351,14 +1601,14 @@
     list.forEach(p => {
       const matchName = p.name.toLowerCase().includes(q);
       const matchRole = (role === "ALL" || p.role.toLowerCase() === role.toLowerCase());
-      const isChecked = currentTab === 'daily' ? p.checkedIn : (p.shiftsWorked > 0);
+      const isChecked = (currentTab === 'daily' || currentTab === 'prior') ? p.checkedIn : (p.shiftsWorked > 0);
       const matchCheckin = (checkinFilter === "ALL" || (checkinFilter === "IN" && isChecked) || (checkinFilter === "OUT" && !isChecked));
-      const matchStep = (currentTab !== 'daily' || stepFilter === "ALL" || p.step === stepFilter);
+      const matchStep = (currentTab !== 'daily' && currentTab !== 'prior') ? true : (stepFilter === "ALL" || p.step === stepFilter);
       
-      const hits = currentTab === 'daily' ? getHitCount(p) : (p.slamsAchieved > 0 ? 4 : 0);
+      const hits = (currentTab === 'daily' || currentTab === 'prior') ? getHitCount(p) : (p.slamsAchieved > 0 ? 4 : 0);
       let matchSlam = true;
-      if (slamFilter === "SLAM") matchSlam = (currentTab === 'daily' ? hits === 4 : p.slamsAchieved > 0);
-      if (slamFilter === "NEAR") matchSlam = (currentTab === 'daily' ? hits === 3 : false);
+      if (slamFilter === "SLAM") matchSlam = (currentTab === 'daily' || currentTab === 'prior') ? (hits === 4) : (p.slamsAchieved > 0);
+      if (slamFilter === "NEAR") matchSlam = (currentTab === 'daily' || currentTab === 'prior') ? (hits === 3) : false;
 
       const rowEl = document.getElementById(`row-${p.id}`);
       if (rowEl) {
@@ -1389,12 +1639,14 @@
     const mainTableCard = document.getElementById('mainTableCard');
     const historyCard = document.getElementById('historyCard');
     const filterPanel = document.getElementById('filterPanel');
+    const topPerformersCard = document.getElementById('topPerformersCard');
     const btnArchive = document.getElementById('btnArchive');
     const btnClearCheckins = document.getElementById('btnClearCheckins');
     const btnReset = document.getElementById('btnReset');
 
     if (tab === 'history') {
       mainTableCard.style.display = 'none';
+      topPerformersCard.style.display = 'none';
       historyCard.style.display = 'block';
       periodSelector.style.display = 'none';
       filterPanel.style.display = 'none';
@@ -1406,6 +1658,7 @@
     }
 
     mainTableCard.style.display = 'block';
+    topPerformersCard.style.display = 'block';
     historyCard.style.display = 'none';
     filterPanel.style.display = 'flex';
 
@@ -1416,6 +1669,14 @@
       btnReset.style.display = 'inline-flex';
       document.getElementById('th-notes').textContent = 'Notes / Focus';
       document.getElementById('tot-notes').textContent = '-';
+    } else if (tab === 'prior') {
+      periodSelector.style.display = 'inline-block';
+      btnArchive.style.display = 'none';
+      btnClearCheckins.style.display = 'none';
+      btnReset.style.display = 'none';
+      document.getElementById('th-notes').textContent = 'Notes / Focus';
+      document.getElementById('tot-notes').textContent = 'Prior Snapshot';
+      populatePeriodSelector('prior');
     } else {
       periodSelector.style.display = 'inline-block';
       btnArchive.style.display = 'none';
@@ -1437,11 +1698,18 @@
     sel.innerHTML = '';
     const now = new Date();
 
-    if (tab === 'weekly') {
+    if (tab === 'prior') {
+      const priorStr = getPriorDayString();
+      sel.innerHTML += `<option value="yesterday">📅 Yesterday (${priorStr})</option>`;
+      historyRecords.forEach(r => {
+        if (r.date !== priorStr) {
+          sel.innerHTML += `<option value="${r.date}">📜 ${r.date}</option>`;
+        }
+      });
+    } else if (tab === 'weekly') {
       const curWeek = getWeekNumber(now);
       sel.innerHTML += `<option value="current">📅 This Week (Week ${curWeek}, ${now.getFullYear()})</option>`;
       
-      // Get unique weeks from history
       const weekSet = new Set();
       historyRecords.forEach(r => {
         const d = new Date(r.date);
@@ -1540,23 +1808,19 @@
       target.setHours(23, 0, 0, 0); // 11:00:00 PM local time
 
       if (now.getTime() >= target.getTime()) {
-        // Already passed 11 PM today, schedule for tomorrow 11 PM
         target.setDate(target.getDate() + 1);
       }
 
       const msUntil11PM = target.getTime() - now.getTime();
       setTimeout(() => {
-        // Trigger auto-archive at 11 PM
         const hasActiveData = data.some(d => d.checkedIn || d.ac > 0 || d.pz > 0 || d.biz > 0 || d.acc > 0);
         if (hasActiveData) {
           archiveCurrentDay(true);
         }
-        // Reschedule for next day
         scheduleNext11PM();
       }, msUntil11PM);
     }
 
-    // Interval backup (every 60s) in case iPad/Mac wakes up after 11 PM
     setInterval(() => {
       const now = new Date();
       if (now.getHours() === 23 && now.getMinutes() === 0) {
@@ -1662,17 +1926,18 @@
   function exportCSV() {
     const list = getDisplayList();
     const isLive = (currentTab === 'daily');
-    let titleHeader = isLive ? "Daily_Shift" : `${currentTab}_Report_${selectedPeriodKey}`;
+    const isPrior = (currentTab === 'prior');
+    let titleHeader = isLive ? "Daily_Shift" : (isPrior ? `Prior_Day_${selectedPeriodKey}` : `${currentTab}_Report_${selectedPeriodKey}`);
     
     let csv = "";
-    if (isLive) {
+    if (isLive || isPrior) {
       csv = "Checked In,Name,Job Title,Grand Slam Status (🏆),AppleCare+ (🍎),PZ Conversion (🔄),Business (💼),Accessories (🎧),Apple Steps of Services,Notes\n";
       const exportData = [...list].sort((a, b) => (b.checkedIn ? 1 : 0) - (a.checkedIn ? 1 : 0));
       exportData.forEach(p => {
         const hits = getHitCount(p);
         const slamLabel = hits === 4 ? "GRAND SLAM (4/4) 🏆" : `${hits}/4`;
         const inStatus = p.checkedIn ? "Yes" : "No";
-        csv += `"${inStatus}","${p.name}","${p.role}","${slamLabel}",${p.ac},${p.pz},${p.biz},${p.acc},"${p.step || ''}","${p.notes}"\n`;
+        csv += `"${inStatus}","${p.name}","${p.role}","${slamLabel}",${p.ac || 0},${p.pz || 0},${p.biz || 0},${p.acc || 0},"${p.step || ''}","${p.notes || ''}"\n`;
       });
     } else {
       csv = "Name,Job Title,Shifts Worked,Grand Slams (🏆),Total AppleCare+ (🍎),Total PZ Conversion (🔄),Total Business (💼),Total Accessories (🎧)\n";
