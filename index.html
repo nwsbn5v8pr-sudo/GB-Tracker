@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-<title>🛍️PZ Focus & Follow 🆙</title>
+<title>🧰GB Focus & Follow 🆙</title>
 <!-- Lightweight MQTT over WebSockets for Instant Serverless Cloud Sync -->
 <script src="https://unpkg.com/mqtt/dist/mqtt.min.js"></script>
 <style>
@@ -22,17 +22,14 @@
     --section-header-bg: #e5e5ea;
     --tab-bg: #e3e3e8;
     --tab-active-bg: #ffffff;
-    --podium-gold: linear-gradient(135deg, #ffe066, #f59e0b);
-    --podium-silver: linear-gradient(135deg, #e2e8f0, #94a3b8);
-    --podium-bronze: linear-gradient(135deg, #fed7aa, #ea580c);
   }
 
   @media (prefers-color-scheme: dark) {
     :root {
       --bg-primary: #000000;
       --bg-card: #1c1c1e;
-      --text-primary: #ffffff;
-      --text-secondary: #a1a1a6;
+      --text-primary: #f2f2f7;
+      --text-secondary: #8e8e93;
       --accent: #0a84ff;
       --border: #2c2c2e;
       --border-strong: #3a3a3c;
@@ -41,14 +38,6 @@
       --section-header-bg: #2c2c2e;
       --tab-bg: #2c2c2e;
       --tab-active-bg: #3a3a3c;
-    }
-    .notes-input {
-      color: #ffffff !important;
-      -webkit-text-fill-color: #ffffff !important;
-    }
-    .notes-input::placeholder {
-      color: #8e8e93 !important;
-      -webkit-text-fill-color: #8e8e93 !important;
     }
   }
 
@@ -133,14 +122,10 @@
     color: #ff453a;
     border: 1px solid rgba(255, 69, 58, 0.25);
   }
-  button.undo-btn {
-    background: rgba(255, 149, 0, 0.15);
-    color: #ff9500;
-    border: 1px solid rgba(255, 149, 0, 0.35);
-  }
-  button.undo-btn:disabled {
-    opacity: 0.4;
-    cursor: not-allowed;
+  button.success {
+    background: rgba(52, 199, 89, 0.15);
+    color: #34c759;
+    border: 1px solid rgba(52, 199, 89, 0.3);
   }
 
   /* Segmented Navigation Tabs */
@@ -203,7 +188,7 @@
     cursor: pointer;
   }
 
-  /* Top Performers Podium Section */
+  /* Top Performers Section */
   .top-performers-card {
     background: var(--bg-card);
     border: 1px solid var(--border);
@@ -216,65 +201,58 @@
     justify-content: space-between;
     align-items: center;
     margin-bottom: 12px;
+    flex-wrap: wrap;
+    gap: 8px;
   }
   .top-performers-title {
     font-size: 14px;
     font-weight: 700;
+    letter-spacing: -0.2px;
     display: flex;
     align-items: center;
     gap: 6px;
   }
-  .top-performers-grid {
+  .top-performers-subtitle {
+    font-size: 11px;
+    font-weight: 600;
+    color: var(--text-secondary);
+    text-transform: uppercase;
+  }
+  .performers-grid {
     display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
     gap: 10px;
   }
-  .performer-badge-card {
+  .performer-category-box {
     background: var(--bg-primary);
     border: 1px solid var(--border);
-    border-radius: 12px;
+    border-radius: 10px;
     padding: 10px 12px;
     display: flex;
-    align-items: center;
-    gap: 10px;
-    position: relative;
-    overflow: hidden;
-  }
-  .rank-icon {
-    width: 32px;
-    height: 32px;
-    border-radius: 8px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-size: 15px;
-    font-weight: 800;
-    color: #1c1c1e;
-    flex-shrink: 0;
-  }
-  .rank-1 { background: var(--podium-gold); }
-  .rank-2 { background: var(--podium-silver); }
-  .rank-3 { background: var(--podium-bronze); }
-  .rank-star { background: var(--bg-card); border: 1px solid var(--border); }
-  
-  .performer-info {
-    display: flex;
     flex-direction: column;
-    gap: 2px;
-    flex: 1;
-    min-width: 0;
+    gap: 4px;
   }
-  .performer-name {
+  .category-header {
+    font-size: 11px;
+    font-weight: 700;
+    color: var(--text-secondary);
+    text-transform: uppercase;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+  .lead-specialist-name {
     font-size: 13px;
     font-weight: 700;
+    color: var(--text-primary);
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
   }
-  .performer-stats {
+  .lead-specialist-metric {
     font-size: 11px;
-    color: var(--text-secondary);
-    font-weight: 500;
+    font-weight: 600;
+    color: var(--accent);
   }
 
   /* KPI Grid */
@@ -355,7 +333,7 @@
     overflow: hidden;
   }
   .table-wrapper {
-    max-height: 60vh;
+    max-height: 58vh;
     overflow-x: auto;
     overflow-y: auto;
     -webkit-overflow-scrolling: touch;
@@ -520,8 +498,9 @@
     font-size: 14px;
   }
   .aggregate-val {
-    font-size: 15px;
+    font-size: 14px;
     font-weight: 700;
+    color: var(--text-primary);
   }
 
   .badge-grand-slam {
@@ -554,6 +533,7 @@
     background: rgba(255, 149, 0, 0.1);
   }
 
+  /* Apple Steps of Services Dropdown Style */
   .step-select {
     height: 32px;
     padding: 0 6px;
@@ -579,14 +559,10 @@
     background: transparent;
     color: var(--text-primary);
   }
-  .notes-input::placeholder {
-    color: var(--text-secondary);
-  }
   .notes-input:focus {
     border-color: var(--border-strong);
     background: var(--bg-primary);
     border-radius: 6px;
-    color: var(--text-primary);
   }
 
   tfoot td {
@@ -603,25 +579,28 @@
     z-index: 30;
   }
 
-  /* History Logs Card */
-  .history-card {
-    background: var(--bg-card);
-    border: 1px solid var(--border);
-    border-radius: 14px;
-    padding: 16px;
-    display: none;
+  /* History Log View */
+  .history-list {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    padding: 14px;
   }
   .history-item {
     background: var(--bg-primary);
     border: 1px solid var(--border);
     border-radius: 10px;
-    padding: 12px 14px;
-    margin-bottom: 10px;
+    padding: 12px 16px;
     display: flex;
     justify-content: space-between;
     align-items: center;
     flex-wrap: wrap;
     gap: 10px;
+  }
+  .history-info {
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
   }
   .history-date {
     font-size: 15px;
@@ -630,158 +609,155 @@
   .history-meta {
     font-size: 12px;
     color: var(--text-secondary);
-    margin-top: 3px;
   }
   .history-actions {
     display: flex;
     gap: 8px;
   }
-  /* Passcode Gate Overlay */
-  .auth-overlay {
+
+  /* 🔒 iOS Passcode Gate Overlay */
+  .passcode-overlay {
     position: fixed;
     top: 0;
     left: 0;
     right: 0;
     bottom: 0;
-    background: var(--bg-primary);
-    z-index: 9999;
+    z-index: 99999;
+    background: rgba(18, 18, 20, 0.88);
+    backdrop-filter: blur(35px);
+    -webkit-backdrop-filter: blur(35px);
     display: flex;
     align-items: center;
     justify-content: center;
-    padding: 20px;
+    flex-direction: column;
+    padding: 24px;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.25s ease;
   }
-  .auth-card {
-    background: var(--bg-card);
-    border: 1px solid var(--border);
-    border-radius: 20px;
-    padding: 30px 24px;
-    max-width: 360px;
+  .passcode-overlay.active {
+    opacity: 1;
+    pointer-events: auto;
+  }
+  .passcode-box {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    max-width: 340px;
     width: 100%;
-    text-align: center;
-    box-shadow: 0 12px 36px rgba(0,0,0,0.12);
+    user-select: none;
   }
-  .auth-icon {
-    font-size: 40px;
+  .passcode-icon {
+    font-size: 38px;
     margin-bottom: 12px;
   }
-  .auth-title {
+  .passcode-title {
     font-size: 20px;
     font-weight: 700;
+    color: #ffffff;
     margin-bottom: 6px;
+    letter-spacing: -0.3px;
   }
-  .auth-sub {
+  .passcode-subtitle {
     font-size: 13px;
-    color: var(--text-secondary);
-    margin-bottom: 20px;
-    line-height: 1.4;
-  }
-  .auth-pin-box {
-    display: flex;
-    justify-content: center;
-    gap: 12px;
+    color: rgba(255, 255, 255, 0.65);
     margin-bottom: 24px;
+    text-align: center;
   }
-  .auth-dot {
-    width: 16px;
-    height: 16px;
+  .passcode-dots {
+    display: flex;
+    gap: 16px;
+    margin-bottom: 26px;
+  }
+  .passcode-dot {
+    width: 15px;
+    height: 15px;
     border-radius: 50%;
-    border: 2px solid var(--border-strong);
+    border: 2px solid rgba(255, 255, 255, 0.45);
     background: transparent;
     transition: all 0.15s ease;
   }
-  .auth-dot.filled {
-    background: var(--accent);
-    border-color: var(--accent);
+  .passcode-dot.filled {
+    background: #ffffff;
+    border-color: #ffffff;
     transform: scale(1.1);
+  }
+  .passcode-dots.shake {
+    animation: shake 0.35s ease-in-out;
+  }
+  .passcode-dots.shake .passcode-dot {
+    border-color: #ff453a;
+    background: #ff453a;
+  }
+  @keyframes shake {
+    0%, 100% { transform: translateX(0); }
+    20%, 60% { transform: translateX(-10px); }
+    40%, 80% { transform: translateX(10px); }
   }
   .keypad-grid {
     display: grid;
     grid-template-columns: repeat(3, 1fr);
-    gap: 12px;
-    max-width: 260px;
-    margin: 0 auto;
+    gap: 14px;
+    width: 100%;
+    max-width: 280px;
   }
   .keypad-btn {
-    height: 56px;
+    width: 74px;
+    height: 74px;
     border-radius: 50%;
-    font-size: 22px;
+    background: rgba(255, 255, 255, 0.12);
+    border: 1px solid rgba(255, 255, 255, 0.16);
+    color: #ffffff;
+    font-size: 26px;
     font-weight: 600;
-    background: var(--bg-primary);
-    color: var(--text-primary);
-    border: 1px solid var(--border);
-    cursor: pointer;
     display: flex;
+    flex-direction: column;
     align-items: center;
     justify-content: center;
-    user-select: none;
-    touch-action: manipulation;
+    cursor: pointer;
+    margin: 0 auto;
+    transition: background 0.1s ease, transform 0.1s ease;
+    padding: 0;
   }
   .keypad-btn:active {
-    background: var(--accent);
-    color: #fff;
-    border-color: var(--accent);
+    background: rgba(255, 255, 255, 0.28);
+    transform: scale(0.94);
   }
   .keypad-btn.action {
-    font-size: 14px;
-    font-weight: 600;
     background: transparent;
     border: none;
-    color: var(--text-secondary);
+    font-size: 13px;
+    font-weight: 600;
+    color: rgba(255, 255, 255, 0.75);
   }
   .keypad-btn.action:active {
     background: transparent;
-    color: var(--accent);
+    opacity: 0.5;
+  }
+  .passcode-error-msg {
+    min-height: 20px;
+    font-size: 12px;
+    font-weight: 600;
+    color: #ff453a;
+    margin-top: 14px;
+    text-align: center;
   }
 </style>
 </head>
 <body>
 
-  <!-- Passcode Gate Screen -->
-  <div class="auth-overlay" id="authGate">
-    <div class="auth-card">
-      <div class="auth-icon">🔒</div>
-      <div class="auth-title">Store Access Gate</div>
-      <div class="auth-sub">Enter store PIN to unlock. PIN is required every hour on each device.</div>
-      
-      <div class="auth-pin-box">
-        <div class="auth-dot" id="dot-0"></div>
-        <div class="auth-dot" id="dot-1"></div>
-        <div class="auth-dot" id="dot-2"></div>
-        <div class="auth-dot" id="dot-3"></div>
-      </div>
-
-      <div class="keypad-grid">
-        <button type="button" class="keypad-btn" onclick="enterPinDigit('1')">1</button>
-        <button type="button" class="keypad-btn" onclick="enterPinDigit('2')">2</button>
-        <button type="button" class="keypad-btn" onclick="enterPinDigit('3')">3</button>
-        <button type="button" class="keypad-btn" onclick="enterPinDigit('4')">4</button>
-        <button type="button" class="keypad-btn" onclick="enterPinDigit('5')">5</button>
-        <button type="button" class="keypad-btn" onclick="enterPinDigit('6')">6</button>
-        <button type="button" class="keypad-btn" onclick="enterPinDigit('7')">7</button>
-        <button type="button" class="keypad-btn" onclick="enterPinDigit('8')">8</button>
-        <button type="button" class="keypad-btn" onclick="enterPinDigit('9')">9</button>
-        <button type="button" class="keypad-btn action" onclick="clearPin()">Clear</button>
-        <button type="button" class="keypad-btn" onclick="enterPinDigit('0')">0</button>
-        <button type="button" class="keypad-btn action" onclick="deletePinDigit()">⌫</button>
-      </div>
-      <div style="margin-top: 18px; font-size: 11px; color: var(--text-secondary);">Store Authorized Access Only</div>
-    </div>
-  </div>
-
   <!-- Top Action Bar -->
   <div class="top-bar">
     <div class="app-title">
-      🛍️PZ Focus & Follow 🆙
+      🧰GB Focus & Follow 🆙
       <span class="sync-badge" id="syncStatus">🔄 Connecting Cloud Sync...</span>
-      <span class="sync-badge" id="autoSaveBadge">⏰ Auto-Save: 8:59 PM • Daily Reset: 11:59 PM</span>
+      <span class="sync-badge" id="autoSaveBadge">⏰ Auto-Archive: 8:59 PM Daily</span>
     </div>
     <div class="btn-group">
-      <button class="secondary" id="btnAddMember" onclick="promptAddTeamMember()" title="Add new team member">➕ Add Team Member</button>
-      <button class="undo-btn" id="btnUndo" onclick="undoLastAction()" title="Undo last change">↩️ Undo</button>
-      <button class="secondary" id="btnLock" onclick="lockDeviceNow()" title="Lock this iPad with store PIN">🔒 Lock</button>
-      <button class="secondary" id="btnSave" onclick="saveCurrentDay(false)">💾 Save Day</button>
+      <button class="secondary" id="btnUndo" onclick="undoAction()" title="Undo prior action">↩️ Undo</button>
       <button class="secondary" id="btnClearCheckins" onclick="checkAll(false)">◻️ Clear Check-Ins</button>
       <button class="secondary" onclick="exportCSV()">📥 Export CSV</button>
+      <button class="secondary" onclick="lockTrackerNow()">🔒 Lock</button>
       <button class="danger" id="btnReset" onclick="resetCounts()">🔄 Reset Day</button>
     </div>
   </div>
@@ -790,7 +766,7 @@
   <div class="timeframe-nav">
     <div class="segmented-control">
       <button class="tab-btn active" id="tab-daily" onclick="switchTab('daily')">📅 Daily (Live)</button>
-      <button class="tab-btn" id="tab-priorday" onclick="switchTab('priorday')">⏮️ Prior Day</button>
+      <button class="tab-btn" id="tab-prior" onclick="switchTab('prior')">⏮️ Prior Day</button>
       <button class="tab-btn" id="tab-weekly" onclick="switchTab('weekly')">📊 Weekly</button>
       <button class="tab-btn" id="tab-monthly" onclick="switchTab('monthly')">🗓️ Monthly</button>
       <button class="tab-btn" id="tab-quarterly" onclick="switchTab('quarterly')">📈 Quarterly</button>
@@ -803,26 +779,66 @@
     </div>
   </div>
 
-  <!-- Top Performers Podium Section -->
-  <div class="top-performers-card" id="topPerformersSection">
+  <!-- 🌟 Top Performers Section -->
+  <div class="top-performers-card" id="topPerformersCard">
     <div class="top-performers-header">
       <div class="top-performers-title">
         <span>🌟 Top Performers</span>
-        <span style="font-size: 11px; font-weight: 500; color: var(--text-secondary);" id="topPerformersSubtitle">(Live Leaderboard)</span>
       </div>
-      <span style="font-size: 11px; color: var(--text-secondary);">Highest Multi-Category Impact</span>
+      <div class="top-performers-subtitle" id="topPerformersSubtitle">Daily Shift Leaders</div>
     </div>
-    <div class="top-performers-grid" id="topPerformersGrid"></div>
+    <div class="performers-grid">
+      <div class="performer-category-box">
+        <div class="category-header">
+          <span>🍎 AppleCare+</span>
+          <span>🥇 Leader</span>
+        </div>
+        <div class="lead-specialist-name" id="lead-ac-name">-</div>
+        <div class="lead-specialist-metric" id="lead-ac-val">0 attaches</div>
+      </div>
+      <div class="performer-category-box">
+        <div class="category-header">
+          <span>🔄 PZ Conversion</span>
+          <span>🥇 Leader</span>
+        </div>
+        <div class="lead-specialist-name" id="lead-pz-name">-</div>
+        <div class="lead-specialist-metric" id="lead-pz-val">0 conversions</div>
+      </div>
+      <div class="performer-category-box">
+        <div class="category-header">
+          <span>💼 Business</span>
+          <span>🥇 Leader</span>
+        </div>
+        <div class="lead-specialist-name" id="lead-biz-name">-</div>
+        <div class="lead-specialist-metric" id="lead-biz-val">0 leads</div>
+      </div>
+      <div class="performer-category-box">
+        <div class="category-header">
+          <span>🎧 Accessories</span>
+          <span>🥇 Leader</span>
+        </div>
+        <div class="lead-specialist-name" id="lead-acc-name">-</div>
+        <div class="lead-specialist-metric" id="lead-acc-val">0 units</div>
+      </div>
+      <div class="performer-category-box">
+        <div class="category-header">
+          <span>🏆 Overall Grand Slam</span>
+          <span>⭐ Star</span>
+        </div>
+        <div class="lead-specialist-name" id="lead-slam-name">-</div>
+        <div class="lead-specialist-metric" id="lead-slam-val">0 categories hit</div>
+      </div>
+    </div>
   </div>
 
   <!-- Summary Cards -->
   <div class="kpi-grid">
     <div class="kpi-card checkin">
       <span class="kpi-label" id="lbl-kpi-checkin">👥 Checked In</span>
-      <span class="kpi-num" id="kpi-checkin" style="color: #34c759;">0 / 81</span>
+      <span class="kpi-num" id="kpi-checkin" style="color: #34c759;">0 / 61</span>
     </div>
     <div class="kpi-card gold">
-      <span class="kpi-label" id="lbl-kpi-grandslam">🏆 Grand Slam</span>
+      <span class="kpi-label">🏆 Grand Slam</span>
       <span class="kpi-num" id="kpi-grandslam" style="color: #ff9500;">0</span>
     </div>
     <div class="kpi-card">
@@ -830,12 +846,8 @@
       <span class="kpi-num" id="kpi-ac">0</span>
     </div>
     <div class="kpi-card">
-      <span class="kpi-label">🆙 Upgrades</span>
-      <span class="kpi-num" id="kpi-upgrade">0</span>
-    </div>
-    <div class="kpi-card">
-      <span class="kpi-label">🛍️ Services</span>
-      <span class="kpi-num" id="kpi-services">0</span>
+      <span class="kpi-label">🔄 PZ Conversion</span>
+      <span class="kpi-num" id="kpi-pz">0</span>
     </div>
     <div class="kpi-card">
       <span class="kpi-label">💼 Business</span>
@@ -852,21 +864,16 @@
     <div class="filter-inputs">
       <input type="search" id="searchInput" placeholder="🔍 Search name..." oninput="filterTable()">
       <select id="roleFilter" onchange="filterTable()">
-        <option value="ALL">All Roles (81)</option>
-        <option value="Specialist">Specialist</option>
-        <option value="Expert">Expert</option>
-        <option value="Creative">Creative</option>
-        <option value="Creative Pro">Creative Pro</option>
-        <option value="Business Pro">Business Pro</option>
-        <option value="Business Expert">Business Expert</option>
-        <option value="Pro">Pro</option>
-        <option value="Tech and Merch Pro">Tech & Merch Pro</option>
-        <option value="POP">POP</option>
+        <option value="ALL">All Roles (61)</option>
+        <option value="Genius">Genius</option>
+        <option value="Genius Admin">Genius Admin</option>
+        <option value="Technical Expert">Technical Expert</option>
+        <option value="Technical Specialist">Technical Specialist</option>
       </select>
       <select id="checkinFilter" onchange="filterTable()">
         <option value="ALL">All Attendance</option>
-        <option value="IN">✅ Checked In Only</option>
-        <option value="OUT">◻️ Not Checked In</option>
+        <option value="IN">✅ Checked In / Active Only</option>
+        <option value="OUT">◻️ Inactive / Not Checked In</option>
       </select>
       <select id="stepFilter" onchange="filterTable()">
         <option value="ALL">All Steps of Services</option>
@@ -878,11 +885,11 @@
       </select>
       <select id="slamFilter" onchange="filterTable()">
         <option value="ALL">All Performers</option>
-        <option value="SLAM">🏆 5/5 Grand Slam</option>
-        <option value="NEAR">🎯 4/5 (1 Away)</option>
+        <option value="SLAM">🏆 4/4 Grand Slam</option>
+        <option value="NEAR">🎯 3/4 (1 Away)</option>
       </select>
     </div>
-    <div class="team-count-badge" id="teamCount">81 Team Members</div>
+    <div class="team-count-badge" id="teamCount">61 Team Members</div>
   </div>
 
   <!-- Table Card -->
@@ -900,11 +907,8 @@
             <th style="text-align:center;" id="th-ac" onclick="setColumnSort('ac')">
               🍎 AppleCare+ <span class="sort-icon" id="sort-icon-ac">↕️</span>
             </th>
-            <th style="text-align:center;" id="th-upgrade" onclick="setColumnSort('upgrade')">
-              🆙 Upgrades <span class="sort-icon" id="sort-icon-upgrade">↕️</span>
-            </th>
-            <th style="text-align:center;" id="th-services" onclick="setColumnSort('services')">
-              🛍️ Services <span class="sort-icon" id="sort-icon-services">↕️</span>
+            <th style="text-align:center;" id="th-pz" onclick="setColumnSort('pz')">
+              🔄 PZ Conversion <span class="sort-icon" id="sort-icon-pz">↕️</span>
             </th>
             <th style="text-align:center;" id="th-biz" onclick="setColumnSort('biz')">
               💼 Business <span class="sort-icon" id="sort-icon-biz">↕️</span>
@@ -918,14 +922,15 @@
             <th id="th-notes">Notes / Focus</th>
           </tr>
         </thead>
-        <tbody id="tableBody"></tbody>
+        <tbody id="tableBody">
+          <!-- Dynamically populated -->
+        </tbody>
         <tfoot>
-          <tr>
-            <td class="col-sticky" id="tot-name">TOTAL STORE SCORE</td>
-            <td style="text-align:center;" id="tot-slam">0 / 81</td>
+          <tr id="tableFooterRow">
+            <td class="col-sticky" id="tot-label">TOTAL STORE SCORE</td>
+            <td style="text-align:center;" id="tot-slam">0 / 61</td>
             <td style="text-align:center;" id="tot-ac">0</td>
-            <td style="text-align:center;" id="tot-up">0</td>
-            <td style="text-align:center;" id="tot-srv">0</td>
+            <td style="text-align:center;" id="tot-pz">0</td>
             <td style="text-align:center;" id="tot-biz">0</td>
             <td style="text-align:center;" id="tot-acc">0</td>
             <td style="text-align:center;" id="tot-step">-</td>
@@ -936,103 +941,116 @@
     </div>
   </div>
 
-  <!-- History Logs View Card -->
-  <div class="history-card" id="historyCard">
-    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
-      <h2 style="font-size: 18px; font-weight: 700;">📜 Daily Shift History Logs</h2>
-      <button class="secondary" onclick="saveCurrentDay(false)">💾 Save Today's Shift</button>
+  <!-- History Container (Shown when on History Tab) -->
+  <div class="table-card" id="historyCard" style="display: none;">
+    <div class="history-list" id="historyListContainer">
+      <!-- Populated dynamically -->
     </div>
-    <div id="historyListContainer"></div>
+  </div>
+
+  <!-- 🔒 iOS Passcode Gate Overlay -->
+  <div class="passcode-overlay" id="passcodeOverlay">
+    <div class="passcode-box">
+      <div class="passcode-icon">🔒</div>
+      <div class="passcode-title" id="passcodeTitle">Enter Store Passcode</div>
+      <div class="passcode-subtitle" id="passcodeSubtitle">Session expires every 1 hour on each device</div>
+      <div class="passcode-dots" id="passcodeDots">
+        <div class="passcode-dot" id="dot-0"></div>
+        <div class="passcode-dot" id="dot-1"></div>
+        <div class="passcode-dot" id="dot-2"></div>
+        <div class="passcode-dot" id="dot-3"></div>
+      </div>
+      <div class="keypad-grid">
+        <button type="button" class="keypad-btn" onclick="enterPasscodeDigit('1')">1</button>
+        <button type="button" class="keypad-btn" onclick="enterPasscodeDigit('2')">2</button>
+        <button type="button" class="keypad-btn" onclick="enterPasscodeDigit('3')">3</button>
+        <button type="button" class="keypad-btn" onclick="enterPasscodeDigit('4')">4</button>
+        <button type="button" class="keypad-btn" onclick="enterPasscodeDigit('5')">5</button>
+        <button type="button" class="keypad-btn" onclick="enterPasscodeDigit('6')">6</button>
+        <button type="button" class="keypad-btn" onclick="enterPasscodeDigit('7')">7</button>
+        <button type="button" class="keypad-btn" onclick="enterPasscodeDigit('8')">8</button>
+        <button type="button" class="keypad-btn" onclick="enterPasscodeDigit('9')">9</button>
+        <button type="button" class="keypad-btn action" onclick="openChangePinPrompt()">Change PIN</button>
+        <button type="button" class="keypad-btn" onclick="enterPasscodeDigit('0')">0</button>
+        <button type="button" class="keypad-btn action" onclick="deletePasscodeDigit()">⌫</button>
+      </div>
+      <div class="passcode-error-msg" id="passcodeErrorMsg"></div>
+    </div>
   </div>
 
 <script>
-  const STORAGE_KEY_LIVE = "pz_tracker_live_state_v10";
-  const STORAGE_KEY_HISTORY = "pz_tracker_history_records_v10";
-  const STORAGE_KEY_AUTH = "pz_tracker_auth_unlocked_ts";
-  const STORE_PASSCODE = "1984"; // 4-digit passcode for store access
-  const PIN_EXPIRY_MS = 60 * 60 * 1000; // 1 hour expiry (in ms)
-  const SYNC_TOPIC = "apple_retail_attach_tracker_shared_store_room";
+  const STORAGE_KEY_LIVE = "gb_tracker_live_v11";
+  const STORAGE_KEY_HISTORY = "gb_tracker_history_records_v11";
+  const SYNC_TOPIC = "apple_retail_gb_tracker_sync_v11";
   const CLIENT_ID = "client_" + Math.random().toString(36).substring(2, 10);
+  
+  const INITIAL_ROSTER = [
+    {"name": "Benjamin Schneider-Haney", "role": "Genius"},
+    {"name": "Christian Whitney", "role": "Genius"},
+    {"name": "Clarissa Arechiga", "role": "Genius"},
+    {"name": "Clinton Bright", "role": "Genius"},
+    {"name": "Corena Nunez", "role": "Genius"},
+    {"name": "Daniel Kang", "role": "Genius"},
+    {"name": "Dina Estrada", "role": "Genius"},
+    {"name": "Dominic Delos Reyes", "role": "Genius"},
+    {"name": "Ed Del Fierro", "role": "Genius"},
+    {"name": "Fernando Romero", "role": "Genius"},
+    {"name": "Jesse Noriega", "role": "Genius"},
+    {"name": "Juan Solo", "role": "Genius"},
+    {"name": "Kacey Norris", "role": "Genius"},
+    {"name": "Lucky Vo-Tran", "role": "Genius"},
+    {"name": "Mitchell Dodge", "role": "Genius"},
+    {"name": "Nafisa Nur", "role": "Genius"},
+    {"name": "Sean Wells", "role": "Genius"},
+    {"name": "Taylor Campbell", "role": "Genius"},
+    {"name": "Alex Spatafore", "role": "Genius Admin"},
+    {"name": "Alex Gross", "role": "Genius Admin"},
+    {"name": "Callahan Roth", "role": "Genius Admin"},
+    {"name": "Katie Pedreira", "role": "Genius Admin"},
+    {"name": "Neftaly Perez", "role": "Genius Admin"},
+    {"name": "Nicole Vieau", "role": "Genius Admin"},
+    {"name": "Alan Garcia", "role": "Technical Expert"},
+    {"name": "Brandon Daugherty", "role": "Technical Expert"},
+    {"name": "Carlos Salinas Figueroa", "role": "Technical Expert"},
+    {"name": "Casey Jereza", "role": "Technical Expert"},
+    {"name": "Christina Piacenza", "role": "Technical Expert"},
+    {"name": "Diego Mendoza", "role": "Technical Expert"},
+    {"name": "Dusty Magallanes", "role": "Technical Expert"},
+    {"name": "Jacob Andrews", "role": "Technical Expert"},
+    {"name": "Max Crist", "role": "Technical Expert"},
+    {"name": "Nancy Rivera", "role": "Technical Expert"},
+    {"name": "Nicki Anderson", "role": "Technical Expert"},
+    {"name": "Raymond Silvera", "role": "Technical Expert"},
+    {"name": "Sean Ibhawat", "role": "Technical Expert"},
+    {"name": "Shane Jackson", "role": "Technical Expert"},
+    {"name": "Stacey McCray", "role": "Technical Expert"},
+    {"name": "Tanner Dominic", "role": "Technical Expert"},
+    {"name": "Ty Mullins", "role": "Technical Expert"},
+    {"name": "Wil Ruthenberg", "role": "Technical Expert"},
+    {"name": "Wissam Kazzazi", "role": "Technical Expert"},
+    {"name": "Alex Gross", "role": "Technical Specialist"},
+    {"name": "Alijah Gopez", "role": "Technical Specialist"},
+    {"name": "Andrea Maniti", "role": "Technical Specialist"},
+    {"name": "Besjana Kubick", "role": "Technical Specialist"},
+    {"name": "Blake Robertson", "role": "Technical Specialist"},
+    {"name": "Diego De La Toba", "role": "Technical Specialist"},
+    {"name": "Diego Lopez", "role": "Technical Specialist"},
+    {"name": "Emiko Ragan", "role": "Technical Specialist"},
+    {"name": "Harold Qin", "role": "Technical Specialist"},
+    {"name": "Jesse Hernandez", "role": "Technical Specialist"},
+    {"name": "Kyle Padua", "role": "Technical Specialist"},
+    {"name": "Laurynas Jasevicius", "role": "Technical Specialist"},
+    {"name": "Manny Maruri", "role": "Technical Specialist"},
+    {"name": "Mays Mansoor", "role": "Technical Specialist"},
+    {"name": "Nate Suzuki", "role": "Technical Specialist"},
+    {"name": "Nes Lacbain Jr.", "role": "Technical Specialist"},
+    {"name": "Odeh Musharbash", "role": "Technical Specialist"},
+    {"name": "Taks Takamori", "role": "Technical Specialist"}
+  ];
 
-  let enteredPin = "";
-
-  function checkPasscodeGate() {
-    try {
-      const unlockedTS = parseInt(localStorage.getItem(STORAGE_KEY_AUTH), 10) || 0;
-      const now = Date.now();
-      const isStillValid = (now - unlockedTS) < PIN_EXPIRY_MS;
-      
-      const gate = document.getElementById('authGate');
-      if (gate) {
-        if (isStillValid) {
-          gate.style.display = 'none';
-        } else {
-          gate.style.display = 'flex';
-        }
-      }
-    } catch(e) {}
-  }
-
-  function enterPinDigit(digit) {
-    if (enteredPin.length < 4) {
-      enteredPin += digit;
-      updatePinDots();
-      if (enteredPin.length === 4) {
-        setTimeout(verifyPin, 100);
-      }
-    }
-  }
-
-  function deletePinDigit() {
-    if (enteredPin.length > 0) {
-      enteredPin = enteredPin.slice(0, -1);
-      updatePinDots();
-    }
-  }
-
-  function clearPin() {
-    enteredPin = "";
-    updatePinDots();
-  }
-
-  function updatePinDots() {
-    for (let i = 0; i < 4; i++) {
-      const dot = document.getElementById(`dot-${i}`);
-      if (dot) {
-        if (i < enteredPin.length) dot.classList.add('filled');
-        else dot.classList.remove('filled');
-      }
-    }
-  }
-
-  function verifyPin() {
-    if (enteredPin === STORE_PASSCODE) {
-      try {
-        localStorage.setItem(STORAGE_KEY_AUTH, Date.now().toString());
-      } catch(e) {}
-      const gate = document.getElementById('authGate');
-      if (gate) gate.style.display = 'none';
-      enteredPin = "";
-      updatePinDots();
-    } else {
-      alert("❌ Incorrect Store Passcode. Please try again.");
-      clearPin();
-    }
-  }
-
-  function lockDeviceNow() {
-    try {
-      localStorage.removeItem(STORAGE_KEY_AUTH);
-    } catch(e) {}
-    clearPin();
-    const gate = document.getElementById('authGate');
-    if (gate) gate.style.display = 'flex';
-  }
-
-  const INITIAL_ROSTER = [{"name": "Felipe Flores", "role": "Business Expert"}, {"name": "Edward Owens", "role": "Business Pro"}, {"name": "Brad Teegarden", "role": "Creative"}, {"name": "Joey Rocks", "role": "Creative"}, {"name": "Nicholas Yousif", "role": "Creative"}, {"name": "Paul Zaldivar", "role": "Creative"}, {"name": "Dawn Oree", "role": "Creative Pro"}, {"name": "Joe Davis", "role": "Creative Pro"}, {"name": "Kassie Sicairos", "role": "Creative Pro"}, {"name": "Andrew Portillo", "role": "Expert"}, {"name": "Patty Wigdahl", "role": "Expert"}, {"name": "Tiago Nocera", "role": "Expert"}, {"name": "Tom Antorietto Jr", "role": "Expert"}, {"name": "Dee Mitchell", "role": "Pro"}, {"name": "Chris White", "role": "Pro"}, {"name": "Michelle Trester", "role": "POP"}, {"name": "Adriel Guerrero", "role": "Specialist"}, {"name": "Aladin Bader", "role": "Specialist"}, {"name": "Alejandra Gomez", "role": "Specialist"}, {"name": "Andre Salehian", "role": "Specialist"}, {"name": "Angelo Montano", "role": "Specialist"}, {"name": "Brooke Polendo", "role": "Specialist"}, {"name": "Cesar Lopez Belmudez", "role": "Specialist"}, {"name": "Chanel Ammo", "role": "Specialist"}, {"name": "Chris Olivares", "role": "Specialist"}, {"name": "Daniel Cuellar", "role": "Specialist"}, {"name": "Darla Co", "role": "Specialist"}, {"name": "Dennise Juarez Aguilar", "role": "Specialist"}, {"name": "Don Anders", "role": "Specialist"}, {"name": "Dylan Shaw", "role": "Specialist"}, {"name": "Farid Lopez", "role": "Specialist"}, {"name": "Felix Fazakerley", "role": "Specialist"}, {"name": "Francia Sanchez", "role": "Specialist"}, {"name": "Frank O'Connor", "role": "Specialist"}, {"name": "Halle Horning", "role": "Specialist"}, {"name": "Henry Avalos Martell", "role": "Specialist"}, {"name": "Jacob Olson", "role": "Specialist"}, {"name": "Jahkell Robins", "role": "Specialist"}, {"name": "Jake Opatz", "role": "Specialist"}, {"name": "Jamal Delaney", "role": "Specialist"}, {"name": "James O'Shea", "role": "Specialist"}, {"name": "Jay Jimenez", "role": "Specialist"}, {"name": "Josheiry Torres", "role": "Specialist"}, {"name": "Joshua Saradpon", "role": "Specialist"}, {"name": "Josh Wise", "role": "Specialist"}, {"name": "Josiah Bergstrom", "role": "Specialist"}, {"name": "Joyce Lam", "role": "Specialist"}, {"name": "Kaitlyn Villa", "role": "Specialist"}, {"name": "Kari DeVault", "role": "Specialist"}, {"name": "Ken Mata", "role": "Specialist"}, {"name": "Kevin Corona Lozada", "role": "Specialist"}, {"name": "Ke\u2019Ana Alonzo", "role": "Specialist"}, {"name": "Kristal", "role": "Specialist"}, {"name": "Lexi English", "role": "Specialist"}, {"name": "Liam McEwan", "role": "Specialist"}, {"name": "Loren Fish", "role": "Specialist"}, {"name": "Lucas Martinez", "role": "Specialist"}, {"name": "Luis Sosa", "role": "Specialist"}, {"name": "Luis Soto Jr", "role": "Specialist"}, {"name": "Melody Pauls", "role": "Specialist"}, {"name": "Michael Terrientes", "role": "Specialist"}, {"name": "Miranda Gonzalez", "role": "Specialist"}, {"name": "Natalie Gibson", "role": "Specialist"}, {"name": "Nick Avalos", "role": "Specialist"}, {"name": "Ofelia Carrillo", "role": "Specialist"}, {"name": "Peter Robinson", "role": "Specialist"}, {"name": "Ramon Beltran", "role": "Specialist"}, {"name": "Ray Johnson", "role": "Specialist"}, {"name": "Roanne Jans", "role": "Specialist"}, {"name": "Rob Koepp", "role": "Specialist"}, {"name": "Ron Ejanda", "role": "Specialist"}, {"name": "Sador Rusom", "role": "Specialist"}, {"name": "SKYLAR WARE", "role": "Specialist"}, {"name": "Thania Medina", "role": "Specialist"}, {"name": "Tommy Chambers", "role": "Specialist"}, {"name": "Trisha Nguyen", "role": "Specialist"}, {"name": "Valeria Jacobo", "role": "Specialist"}, {"name": "Zahra Rahmaan", "role": "Specialist"}, {"name": "Zion Maly", "role": "Specialist"}, {"name": "Delaine Downie", "role": "Tech and Merch Pro"}, {"name": "Sara Gharabaghli", "role": "Tech and Merch Pro"}];
-
-  let currentTab = 'daily'; // 'daily' | 'priorday' | 'weekly' | 'monthly' | 'quarterly' | 'history'
-  let selectedPeriodKey = 'current';
+  let currentTab = 'daily'; // 'daily' | 'prior' | 'weekly' | 'monthly' | 'quarterly' | 'history'
+  let selectedPeriodKey = 'yesterday';
+  let activeShiftDate = getTodayString();
 
   // Live active shift data
   let data = INITIAL_ROSTER.map((item, idx) => ({
@@ -1041,18 +1059,69 @@
     role: item.role,
     checkedIn: false,
     ac: 0,
-    upgrade: 0,
-    services: 0,
+    pz: 0,
     biz: 0,
     acc: 0,
     step: "",
     notes: ""
   }));
 
-  // Historical archived daily shifts
+  // Historical archived daily shifts: Array of { date: 'YYYY-MM-DD', timestamp: number, data: [...] }
   let historyRecords = [];
   let lastVersion = 0;
   let mqttClient = null;
+
+  // ↩️ Action Undo Stack
+  let undoStack = [];
+  const MAX_UNDO_STACK = 30;
+
+  function pushUndoState() {
+    if (currentTab !== 'daily') return;
+    try {
+      undoStack.push(JSON.stringify(data));
+      if (undoStack.length > MAX_UNDO_STACK) {
+        undoStack.shift();
+      }
+      updateUndoButton();
+    } catch(e) {}
+  }
+
+  function undoAction() {
+    if (currentTab !== 'daily') {
+      alert("Undo is available on the Live Daily tab.");
+      return;
+    }
+    if (undoStack.length === 0) {
+      alert("No prior action to undo.");
+      return;
+    }
+    const previousSnapshot = undoStack.pop();
+    try {
+      data = JSON.parse(previousSnapshot);
+      lastVersion = Date.now();
+      syncCurrentDayToHistory();
+      saveLocalState();
+      renderTableStructure();
+      updateTotals();
+      reorderRows();
+      broadcastChange();
+      updateUndoButton();
+      flashAutoSaveBadge("↩️ Prior Action Undone");
+    } catch(e) {}
+  }
+
+  function updateUndoButton() {
+    const btn = document.getElementById('btnUndo');
+    if (btn) {
+      if (undoStack.length > 0) {
+        btn.style.opacity = '1';
+        btn.title = `Undo prior action (${undoStack.length} in history)`;
+      } else {
+        btn.style.opacity = '0.6';
+        btn.title = "No prior actions to undo";
+      }
+    }
+  }
 
   function escapeHtml(str) {
     if (!str) return '';
@@ -1071,13 +1140,13 @@
     return `${year}-${month}-${day}`;
   }
 
-  function parseDateSafe(dateStr) {
-    if (!dateStr) return new Date();
-    const parts = dateStr.split('-');
-    if (parts.length === 3) {
-      return new Date(parseInt(parts[0], 10), parseInt(parts[1], 10) - 1, parseInt(parts[2], 10));
-    }
-    return new Date(dateStr);
+  function getPriorDayString() {
+    const d = new Date();
+    d.setDate(d.getDate() - 1);
+    const year = d.getFullYear();
+    const month = String(d.getMonth() + 1).padStart(2, '0');
+    const day = String(d.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
   }
 
   function getWeekNumber(date) {
@@ -1102,42 +1171,12 @@
     const savedLive = localStorage.getItem(STORAGE_KEY_LIVE);
     if (savedLive) {
       const parsed = JSON.parse(savedLive);
-      if (Array.isArray(parsed.data) && parsed.data.length > 0) {
+      if (parsed && Array.isArray(parsed.data) && parsed.data.length > 0) {
         lastVersion = parsed.version || 0;
-        parsed.data.forEach(savedItem => {
-          let target = data.find(d => d.name === savedItem.name);
-          if (!target) {
-            // Member was added dynamically (via Add Team Member) in a prior session
-            // and is missing from the static roster after reload — recreate them
-            // instead of silently dropping their saved metrics.
-            const newId = data.length > 0 ? Math.max(...data.map(d => d.id)) + 1 : 0;
-            target = {
-              id: savedItem.id !== undefined && !data.some(d => d.id === savedItem.id) ? savedItem.id : newId,
-              name: savedItem.name,
-              role: savedItem.role || "Specialist",
-              checkedIn: false,
-              ac: 0,
-              upgrade: 0,
-              services: 0,
-              biz: 0,
-              acc: 0,
-              step: "",
-              notes: ""
-            };
-            data.push(target);
-            if (!INITIAL_ROSTER.some(m => m.name === target.name)) {
-              INITIAL_ROSTER.push({ name: target.name, role: target.role });
-            }
-          }
-          target.checkedIn = !!savedItem.checkedIn;
-          target.ac = savedItem.ac || 0;
-          target.upgrade = savedItem.upgrade || 0;
-          target.services = savedItem.services || 0;
-          target.biz = savedItem.biz || 0;
-          target.acc = savedItem.acc || 0;
-          target.step = savedItem.step || "";
-          target.notes = savedItem.notes || "";
-        });
+        data = parsed.data;
+        if (parsed.date) {
+          activeShiftDate = parsed.date;
+        }
       }
     }
   } catch(e) {}
@@ -1152,49 +1191,64 @@
     }
   } catch(e) {}
 
+  function syncCurrentDayToHistory() {
+    const hasAnyActivity = data.some(d => d.checkedIn || d.ac > 0 || d.pz > 0 || d.biz > 0 || d.acc > 0 || d.notes || d.step);
+    if (!hasAnyActivity) return;
+
+    const today = activeShiftDate || getTodayString();
+    const existingIdx = historyRecords.findIndex(r => r.date === today);
+    const snapshot = {
+      date: today,
+      timestamp: Date.now(),
+      data: JSON.parse(JSON.stringify(data))
+    };
+
+    if (existingIdx >= 0) {
+      historyRecords[existingIdx] = snapshot;
+    } else {
+      historyRecords.unshift(snapshot);
+    }
+    historyRecords.sort((a, b) => (b.date > a.date ? 1 : (b.date < a.date ? -1 : 0)));
+  }
+
   function saveLocalState() {
     try {
-      localStorage.setItem(STORAGE_KEY_LIVE, JSON.stringify({ data: data, version: lastVersion }));
+      localStorage.setItem(STORAGE_KEY_LIVE, JSON.stringify({ 
+        date: activeShiftDate || getTodayString(), 
+        data: data, 
+        version: lastVersion 
+      }));
       localStorage.setItem(STORAGE_KEY_HISTORY, JSON.stringify(historyRecords));
     } catch(e) {}
   }
 
-  // Immediately persist state after restore/recreate logic above, so any
-  // dynamically-recreated team members (added via ➕ Add Team Member in a
-  // prior session) are written back to localStorage right away and don't
-  // rely on the next user action to be saved.
-  saveLocalState();
+  function checkDayRollover() {
+    const today = getTodayString();
+    if (activeShiftDate && activeShiftDate !== today) {
+      // 1. Ensure previous day's shift is permanently recorded in history
+      syncCurrentDayToHistory();
 
-  // Undo History Stack (Max 25 actions)
-  let undoStack = [];
-
-  function pushUndoSnapshot() {
-    undoStack.push(JSON.stringify(data));
-    if (undoStack.length > 25) undoStack.shift();
-    updateUndoButtonState();
-  }
-
-  function undoLastAction() {
-    if (currentTab !== 'daily' || undoStack.length === 0) return;
-    const previousStateJSON = undoStack.pop();
-    const previousState = JSON.parse(previousStateJSON);
-    
-    data = previousState;
-    lastVersion = Date.now();
-    saveLocalState();
-    broadcastChange();
-    
-    renderTableStructure();
-    updateTotals();
-    reorderRows();
-    updateUndoButtonState();
-    flashAutoSaveBadge("↩️ Undid Last Action");
-  }
-
-  function updateUndoButtonState() {
-    const btn = document.getElementById('btnUndo');
-    if (btn) {
-      btn.disabled = (currentTab !== 'daily' || undoStack.length === 0);
+      // 2. Initialize fresh shift for today
+      data = INITIAL_ROSTER.map((item, idx) => ({
+        id: idx,
+        name: item.name,
+        role: item.role,
+        checkedIn: false,
+        ac: 0,
+        pz: 0,
+        biz: 0,
+        acc: 0,
+        step: "",
+        notes: ""
+      }));
+      activeShiftDate = today;
+      lastVersion = Date.now();
+      saveLocalState();
+      renderTableStructure();
+      updateTotals();
+      reorderRows();
+      flashAutoSaveBadge(`📅 New Shift Initialized (${today})`);
+      broadcastChange();
     }
   }
 
@@ -1215,7 +1269,7 @@
   }
 
   function updateSortHeaderIcons() {
-    const cols = ['name', 'slam', 'ac', 'upgrade', 'services', 'biz', 'acc', 'step'];
+    const cols = ['name', 'slam', 'ac', 'pz', 'biz', 'acc', 'step'];
     cols.forEach(c => {
       const th = document.getElementById(`th-${c}`);
       const icon = document.getElementById(`sort-icon-${c}`);
@@ -1234,15 +1288,10 @@
   function getHitCount(p) {
     let hits = 0;
     if (p.ac > 0) hits++;
-    if (p.upgrade > 0) hits++;
-    if (p.services > 0) hits++;
+    if (p.pz > 0) hits++;
     if (p.biz > 0) hits++;
     if (p.acc > 0) hits++;
     return hits;
-  }
-
-  function getTotalUnits(p) {
-    return (p.ac || 0) + (p.upgrade || 0) + (p.services || 0) + (p.biz || 0) + (p.acc || 0);
   }
 
   function getDisplayList() {
@@ -1250,25 +1299,39 @@
       return data;
     }
 
-    if (currentTab === 'priorday') {
-      if (historyRecords.length > 0) {
-        return historyRecords[0].data || [];
+    if (currentTab === 'prior') {
+      let targetDate = selectedPeriodKey;
+      if (targetDate === 'yesterday' || targetDate === 'current' || !targetDate) {
+        targetDate = getPriorDayString();
       }
-      return INITIAL_ROSTER.map((item, idx) => ({
+
+      // 1. Try finding target date in history
+      let match = historyRecords.find(r => r.date === targetDate);
+
+      // 2. If looking for yesterday and not found, check most recent history record
+      if (!match && (selectedPeriodKey === 'yesterday' || selectedPeriodKey === 'current') && historyRecords.length > 0) {
+        match = historyRecords[0];
+      }
+
+      if (match && Array.isArray(match.data)) {
+        return match.data;
+      }
+
+      return INITIAL_ROSTER.map((m, idx) => ({
         id: idx,
-        name: item.name,
-        role: item.role,
+        name: m.name,
+        role: m.role,
         checkedIn: false,
         ac: 0,
-        upgrade: 0,
-        services: 0,
+        pz: 0,
         biz: 0,
         acc: 0,
         step: "-",
-        notes: ""
+        notes: `No archived shift found for ${targetDate}`
       }));
     }
 
+    // Filter historical records based on selected period for Weekly, Monthly, Quarterly
     let relevantRecords = [];
     const now = new Date();
 
@@ -1277,26 +1340,26 @@
         const curWeek = getWeekNumber(now);
         const curYear = now.getFullYear();
         relevantRecords = historyRecords.filter(r => {
-          const rd = parseDateSafe(r.date);
+          const rd = new Date(r.date);
           return getWeekNumber(rd) === curWeek && rd.getFullYear() === curYear;
         });
       } else {
         relevantRecords = historyRecords.filter(r => {
-          const rd = parseDateSafe(r.date);
+          const rd = new Date(r.date);
           return `${rd.getFullYear()}-W${getWeekNumber(rd)}` === selectedPeriodKey;
         });
       }
     } else if (currentTab === 'monthly') {
       if (selectedPeriodKey === 'current') {
-        const curMon = now.getMonth();
+        const curMonth = now.getMonth();
         const curYear = now.getFullYear();
         relevantRecords = historyRecords.filter(r => {
-          const rd = parseDateSafe(r.date);
-          return rd.getMonth() === curMon && rd.getFullYear() === curYear;
+          const rd = new Date(r.date);
+          return rd.getMonth() === curMonth && rd.getFullYear() === curYear;
         });
       } else {
         relevantRecords = historyRecords.filter(r => {
-          const rd = parseDateSafe(r.date);
+          const rd = new Date(r.date);
           const key = `${rd.getFullYear()}-${String(rd.getMonth() + 1).padStart(2, '0')}`;
           return key === selectedPeriodKey;
         });
@@ -1304,12 +1367,13 @@
     } else if (currentTab === 'quarterly') {
       if (selectedPeriodKey === 'current') {
         const curQ = getQuarterString(now);
-        relevantRecords = historyRecords.filter(r => getQuarterString(parseDateSafe(r.date)) === curQ);
+        relevantRecords = historyRecords.filter(r => getQuarterString(new Date(r.date)) === curQ);
       } else {
-        relevantRecords = historyRecords.filter(r => getQuarterString(parseDateSafe(r.date)) === selectedPeriodKey);
+        relevantRecords = historyRecords.filter(r => getQuarterString(new Date(r.date)) === selectedPeriodKey);
       }
     }
 
+    // Aggregate metrics by member name
     const memberMap = {};
     INITIAL_ROSTER.forEach((m, idx) => {
       memberMap[m.name] = {
@@ -1319,8 +1383,7 @@
         checkedIn: false,
         shiftsWorked: 0,
         ac: 0,
-        upgrade: 0,
-        services: 0,
+        pz: 0,
         biz: 0,
         acc: 0,
         slamsAchieved: 0,
@@ -1329,6 +1392,7 @@
       };
     });
 
+    // If viewing current period, include live active shift
     if (selectedPeriodKey === 'current') {
       data.forEach(p => {
         if (memberMap[p.name]) {
@@ -1337,15 +1401,15 @@
             memberMap[p.name].checkedIn = true;
           }
           memberMap[p.name].ac += p.ac;
-          memberMap[p.name].upgrade += p.upgrade;
-          memberMap[p.name].services += p.services;
+          memberMap[p.name].pz += p.pz;
           memberMap[p.name].biz += p.biz;
           memberMap[p.name].acc += p.acc;
-          if (getHitCount(p) === 5) memberMap[p.name].slamsAchieved += 1;
+          if (getHitCount(p) === 4) memberMap[p.name].slamsAchieved += 1;
         }
       });
     }
 
+    // Sum historical records
     relevantRecords.forEach(rec => {
       if (Array.isArray(rec.data)) {
         rec.data.forEach(p => {
@@ -1355,11 +1419,10 @@
               memberMap[p.name].checkedIn = true;
             }
             memberMap[p.name].ac += (p.ac || 0);
-            memberMap[p.name].upgrade += (p.upgrade || 0);
-            memberMap[p.name].services += (p.services || 0);
+            memberMap[p.name].pz += (p.pz || 0);
             memberMap[p.name].biz += (p.biz || 0);
             memberMap[p.name].acc += (p.acc || 0);
-            if (getHitCount(p) === 5) memberMap[p.name].slamsAchieved += 1;
+            if (getHitCount(p) === 4) memberMap[p.name].slamsAchieved += 1;
           }
         });
       }
@@ -1374,8 +1437,8 @@
       valA = a.name.toLowerCase();
       valB = b.name.toLowerCase();
     } else if (currentSort.column === 'slam') {
-      valA = (currentTab === 'daily' || currentTab === 'priorday') ? getHitCount(a) : (a.slamsAchieved || 0);
-      valB = (currentTab === 'daily' || currentTab === 'priorday') ? getHitCount(b) : (b.slamsAchieved || 0);
+      valA = (currentTab === 'daily' || currentTab === 'prior') ? getHitCount(a) : (a.slamsAchieved || 0);
+      valB = (currentTab === 'daily' || currentTab === 'prior') ? getHitCount(b) : (b.slamsAchieved || 0);
     } else if (currentSort.column === 'step') {
       valA = (a.step || '').toLowerCase();
       valB = (b.step || '').toLowerCase();
@@ -1389,64 +1452,64 @@
     return a.name.localeCompare(b.name);
   }
 
-  function renderTopPerformersPodium() {
-    const container = document.getElementById('topPerformersGrid');
-    const subtitle = document.getElementById('topPerformersSubtitle');
-    if (!container) return;
-
+  function updateTopPerformers() {
     const list = getDisplayList();
-    if (list.length === 0) {
-      container.innerHTML = '<div style="color:var(--text-secondary); font-size:12px;">No active data available for this view.</div>';
-      return;
+    const sub = document.getElementById('topPerformersSubtitle');
+    if (sub) {
+      if (currentTab === 'daily') sub.textContent = "Today's Shift Leaders";
+      else if (currentTab === 'prior') sub.textContent = `Prior Day Leaders (${selectedPeriodKey === 'yesterday' ? getPriorDayString() : selectedPeriodKey})`;
+      else if (currentTab === 'weekly') sub.textContent = "Weekly Attach Leaders";
+      else if (currentTab === 'monthly') sub.textContent = "Monthly Attach Leaders";
+      else if (currentTab === 'quarterly') sub.textContent = "Quarterly Benchmark Leaders";
     }
 
-    if (currentTab === 'daily') subtitle.textContent = '(Live Shift Leaderboard)';
-    else if (currentTab === 'priorday') subtitle.textContent = '(Prior Shift Leaderboard)';
-    else subtitle.textContent = `(${currentTab.toUpperCase()} Leaderboard)`;
-
-    // Score based on Grand Slam hits + total units
-    const sortedPerformers = [...list].sort((a, b) => {
-      const hitsA = (currentTab === 'daily' || currentTab === 'priorday') ? getHitCount(a) : (a.slamsAchieved || 0);
-      const hitsB = (currentTab === 'daily' || currentTab === 'priorday') ? getHitCount(b) : (b.slamsAchieved || 0);
-      if (hitsB !== hitsA) return hitsB - hitsA;
-      return getTotalUnits(b) - getTotalUnits(a);
-    }).filter(p => getTotalUnits(p) > 0 || (currentTab === 'daily' && p.checkedIn)).slice(0, 4);
-
-    if (sortedPerformers.length === 0) {
-      container.innerHTML = '<div style="color:var(--text-secondary); font-size:12px; padding:6px 0;">Log metrics or check in staff to see top performers.</div>';
-      return;
+    function getTopSpecialist(metric) {
+      const sorted = [...list].filter(p => (p[metric] || 0) > 0).sort((a, b) => (b[metric] || 0) - (a[metric] || 0));
+      return sorted[0] || null;
     }
 
-    container.innerHTML = '';
-    sortedPerformers.forEach((p, idx) => {
-      const hits = (currentTab === 'daily' || currentTab === 'priorday') ? getHitCount(p) : (p.slamsAchieved || 0);
-      const units = getTotalUnits(p);
-      let rankClass = "rank-star";
-      let rankIcon = "⭐";
-      if (idx === 0) { rankClass = "rank-1"; rankIcon = "🥇"; }
-      else if (idx === 1) { rankClass = "rank-2"; rankIcon = "🥈"; }
-      else if (idx === 2) { rankClass = "rank-3"; rankIcon = "🥉"; }
+    // Top AppleCare+
+    const topAc = getTopSpecialist('ac');
+    document.getElementById('lead-ac-name').textContent = topAc ? topAc.name : '—';
+    document.getElementById('lead-ac-val').textContent = topAc ? `${topAc.ac} AppleCare+` : '0 attaches';
 
-      const item = document.createElement('div');
-      item.className = 'performer-badge-card';
-      item.innerHTML = `
-        <div class="rank-icon ${rankClass}">${rankIcon}</div>
-        <div class="performer-info">
-          <span class="performer-name">${escapeHtml(p.name)}</span>
-          <span class="performer-stats">${hits === 5 || (currentTab !== 'daily' && hits > 0) ? '🏆 ' + hits + ' Slams' : hits + '/5 categories'} • ${units} units</span>
-        </div>
-      `;
-      container.appendChild(item);
-    });
+    // Top PZ Conversion
+    const topPz = getTopSpecialist('pz');
+    document.getElementById('lead-pz-name').textContent = topPz ? topPz.name : '—';
+    document.getElementById('lead-pz-val').textContent = topPz ? `${topPz.pz} PZ Converted` : '0 conversions';
+
+    // Top Business
+    const topBiz = getTopSpecialist('biz');
+    document.getElementById('lead-biz-name').textContent = topBiz ? topBiz.name : '—';
+    document.getElementById('lead-biz-val').textContent = topBiz ? `${topBiz.biz} Leads` : '0 leads';
+
+    // Top Accessories
+    const topAcc = getTopSpecialist('acc');
+    document.getElementById('lead-acc-name').textContent = topAcc ? topAcc.name : '—';
+    document.getElementById('lead-acc-val').textContent = topAcc ? `${topAcc.acc} Accessories` : '0 units';
+
+    // Top Grand Slam Leader
+    let topSlam = null;
+    if (currentTab === 'daily' || currentTab === 'prior') {
+      const slamSorted = [...list].map(p => ({ ...p, hits: getHitCount(p) })).filter(p => p.hits > 0).sort((a, b) => b.hits - a.hits || b.ac - a.ac);
+      topSlam = slamSorted[0] || null;
+      document.getElementById('lead-slam-name').textContent = topSlam ? topSlam.name : '—';
+      document.getElementById('lead-slam-val').textContent = topSlam ? (topSlam.hits === 4 ? '🏆 4/4 GRAND SLAM' : `${topSlam.hits}/4 Categories`) : '0 categories hit';
+    } else {
+      const slamSorted = [...list].filter(p => (p.slamsAchieved || 0) > 0).sort((a, b) => b.slamsAchieved - a.slamsAchieved || b.ac - a.ac);
+      topSlam = slamSorted[0] || null;
+      document.getElementById('lead-slam-name').textContent = topSlam ? topSlam.name : '—';
+      document.getElementById('lead-slam-val').textContent = topSlam ? `🏆 ${topSlam.slamsAchieved} Grand Slam${topSlam.slamsAchieved > 1 ? 's' : ''}` : '0 Grand Slams';
+    }
   }
 
   function buildRowElement(p) {
     const isLive = (currentTab === 'daily');
-    const isPrior = (currentTab === 'priorday');
+    const isPrior = (currentTab === 'prior');
     const tr = document.createElement('tr');
     tr.id = `row-${p.id}`;
     if (p.checkedIn) tr.classList.add('checked-in-row');
-    if ((isLive || isPrior) && getHitCount(p) === 5) tr.classList.add('grand-slam-row');
+    if ((isLive || isPrior) && getHitCount(p) === 4) tr.classList.add('grand-slam-row');
 
     if (isLive) {
       tr.innerHTML = `
@@ -1469,16 +1532,9 @@
         </td>
         <td style="text-align:center;">
           <div class="counter-box">
-            <button type="button" class="cnt-btn minus" onclick="event.stopPropagation(); updateCounts(${p.id}, 'upgrade', -1)">−</button>
-            <span class="cnt-val" id="val-up-${p.id}">${p.upgrade}</span>
-            <button type="button" class="cnt-btn plus" onclick="event.stopPropagation(); updateCounts(${p.id}, 'upgrade', 1)">+</button>
-          </div>
-        </td>
-        <td style="text-align:center;">
-          <div class="counter-box">
-            <button type="button" class="cnt-btn minus" onclick="event.stopPropagation(); updateCounts(${p.id}, 'services', -1)">−</button>
-            <span class="cnt-val" id="val-srv-${p.id}">${p.services}</span>
-            <button type="button" class="cnt-btn plus" onclick="event.stopPropagation(); updateCounts(${p.id}, 'services', 1)">+</button>
+            <button type="button" class="cnt-btn minus" onclick="event.stopPropagation(); updateCounts(${p.id}, 'pz', -1)">−</button>
+            <span class="cnt-val" id="val-pz-${p.id}">${p.pz}</span>
+            <button type="button" class="cnt-btn plus" onclick="event.stopPropagation(); updateCounts(${p.id}, 'pz', 1)">+</button>
           </div>
         </td>
         <td style="text-align:center;">
@@ -1497,7 +1553,7 @@
         </td>
         <td style="text-align:center;">
           <select class="step-select" id="step-${p.id}" onchange="saveStep(${p.id}, this.value)">
-            <option value="">- None -</option>
+            <option value="">-- None --</option>
             <option value="Approach" ${p.step === 'Approach' ? 'selected' : ''}>Approach</option>
             <option value="Probe" ${p.step === 'Probe' ? 'selected' : ''}>Probe</option>
             <option value="Present" ${p.step === 'Present' ? 'selected' : ''}>Present</option>
@@ -1510,10 +1566,11 @@
         </td>
       `;
     } else if (isPrior) {
+      // Prior Day Read-Only View
       const hits = getHitCount(p);
-      let slamBadge = `<span class="badge-progress">${hits}/5</span>`;
-      if (hits === 5) slamBadge = `<span class="badge-grand-slam">🏆 GRAND SLAM!</span>`;
-      else if (hits === 4) slamBadge = `<span class="badge-progress almost">🎯 4/5 (1 Away)</span>`;
+      let slamBadge = `<span class="badge-progress">${hits}/4</span>`;
+      if (hits === 4) slamBadge = `<span class="badge-grand-slam">🏆 GRAND SLAM!</span>`;
+      else if (hits === 3) slamBadge = `<span class="badge-progress almost">🎯 3/4 (1 Away)</span>`;
 
       tr.innerHTML = `
         <td class="col-sticky">
@@ -1526,15 +1583,15 @@
           </div>
         </td>
         <td style="text-align:center;">${slamBadge}</td>
-        <td style="text-align:center;"><span class="aggregate-val">${p.ac}</span></td>
-        <td style="text-align:center;"><span class="aggregate-val">${p.upgrade}</span></td>
-        <td style="text-align:center;"><span class="aggregate-val">${p.services}</span></td>
-        <td style="text-align:center;"><span class="aggregate-val">${p.biz}</span></td>
-        <td style="text-align:center;"><span class="aggregate-val">${p.acc}</span></td>
-        <td style="text-align:center;"><span style="color:var(--text-secondary); font-size:12px;">${p.step || '-'}</span></td>
-        <td><span style="color:var(--text-secondary); font-size:12px;">${p.notes || '-'}</span></td>
+        <td style="text-align:center;"><span class="aggregate-val">${p.ac || 0}</span></td>
+        <td style="text-align:center;"><span class="aggregate-val">${p.pz || 0}</span></td>
+        <td style="text-align:center;"><span class="aggregate-val">${p.biz || 0}</span></td>
+        <td style="text-align:center;"><span class="aggregate-val">${p.acc || 0}</span></td>
+        <td style="text-align:center;"><span style="font-weight:600; font-size:12px;">${escapeHtml(p.step || '-')}</span></td>
+        <td><span style="font-size: 12px; color: var(--text-secondary);">${escapeHtml(p.notes || '-')}</span></td>
       `;
     } else {
+      // Aggregate view (Weekly, Monthly, Quarterly)
       const slamBadge = p.slamsAchieved > 0 
         ? `<span class="badge-grand-slam">🏆 ${p.slamsAchieved} Grand Slam${p.slamsAchieved > 1 ? 's' : ''}</span>`
         : `<span class="badge-progress">0 Slams</span>`;
@@ -1551,12 +1608,11 @@
         </td>
         <td style="text-align:center;">${slamBadge}</td>
         <td style="text-align:center;"><span class="aggregate-val">${p.ac}</span></td>
-        <td style="text-align:center;"><span class="aggregate-val">${p.upgrade}</span></td>
-        <td style="text-align:center;"><span class="aggregate-val">${p.services}</span></td>
+        <td style="text-align:center;"><span class="aggregate-val">${p.pz}</span></td>
         <td style="text-align:center;"><span class="aggregate-val">${p.biz}</span></td>
         <td style="text-align:center;"><span class="aggregate-val">${p.acc}</span></td>
         <td style="text-align:center;"><span style="color: var(--text-secondary); font-size: 12px;">${p.shiftsWorked > 0 ? (p.ac / p.shiftsWorked).toFixed(1) + ' AC/shift' : '-'}</span></td>
-        <td><span style="color: var(--text-secondary); font-size: 12px;">Services: ${p.shiftsWorked > 0 ? (p.services / p.shiftsWorked).toFixed(1) : '0'}/shift</span></td>
+        <td><span style="color: var(--text-secondary); font-size: 12px;">PZ: ${p.shiftsWorked > 0 ? (p.pz / p.shiftsWorked).toFixed(1) : '0'}/shift</span></td>
       `;
     }
 
@@ -1576,15 +1632,13 @@
         renderRow(p.id);
       }
     });
-
-    renderTopPerformersPodium();
   }
 
   function toggleCheckIn(index) {
     if (currentTab !== 'daily') return;
     const member = data.find(d => d.id === index);
     if (!member) return;
-    pushUndoSnapshot();
+    pushUndoState();
     member.checkedIn = !member.checkedIn;
     renderCheckInVisual(index);
     updateTotals();
@@ -1609,7 +1663,7 @@
 
   function checkAll(status) {
     if (currentTab !== 'daily') return;
-    pushUndoSnapshot();
+    pushUndoState();
     data.forEach(d => {
       d.checkedIn = status;
       renderCheckInVisual(d.id);
@@ -1628,8 +1682,9 @@
     existingDividers.forEach(d => d.remove());
 
     const isLive = (currentTab === 'daily');
+    const isPrior = (currentTab === 'prior');
 
-    if (isLive) {
+    if (isLive || isPrior) {
       const checkedMembers = list.filter(d => d.checkedIn).sort(sortComparator);
       const uncheckedMembers = list.filter(d => !d.checkedIn).sort(sortComparator);
 
@@ -1637,7 +1692,7 @@
         const divIn = document.createElement('tr');
         divIn.className = 'section-divider-row';
         divIn.id = 'header-checked-in';
-        divIn.innerHTML = `<td colspan="9" class="col-sticky">🟢 On Shift / Checked In (${checkedMembers.length})</td>`;
+        divIn.innerHTML = `<td colspan="8" class="col-sticky">🟢 ${isLive ? 'On Shift / Checked In' : 'Active on Shift'} (${checkedMembers.length})</td>`;
         tbody.appendChild(divIn);
 
         checkedMembers.forEach(d => {
@@ -1650,7 +1705,7 @@
         const divOut = document.createElement('tr');
         divOut.className = 'section-divider-row';
         divOut.id = 'header-not-checked-in';
-        divOut.innerHTML = `<td colspan="9" class="col-sticky">⚪ Other Team Members (${uncheckedMembers.length})</td>`;
+        divOut.innerHTML = `<td colspan="8" class="col-sticky">⚪ Other Team Members (${uncheckedMembers.length})</td>`;
         tbody.appendChild(divOut);
 
         uncheckedMembers.forEach(d => {
@@ -1659,6 +1714,7 @@
         });
       }
     } else {
+      // Aggregate view - sort directly
       const sorted = [...list].sort(sortComparator);
       sorted.forEach(d => {
         const row = document.getElementById(`row-${d.id}`);
@@ -1667,7 +1723,6 @@
     }
 
     filterTable();
-    renderTopPerformersPodium();
   }
 
   function updateCounts(index, metric, delta) {
@@ -1675,7 +1730,7 @@
     const member = data.find(d => d.id === index);
     if (!member) return;
 
-    pushUndoSnapshot();
+    pushUndoState();
     member[metric] = Math.max(0, member[metric] + delta);
     if (member[metric] > 0 && !member.checkedIn) {
       member.checkedIn = true;
@@ -1689,18 +1744,19 @@
     }
     updateTotals();
     broadcastChange();
-    renderTopPerformersPodium();
   }
 
   function saveStep(index, val) {
     if (currentTab !== 'daily') return;
     const member = data.find(d => d.id === index);
     if (!member) return;
-    pushUndoSnapshot();
-    member.step = val;
-    broadcastChange();
-    if (currentSort.column === 'step') {
-      setTimeout(reorderRows, 60);
+    if (member.step !== val) {
+      pushUndoState();
+      member.step = val;
+      broadcastChange();
+      if (currentSort.column === 'step') {
+        setTimeout(reorderRows, 60);
+      }
     }
   }
 
@@ -1708,8 +1764,11 @@
     if (currentTab !== 'daily') return;
     const member = data.find(d => d.id === index);
     if (!member) return;
-    member.notes = val;
-    broadcastChange();
+    if (member.notes !== val) {
+      pushUndoState();
+      member.notes = val;
+      broadcastChange();
+    }
   }
 
   function renderRow(i) {
@@ -1719,10 +1778,8 @@
 
     const elAc = document.getElementById(`val-ac-${i}`);
     if (elAc) elAc.textContent = member.ac;
-    const elUp = document.getElementById(`val-up-${i}`);
-    if (elUp) elUp.textContent = member.upgrade;
-    const elSrv = document.getElementById(`val-srv-${i}`);
-    if (elSrv) elSrv.textContent = member.services;
+    const elPz = document.getElementById(`val-pz-${i}`);
+    if (elPz) elPz.textContent = member.pz;
     const elBiz = document.getElementById(`val-biz-${i}`);
     if (elBiz) elBiz.textContent = member.biz;
     const elAcc = document.getElementById(`val-acc-${i}`);
@@ -1742,17 +1799,17 @@
     const rowEl = document.getElementById(`row-${i}`);
     if (elSlam) {
       const hits = getHitCount(member);
-      if (hits === 5) {
+      if (hits === 4) {
         elSlam.innerHTML = `<span class="badge-grand-slam">🏆 GRAND SLAM!</span>`;
         if (rowEl) rowEl.classList.add("grand-slam-row");
-      } else if (hits === 4) {
-        elSlam.innerHTML = `<span class="badge-progress almost">🎯 4/5 (1 Away)</span>`;
+      } else if (hits === 3) {
+        elSlam.innerHTML = `<span class="badge-progress almost">🎯 3/4 (1 Away)</span>`;
         if (rowEl) rowEl.classList.remove("grand-slam-row");
       } else if (hits > 0) {
-        elSlam.innerHTML = `<span class="badge-progress">${hits}/5</span>`;
+        elSlam.innerHTML = `<span class="badge-progress">${hits}/4</span>`;
         if (rowEl) rowEl.classList.remove("grand-slam-row");
       } else {
-        elSlam.innerHTML = `<span class="badge-progress">0/5</span>`;
+        elSlam.innerHTML = `<span class="badge-progress">0/4</span>`;
         if (rowEl) rowEl.classList.remove("grand-slam-row");
       }
     }
@@ -1760,46 +1817,56 @@
 
   function updateTotals() {
     const list = getDisplayList();
-    let totAc = 0, totUp = 0, totSrv = 0, totBiz = 0, totAcc = 0, totSlam = 0, totCheckin = 0;
+    let totAc = 0, totPz = 0, totBiz = 0, totAcc = 0, totSlam = 0, totCheckin = 0;
 
     list.forEach(d => {
       if (currentTab === 'daily') {
         renderCheckInVisual(d.id);
         renderRow(d.id);
         if (d.checkedIn) totCheckin++;
-        if (getHitCount(d) === 5) totSlam++;
-      } else if (currentTab === 'priorday') {
+        if (getHitCount(d) === 4) totSlam++;
+      } else if (currentTab === 'prior') {
         if (d.checkedIn) totCheckin++;
-        if (getHitCount(d) === 5) totSlam++;
+        if (getHitCount(d) === 4) totSlam++;
       } else {
         if (d.shiftsWorked > 0) totCheckin += d.shiftsWorked;
         totSlam += (d.slamsAchieved || 0);
       }
-      totAc += d.ac;
-      totUp += d.upgrade;
-      totSrv += d.services;
-      totBiz += d.biz;
-      totAcc += d.acc;
+      totAc += (d.ac || 0);
+      totPz += (d.pz || 0);
+      totBiz += (d.biz || 0);
+      totAcc += (d.acc || 0);
     });
 
     const isLive = (currentTab === 'daily');
-    const isPrior = (currentTab === 'priorday');
-    document.getElementById("lbl-kpi-checkin").textContent = (isLive || isPrior) ? "👥 Checked In" : "👥 Total Shifts";
-    document.getElementById("kpi-checkin").textContent = (isLive || isPrior) ? `${totCheckin} / ${list.length}` : `${totCheckin} Shifts`;
+    const isPrior = (currentTab === 'prior');
+
+    if (isLive) {
+      document.getElementById("lbl-kpi-checkin").textContent = "👥 Checked In";
+      document.getElementById("kpi-checkin").textContent = `${totCheckin} / ${list.length}`;
+      document.getElementById("tot-slam").textContent = `${totSlam} / ${list.length}`;
+    } else if (isPrior) {
+      document.getElementById("lbl-kpi-checkin").textContent = "👥 Prior Shift Staff";
+      document.getElementById("kpi-checkin").textContent = `${totCheckin} / ${list.length}`;
+      document.getElementById("tot-slam").textContent = `${totSlam} / ${list.length}`;
+    } else {
+      document.getElementById("lbl-kpi-checkin").textContent = "👥 Total Shifts";
+      document.getElementById("kpi-checkin").textContent = `${totCheckin} Shifts`;
+      document.getElementById("tot-slam").textContent = `${totSlam} Slams`;
+    }
+
     document.getElementById("kpi-grandslam").textContent = totSlam;
     document.getElementById("kpi-ac").textContent = totAc;
-    document.getElementById("kpi-upgrade").textContent = totUp;
-    document.getElementById("kpi-services").textContent = totSrv;
+    document.getElementById("kpi-pz").textContent = totPz;
     document.getElementById("kpi-biz").textContent = totBiz;
     document.getElementById("kpi-acc").textContent = totAcc;
 
-    document.getElementById("tot-name").textContent = isLive ? "TOTAL STORE SCORE" : `${currentTab.toUpperCase()} TOTAL`;
-    document.getElementById("tot-slam").textContent = (isLive || isPrior) ? `${totSlam} / ${list.length}` : `${totSlam} Slams`;
     document.getElementById("tot-ac").textContent = totAc;
-    document.getElementById("tot-up").textContent = totUp;
-    document.getElementById("tot-srv").textContent = totSrv;
+    document.getElementById("tot-pz").textContent = totPz;
     document.getElementById("tot-biz").textContent = totBiz;
     document.getElementById("tot-acc").textContent = totAcc;
+
+    updateTopPerformers();
   }
 
   function filterTable() {
@@ -1819,14 +1886,14 @@
     list.forEach(p => {
       const matchName = p.name.toLowerCase().includes(q);
       const matchRole = (role === "ALL" || p.role.toLowerCase() === role.toLowerCase());
-      const isChecked = (currentTab === 'daily' || currentTab === 'priorday') ? p.checkedIn : (p.shiftsWorked > 0);
+      const isChecked = (currentTab === 'daily' || currentTab === 'prior') ? p.checkedIn : (p.shiftsWorked > 0);
       const matchCheckin = (checkinFilter === "ALL" || (checkinFilter === "IN" && isChecked) || (checkinFilter === "OUT" && !isChecked));
-      const matchStep = (currentTab !== 'daily' || stepFilter === "ALL" || p.step === stepFilter);
+      const matchStep = (currentTab !== 'daily' && currentTab !== 'prior') ? true : (stepFilter === "ALL" || p.step === stepFilter);
       
-      const hits = (currentTab === 'daily' || currentTab === 'priorday') ? getHitCount(p) : (p.slamsAchieved > 0 ? 5 : 0);
+      const hits = (currentTab === 'daily' || currentTab === 'prior') ? getHitCount(p) : (p.slamsAchieved > 0 ? 4 : 0);
       let matchSlam = true;
-      if (slamFilter === "SLAM") matchSlam = (currentTab === 'daily' || currentTab === 'priorday') ? hits === 5 : p.slamsAchieved > 0;
-      if (slamFilter === "NEAR") matchSlam = (currentTab === 'daily' || currentTab === 'priorday') ? hits === 4 : false;
+      if (slamFilter === "SLAM") matchSlam = (currentTab === 'daily' || currentTab === 'prior') ? (hits === 4) : (p.slamsAchieved > 0);
+      if (slamFilter === "NEAR") matchSlam = (currentTab === 'daily' || currentTab === 'prior') ? (hits === 3) : false;
 
       const rowEl = document.getElementById(`row-${p.id}`);
       if (rowEl) {
@@ -1847,81 +1914,6 @@
     document.getElementById("teamCount").textContent = `${visibleCount} Team Members`;
   }
 
-  /* ➕ ADD TEAM MEMBER LOGIC */
-  function promptAddTeamMember() {
-    const name = prompt("Enter team member's full name:");
-    if (!name || !name.trim()) return;
-
-    const trimmedName = name.trim();
-
-    // Prevent duplicate entries
-    if (data.some(d => d.name.toLowerCase() === trimmedName.toLowerCase())) {
-      alert(`⚠️ "${trimmedName}" is already on the roster.`);
-      return;
-    }
-
-    const availableRoles = [
-      "Specialist",
-      "Expert",
-      "Creative",
-      "Creative Pro",
-      "Business Pro",
-      "Business Expert",
-      "Pro",
-      "Tech and Merch Pro",
-      "POP"
-    ];
-
-    const roleChoice = prompt(
-      `Enter role for ${trimmedName}:\n\n` +
-      availableRoles.map((r, i) => `${i + 1}. ${r}`).join("\n"),
-      "1"
-    );
-
-    if (roleChoice === null) return;
-
-    let selectedRole = "Specialist";
-    const roleIdx = parseInt(roleChoice, 10) - 1;
-    if (!isNaN(roleIdx) && roleIdx >= 0 && roleIdx < availableRoles.length) {
-      selectedRole = availableRoles[roleIdx];
-    } else if (roleChoice.trim()) {
-      // If user typed out the role name directly
-      const match = availableRoles.find(r => r.toLowerCase() === roleChoice.trim().toLowerCase());
-      selectedRole = match || roleChoice.trim();
-    }
-
-    pushUndoSnapshot();
-
-    const newId = data.length > 0 ? Math.max(...data.map(d => d.id)) + 1 : 0;
-    const newMember = {
-      id: newId,
-      name: trimmedName,
-      role: selectedRole,
-      checkedIn: true, // Automatically check in new addition
-      ac: 0,
-      upgrade: 0,
-      services: 0,
-      biz: 0,
-      acc: 0,
-      step: "",
-      notes: ""
-    };
-
-    data.push(newMember);
-    INITIAL_ROSTER.push({ name: trimmedName, role: selectedRole });
-
-    lastVersion = Date.now();
-    saveLocalState();
-    broadcastChange();
-
-    renderTableStructure();
-    updateTotals();
-    reorderRows();
-    updateUndoButtonState();
-
-    flashAutoSaveBadge(`✅ Added ${trimmedName}`);
-  }
-
   /* 📑 TAB SWITCHING LOGIC */
   function switchTab(tab) {
     currentTab = tab;
@@ -1932,55 +1924,44 @@
     const mainTableCard = document.getElementById('mainTableCard');
     const historyCard = document.getElementById('historyCard');
     const filterPanel = document.getElementById('filterPanel');
-    const btnUndo = document.getElementById('btnUndo');
-    const btnArchive = document.getElementById('btnArchive');
+    const topPerformersCard = document.getElementById('topPerformersCard');
     const btnClearCheckins = document.getElementById('btnClearCheckins');
     const btnReset = document.getElementById('btnReset');
-    const btnAddMember = document.getElementById('btnAddMember');
 
     if (tab === 'history') {
       mainTableCard.style.display = 'none';
+      topPerformersCard.style.display = 'none';
       historyCard.style.display = 'block';
       periodSelector.style.display = 'none';
       filterPanel.style.display = 'none';
-      if (btnUndo) btnUndo.style.display = 'none';
-      if (btnArchive) btnArchive.style.display = 'none';
       btnClearCheckins.style.display = 'none';
       btnReset.style.display = 'none';
-      if (btnAddMember) btnAddMember.style.display = 'none';
       renderHistoryList();
       return;
     }
 
     mainTableCard.style.display = 'block';
+    topPerformersCard.style.display = 'block';
     historyCard.style.display = 'none';
     filterPanel.style.display = 'flex';
 
     if (tab === 'daily') {
       periodSelector.style.display = 'none';
-      if (btnUndo) btnUndo.style.display = 'inline-flex';
-      if (btnSave) btnSave.style.display = 'inline-flex';
       btnClearCheckins.style.display = 'inline-flex';
       btnReset.style.display = 'inline-flex';
-      if (btnAddMember) btnAddMember.style.display = 'inline-flex';
       document.getElementById('th-notes').textContent = 'Notes / Focus';
       document.getElementById('tot-notes').textContent = '-';
-    } else if (tab === 'priorday') {
-      periodSelector.style.display = 'none';
-      if (btnUndo) btnUndo.style.display = 'none';
-      if (btnSave) btnSave.style.display = 'none';
+    } else if (tab === 'prior') {
+      periodSelector.style.display = 'inline-block';
       btnClearCheckins.style.display = 'none';
       btnReset.style.display = 'none';
-      if (btnAddMember) btnAddMember.style.display = 'none';
       document.getElementById('th-notes').textContent = 'Notes / Focus';
-      document.getElementById('tot-notes').textContent = historyRecords.length > 0 ? `Archive: ${historyRecords[0].date}` : 'No Prior Day Data';
+      document.getElementById('tot-notes').textContent = 'Prior Snapshot';
+      populatePeriodSelector('prior');
     } else {
       periodSelector.style.display = 'inline-block';
-      if (btnUndo) btnUndo.style.display = 'none';
-      if (btnSave) btnSave.style.display = 'none';
       btnClearCheckins.style.display = 'none';
       btnReset.style.display = 'none';
-      if (btnAddMember) btnAddMember.style.display = 'none';
       document.getElementById('th-notes').textContent = 'Performance Pace';
       document.getElementById('tot-notes').textContent = 'Store Summary';
       populatePeriodSelector(tab);
@@ -1990,7 +1971,6 @@
     updateSortHeaderIcons();
     updateTotals();
     reorderRows();
-    updateUndoButtonState();
   }
 
   function populatePeriodSelector(tab) {
@@ -1998,13 +1978,21 @@
     sel.innerHTML = '';
     const now = new Date();
 
-    if (tab === 'weekly') {
+    if (tab === 'prior') {
+      const priorStr = getPriorDayString();
+      sel.innerHTML += `<option value="yesterday">📅 Yesterday (${priorStr})</option>`;
+      historyRecords.forEach(r => {
+        if (r.date !== priorStr) {
+          sel.innerHTML += `<option value="${r.date}">📜 ${r.date}</option>`;
+        }
+      });
+    } else if (tab === 'weekly') {
       const curWeek = getWeekNumber(now);
       sel.innerHTML += `<option value="current">📅 This Week (Week ${curWeek}, ${now.getFullYear()})</option>`;
       
       const weekSet = new Set();
       historyRecords.forEach(r => {
-        const d = parseDateSafe(r.date);
+        const d = new Date(r.date);
         weekSet.add(`${d.getFullYear()}-W${getWeekNumber(d)}`);
       });
       weekSet.forEach(w => {
@@ -2015,7 +2003,7 @@
       
       const monthSet = new Set();
       historyRecords.forEach(r => {
-        const d = parseDateSafe(r.date);
+        const d = new Date(r.date);
         const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
         monthSet.add(key);
       });
@@ -2029,7 +2017,7 @@
       
       const qSet = new Set();
       historyRecords.forEach(r => {
-        qSet.add(getQuarterString(parseDateSafe(r.date)));
+        qSet.add(getQuarterString(new Date(r.date)));
       });
       qSet.forEach(q => {
         sel.innerHTML += `<option value="${q}">📈 ${q}</option>`;
@@ -2046,8 +2034,8 @@
     reorderRows();
   }
 
-  /* 💾 SAVE & HISTORY LOGIC (Non-Destructive) */
-  function saveCurrentDay(silent = false, targetDate = null) {
+  /* 💾 ARCHIVE & HISTORY LOGIC */
+  function archiveCurrentDay(silent = false, targetDate = null) {
     const today = targetDate || getTodayString();
     const existingIdx = historyRecords.findIndex(r => r.date === today);
 
@@ -2058,18 +2046,23 @@
     };
 
     if (existingIdx >= 0) {
-      historyRecords[existingIdx] = snapshot;
+      if (silent || confirm(`A snapshot for today (${today}) already exists. Overwrite with current shift metrics?`)) {
+        historyRecords[existingIdx] = snapshot;
+        saveLocalState();
+        if (!silent) {
+          alert(`✅ Today's shift (${today}) successfully archived!`);
+        } else {
+          flashAutoSaveBadge(`✅ Whole Day Auto-Archived (${today}) at 8:59 PM`);
+        }
+      }
     } else {
       historyRecords.unshift(snapshot);
-    }
-
-    saveLocalState();
-    broadcastChange();
-
-    if (!silent) {
-      alert(`✅ Today's data (${today}) saved successfully!\n\nYour metrics are securely saved and updated in Weekly, Monthly, and Quarterly views without resetting your live shift.`);
-    } else {
-      flashAutoSaveBadge(`✅ Saved (${today})`);
+      saveLocalState();
+      if (!silent) {
+        alert(`✅ Today's shift (${today}) saved to archive!`);
+      } else {
+        flashAutoSaveBadge(`✅ Whole Day Auto-Archived (${today}) at 8:59 PM`);
+      }
     }
   }
 
@@ -2083,85 +2076,56 @@
         badge.textContent = '⏰ Auto-Archive: 8:59 PM Daily';
         badge.style.borderColor = '';
         badge.style.color = '';
-      }, 10000);
+      }, 8000);
     }
   }
 
-  /* ⏰ HOURLY AUTO-SAVE, 8:59 PM AUTO-SNAPSHOT & 11:59 PM MIDNIGHT RESET ENGINE */
-  function setupAutoEngines() {
-    let lastHourlySaveHour = -1;
+  /* ⏰ HOURLY AUTO-SAVE ENGINE */
+  function setupHourlyAutoSave() {
+    setInterval(() => {
+      saveLocalState();
+      if (mqttClient && mqttClient.connected) {
+        broadcastChange();
+      }
+      flashAutoSaveBadge("💾 Auto-Saved (Hourly)");
+    }, 60 * 60 * 1000); // Every 1 hour
+  }
 
-    function runEngines() {
+  /* ⏰ 8:59 PM DAILY AUTO-ARCHIVE ENGINE (Saves Whole Day to Prior Day Archive) */
+  function setupDailyAutoArchive() {
+    function scheduleNext859PM() {
       const now = new Date();
-      const curHour = now.getHours();
-      const curMin = now.getMinutes();
-      const today = getTodayString();
+      const target = new Date();
+      target.setHours(20, 59, 0, 0); // 8:59:00 PM local time
 
-      // 1. Hourly State Checkpoint + Passcode Gate Recheck
-      if (curHour !== lastHourlySaveHour) {
-        lastHourlySaveHour = curHour;
-        saveLocalState();
-        checkPasscodeGate();
-        flashAutoSaveBadge(`💾 Auto-Saved Hourly Checkpoint (${now.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})})`);
+      if (now.getTime() >= target.getTime()) {
+        target.setDate(target.getDate() + 1);
       }
 
-      // 2. 8:59 PM Auto-Snapshot to Prior Day (Non-Destructive: does NOT delete same-day live data)
-      const isPast859PM = (curHour === 20 && curMin >= 59) || (curHour >= 21);
-      if (isPast859PM) {
-        const hasActiveData = data.some(d => d.checkedIn || (d.ac + d.upgrade + d.services + d.biz + d.acc) > 0);
+      const msUntil859PM = target.getTime() - now.getTime();
+      setTimeout(() => {
+        const hasActiveData = data.some(d => d.checkedIn || d.ac > 0 || d.pz > 0 || d.biz > 0 || d.acc > 0);
         if (hasActiveData) {
-          saveCurrentDay(true); // Non-destructive save & roll to Prior Day, Weekly, Monthly, Quarterly
+          archiveCurrentDay(true);
         }
-      }
-
-      // 3. 11:59 PM Midnight EOD Reset (Clears live daily board for next morning)
-      const isMidnightReset = (curHour === 23 && curMin >= 59);
-      if (isMidnightReset) {
-        const alreadyResetKey = 'pz_tracker_midnight_reset_' + today;
-        let alreadyReset = false;
-        try {
-          alreadyReset = localStorage.getItem(alreadyResetKey) === 'true';
-        } catch(e) {}
-
-        if (!alreadyReset) {
-          // Ensure final snapshot saved before wiping
-          saveCurrentDay(true);
-
-          // Reset live daily board for next morning
-          data.forEach(d => {
-            d.checkedIn = false;
-            d.ac = 0;
-            d.upgrade = 0;
-            d.services = 0;
-            d.biz = 0;
-            d.acc = 0;
-            d.step = "";
-            d.notes = "";
-          });
-
-          try {
-            localStorage.setItem(alreadyResetKey, 'true');
-          } catch(e) {}
-
-          lastVersion = Date.now();
-          saveLocalState();
-          broadcastChange();
-          flashAutoSaveBadge(`🌙 Daily Shift Closed (Board Reset for Next Morning)`);
-
-          if (currentTab === 'daily') {
-            renderTableStructure();
-            updateTotals();
-            reorderRows();
-          } else if (currentTab === 'priorday' || currentTab === 'history') {
-            switchTab(currentTab);
-          }
-        }
-      }
+        scheduleNext859PM();
+      }, msUntil859PM);
     }
 
-    // Check every 30 seconds
-    setInterval(runEngines, 30000);
-    runEngines();
+    // Minute check backup in case iPad/Mac wakes from sleep after 8:59 PM
+    setInterval(() => {
+      const now = new Date();
+      if (now.getHours() === 20 && now.getMinutes() === 59) {
+        const today = getTodayString();
+        const alreadyArchivedToday = historyRecords.some(r => r.date === today);
+        const hasActiveData = data.some(d => d.checkedIn || d.ac > 0 || d.pz > 0 || d.biz > 0 || d.acc > 0);
+        if (hasActiveData && !alreadyArchivedToday) {
+          archiveCurrentDay(true);
+        }
+      }
+    }, 60000);
+
+    scheduleNext859PM();
   }
 
   function renderHistoryList() {
@@ -2172,34 +2136,36 @@
     if (historyRecords.length === 0) {
       container.innerHTML = `
         <div style="padding: 30px; text-align: center; color: var(--text-secondary);">
-          <h3>No Shift History Yet</h3>
-          <p style="margin-top: 6px; font-size: 13px;">Tap "Save Day" or let the 8:59 PM auto-save run to build your daily history logs.</p>
+          <h3>No Archived Shifts Yet</h3>
+          <p style="margin-top: 6px; font-size: 13px;">Daily shifts automatically save in real time and archive permanently at 8:59 PM.</p>
         </div>
       `;
       return;
     }
 
     historyRecords.forEach((rec, idx) => {
-      let recAc = 0, recUp = 0, recSrv = 0, recBiz = 0, recAcc = 0, recSlam = 0, recChecked = 0;
-      rec.data.forEach(p => {
-        if (p.checkedIn) recChecked++;
-        recAc += (p.ac || 0);
-        recUp += (p.upgrade || 0);
-        recSrv += (p.services || 0);
-        recBiz += (p.biz || 0);
-        recAcc += (p.acc || 0);
-        if (getHitCount(p) === 5) recSlam++;
-      });
+      let recAc = 0, recPz = 0, recBiz = 0, recAcc = 0, recSlam = 0, recChecked = 0;
+      if (Array.isArray(rec.data)) {
+        rec.data.forEach(p => {
+          if (p.checkedIn) recChecked++;
+          recAc += (p.ac || 0);
+          recPz += (p.pz || 0);
+          recBiz += (p.biz || 0);
+          recAcc += (p.acc || 0);
+          if (getHitCount(p) === 4) recSlam++;
+        });
+      }
 
       const item = document.createElement('div');
       item.className = 'history-item';
       item.innerHTML = `
         <div class="history-info">
           <div class="history-date">📅 ${rec.date}</div>
-          <div class="history-meta">👥 ${recChecked} Checked In • 🏆 ${recSlam} Grand Slams • 🍎 ${recAc} AC+ • 🆙 ${recUp} Upgrades • 🛍️ ${recSrv} Services • 💼 ${recBiz} Biz • 🎧 ${recAcc} Acc</div>
+          <div class="history-meta">👥 ${recChecked} Checked In • 🏆 ${recSlam} Grand Slams • 🍎 ${recAc} AC+ • 🔄 ${recPz} PZ • 💼 ${recBiz} Biz • 🎧 ${recAcc} Acc</div>
         </div>
         <div class="history-actions">
-          <button class="secondary" style="min-height: 32px; padding: 4px 10px; font-size: 12px;" onclick="exportHistoryCSV(${idx})">📥 Export Day CSV</button>
+          <button class="secondary" style="min-height: 32px; padding: 4px 10px; font-size: 12px;" onclick="viewHistoryInPriorTab('${rec.date}')">👁️ View Day</button>
+          <button class="secondary" style="min-height: 32px; padding: 4px 10px; font-size: 12px;" onclick="exportHistoryCSV(${idx})">📥 Export CSV</button>
           <button class="secondary" style="min-height: 32px; padding: 4px 10px; font-size: 12px;" onclick="restoreHistoryToLive(${idx})">🔄 Restore to Live</button>
           <button class="danger" style="min-height: 32px; padding: 4px 8px; font-size: 12px;" onclick="deleteHistoryRecord(${idx})">🗑️</button>
         </div>
@@ -2208,11 +2174,21 @@
     });
   }
 
+  function viewHistoryInPriorTab(dateStr) {
+    switchTab('prior');
+    const sel = document.getElementById('periodSelector');
+    if (sel) {
+      sel.value = dateStr;
+      onPeriodChange();
+    }
+  }
+
   function restoreHistoryToLive(idx) {
     const rec = historyRecords[idx];
     if (!rec) return;
     if (confirm(`Load shift from ${rec.date} into your Live Daily tracker? Current unsaved live counts will be overwritten.`)) {
       data = JSON.parse(JSON.stringify(rec.data));
+      activeShiftDate = rec.date;
       lastVersion = Date.now();
       saveLocalState();
       switchTab('daily');
@@ -2228,31 +2204,13 @@
     }
   }
 
-  function exportHistoryCSV(idx) {
-    const rec = historyRecords[idx];
-    if (!rec) return;
-    let csv = `Shift Archive - ${rec.date}\nChecked In,Name,Job Title,Grand Slam Status (🏆),AppleCare+ (🍎),Upgrades (🆙),Services (🛍️),Business (💼),Accessories (🎧),Apple Steps of Services,Notes\n`;
-    rec.data.forEach(p => {
-      const hits = getHitCount(p);
-      const slamLabel = hits === 5 ? "GRAND SLAM (5/5) 🏆" : `${hits}/5`;
-      const inStatus = p.checkedIn ? "Yes" : "No";
-      csv += `"${inStatus}","${p.name}","${p.role}","${slamLabel}",${p.ac},${p.upgrade},${p.services},${p.biz},${p.acc},"${p.step || ''}","${p.notes || ''}"\n`;
-    });
-    const blob = new Blob([csv], { type: "text/csv" });
-    const url = window.URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.setAttribute("href", url);
-    a.setAttribute("download", `PZ_Focus_And_Follow_Archive_${rec.date}.csv`);
-    a.click();
-  }
-
   function resetCounts() {
-    if (confirm("Reset today's active metrics, steps, and check-ins to 0? (Archived history will remain saved)")) {
+    if (confirm("Reset today's active metrics, steps, and check-ins to 0?")) {
+      pushUndoState();
       data.forEach(d => {
         d.checkedIn = false;
         d.ac = 0;
-        d.upgrade = 0;
-        d.services = 0;
+        d.pz = 0;
         d.biz = 0;
         d.acc = 0;
         d.step = "";
@@ -2264,6 +2222,7 @@
         renderCheckInVisual(d.id);
       });
       lastVersion = Date.now();
+      syncCurrentDayToHistory();
       saveLocalState();
       updateTotals();
       broadcastChange();
@@ -2272,22 +2231,26 @@
   }
 
   function exportCSV() {
-    let csv = `PZ Focus & Follow Export (${currentTab.toUpperCase()})\n`;
-    if (currentTab === 'daily' || currentTab === 'priorday') {
-      csv += "Checked In,Name,Job Title,Grand Slam Status (🏆),AppleCare+ (🍎),Upgrades (🆙),Services (🛍️),Business (💼),Accessories (🎧),Apple Steps of Services,Notes\n";
-      const list = getDisplayList();
+    const list = getDisplayList();
+    const isLive = (currentTab === 'daily');
+    const isPrior = (currentTab === 'prior');
+    let titleHeader = isLive ? "Daily_Shift" : (isPrior ? `Prior_Day_${selectedPeriodKey}` : `${currentTab}_Report_${selectedPeriodKey}`);
+    
+    let csv = "";
+    if (isLive || isPrior) {
+      csv = "Checked In,Name,Job Title,Grand Slam Status (🏆),AppleCare+ (🍎),PZ Conversion (🔄),Business (💼),Accessories (🎧),Apple Steps of Services,Notes\n";
       const exportData = [...list].sort((a, b) => (b.checkedIn ? 1 : 0) - (a.checkedIn ? 1 : 0));
       exportData.forEach(p => {
         const hits = getHitCount(p);
-        const slamLabel = hits === 5 ? "GRAND SLAM (5/5) 🏆" : `${hits}/5`;
+        const slamLabel = hits === 4 ? "GRAND SLAM (4/4) 🏆" : `${hits}/4`;
         const inStatus = p.checkedIn ? "Yes" : "No";
-        csv += `"${inStatus}","${p.name}","${p.role}","${slamLabel}",${p.ac},${p.upgrade},${p.services},${p.biz},${p.acc},"${p.step || ''}","${p.notes || ''}"\n`;
+        csv += `"${inStatus}","${p.name}","${p.role}","${slamLabel}",${p.ac || 0},${p.pz || 0},${p.biz || 0},${p.acc || 0},"${p.step || ''}","${p.notes || ''}"\n`;
       });
     } else {
-      const list = getDisplayList();
-      csv += "Name,Job Title,Shifts Worked,Grand Slam Achieved,AppleCare+ (🍎),Upgrades (🆙),Services (🛍️),Business (💼),Accessories (🎧)\n";
-      list.forEach(p => {
-        csv += `"${p.name}","${p.role}",${p.shiftsWorked},${p.slamsAchieved},${p.ac},${p.upgrade},${p.services},${p.biz},${p.acc}\n`;
+      csv = "Name,Job Title,Shifts Worked,Grand Slams (🏆),Total AppleCare+ (🍎),Total PZ Conversion (🔄),Total Business (💼),Total Accessories (🎧)\n";
+      const exportData = [...list].sort((a, b) => b.ac - a.ac);
+      exportData.forEach(p => {
+        csv += `"${p.name}","${p.role}",${p.shiftsWorked},${p.slamsAchieved || 0},${p.ac},${p.pz},${p.biz},${p.acc}\n`;
       });
     }
 
@@ -2295,11 +2258,31 @@
     const url = window.URL.createObjectURL(blob);
     const a = document.createElement("a");
     a.setAttribute("href", url);
-    a.setAttribute("download", `PZ_Focus_And_Follow_${currentTab.toUpperCase()}_Report.csv`);
+    a.setAttribute("download", `GB_Focus_Follow_${titleHeader}.csv`);
     a.click();
   }
 
-  /* 🌐 ZERO-CONFIG REAL-TIME CLOUD SYNC ENGINE */
+  function exportHistoryCSV(idx) {
+    const rec = historyRecords[idx];
+    if (!rec) return;
+    let csv = "Checked In,Name,Job Title,Grand Slam Status (🏆),AppleCare+ (🍎),PZ Conversion (🔄),Business (💼),Accessories (🎧),Apple Steps of Services,Notes\n";
+    if (Array.isArray(rec.data)) {
+      rec.data.forEach(p => {
+        const hits = getHitCount(p);
+        const slamLabel = hits === 4 ? "GRAND SLAM (4/4) 🏆" : `${hits}/4`;
+        const inStatus = p.checkedIn ? "Yes" : "No";
+        csv += `"${inStatus}","${p.name}","${p.role}","${slamLabel}",${p.ac || 0},${p.pz || 0},${p.biz || 0},${p.acc || 0},"${p.step || ''}","${p.notes || ''}"\n`;
+      });
+    }
+    const blob = new Blob([csv], { type: "text/csv" });
+    const url = window.URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.setAttribute("href", url);
+    a.setAttribute("download", `GB_Focus_Follow_${rec.date}.csv`);
+    a.click();
+  }
+
+  /* 🌐 ZERO-CONFIG REAL-TIME CLOUD SYNC ENGINE (Cross-Device via Secure WebSocket) */
   function initCloudSync() {
     try {
       const brokerUrl = "wss://broker.emqx.io:8084/mqtt";
@@ -2311,9 +2294,12 @@
       });
 
       mqttClient.on('connect', () => {
-        setSyncBadge('🟢 Live Multi-Device Sync Active');
+        setSyncBadge('🟢 Live Cloud Multi-Device Sync Active');
         mqttClient.subscribe(SYNC_TOPIC, { qos: 1 });
-        mqttClient.publish(SYNC_TOPIC + "/req", JSON.stringify({ clientId: CLIENT_ID, version: lastVersion }));
+        mqttClient.publish(SYNC_TOPIC + "/req", JSON.stringify({ 
+          clientId: CLIENT_ID, 
+          version: lastVersion 
+        }));
       });
 
       mqttClient.on('message', (topic, payload) => {
@@ -2324,49 +2310,47 @@
               mqttClient.publish(SYNC_TOPIC, JSON.stringify({
                 clientId: CLIENT_ID,
                 version: lastVersion,
+                date: activeShiftDate,
                 data: data,
-                history: historyRecords
+                historyRecords: historyRecords
               }), { qos: 1, retain: true });
             }
             return;
           }
 
-          if (msg.clientId !== CLIENT_ID && msg.data && msg.version && msg.version > lastVersion) {
+          if (msg.clientId !== CLIENT_ID && msg.version && msg.version > lastVersion) {
             lastVersion = msg.version;
-            msg.data.forEach(remote => {
-              const local = data.find(d => d.name === remote.name);
-              if (local) {
-                local.checkedIn = remote.checkedIn;
-                local.ac = remote.ac;
-                local.upgrade = remote.upgrade;
-                local.services = remote.services;
-                local.biz = remote.biz;
-                local.acc = remote.acc;
-                local.step = remote.step || "";
-                local.notes = remote.notes;
-              }
-            });
-            if (Array.isArray(msg.history)) {
-              historyRecords = msg.history;
+            if (Array.isArray(msg.data)) data = msg.data;
+            if (msg.date) activeShiftDate = msg.date;
+
+            // Merge historical records across devices
+            if (Array.isArray(msg.historyRecords) && msg.historyRecords.length > 0) {
+              const dateMap = {};
+              historyRecords.forEach(r => { dateMap[r.date] = r; });
+              msg.historyRecords.forEach(r => {
+                if (!dateMap[r.date] || (r.timestamp && r.timestamp >= (dateMap[r.date].timestamp || 0))) {
+                  dateMap[r.date] = r;
+                }
+              });
+              historyRecords = Object.values(dateMap).sort((a, b) => (b.date > a.date ? 1 : -1));
             }
+
             saveLocalState();
-            if (currentTab === 'daily') {
-              updateTotals();
-              reorderRows();
-            } else if (currentTab === 'history') {
-              renderHistoryList();
-            } else {
-              renderTableStructure();
-              updateTotals();
-              reorderRows();
-            }
-            setSyncBadge('🟢 Live Multi-Device Sync Active');
+            renderTableStructure();
+            updateTotals();
+            reorderRows();
+            setSyncBadge('🟢 Live Cloud Sync Active');
           }
         } catch(err) {}
       });
 
-      mqttClient.on('error', () => setSyncBadge('💾 Saved to iPad'));
-      mqttClient.on('offline', () => setSyncBadge('💾 Saved to iPad'));
+      mqttClient.on('error', () => {
+        setSyncBadge('💾 Saved to iPad');
+      });
+
+      mqttClient.on('offline', () => {
+        setSyncBadge('💾 Saved to iPad');
+      });
     } catch(e) {
       setSyncBadge('💾 Saved to iPad');
     }
@@ -2374,14 +2358,16 @@
 
   function broadcastChange() {
     lastVersion = Date.now();
+    syncCurrentDayToHistory();
     saveLocalState();
     if (mqttClient && mqttClient.connected) {
       try {
         mqttClient.publish(SYNC_TOPIC, JSON.stringify({
           clientId: CLIENT_ID,
           version: lastVersion,
+          date: activeShiftDate,
           data: data,
-          history: historyRecords
+          historyRecords: historyRecords
         }), { qos: 1, retain: true });
       } catch(e) {}
     }
@@ -2392,15 +2378,189 @@
     if (el) el.textContent = txt;
   }
 
+  /* 🔒 1-HOUR PASSCODE SECURITY GATE */
+  const STORAGE_KEY_PIN = "gb_tracker_store_pin_v1984";
+  const STORAGE_KEY_LAST_UNLOCK = "gb_tracker_last_unlock_v10";
+  const SESSION_TIMEOUT_MS = 60 * 60 * 1000; // 1 Hour (3,600,000 ms)
+  const DEFAULT_PIN = "1984";
+
+  let enteredPin = "";
+  let isPasscodeLocked = true;
+
+  function getStoredPin() {
+    return localStorage.getItem(STORAGE_KEY_PIN) || DEFAULT_PIN;
+  }
+
+  function setStoredPin(newPin) {
+    localStorage.setItem(STORAGE_KEY_PIN, newPin);
+  }
+
+  function getLastUnlockTime() {
+    const val = localStorage.getItem(STORAGE_KEY_LAST_UNLOCK);
+    return val ? parseInt(val, 10) : 0;
+  }
+
+  function setLastUnlockTime(ts) {
+    localStorage.setItem(STORAGE_KEY_LAST_UNLOCK, String(ts));
+  }
+
+  function updatePasscodeDots() {
+    for (let i = 0; i < 4; i++) {
+      const dot = document.getElementById(`dot-${i}`);
+      if (dot) {
+        if (i < enteredPin.length) {
+          dot.classList.add('filled');
+        } else {
+          dot.classList.remove('filled');
+        }
+      }
+    }
+  }
+
+  function enterPasscodeDigit(digit) {
+    if (enteredPin.length >= 4) return;
+    enteredPin += digit;
+    updatePasscodeDots();
+    const errMsg = document.getElementById('passcodeErrorMsg');
+    if (errMsg) errMsg.textContent = '';
+
+    if (enteredPin.length === 4) {
+      setTimeout(verifyPasscode, 120);
+    }
+  }
+
+  function deletePasscodeDigit() {
+    if (enteredPin.length > 0) {
+      enteredPin = enteredPin.slice(0, -1);
+      updatePasscodeDots();
+      const errMsg = document.getElementById('passcodeErrorMsg');
+      if (errMsg) errMsg.textContent = '';
+    }
+  }
+
+  function verifyPasscode() {
+    const currentPin = getStoredPin();
+    if (enteredPin === currentPin) {
+      unlockTracker();
+    } else {
+      const dots = document.getElementById('passcodeDots');
+      const msg = document.getElementById('passcodeErrorMsg');
+      if (dots) dots.classList.add('shake');
+      if (msg) msg.textContent = 'Incorrect Passcode. Try again.';
+
+      setTimeout(() => {
+        if (dots) dots.classList.remove('shake');
+        enteredPin = '';
+        updatePasscodeDots();
+      }, 500);
+    }
+  }
+
+  function unlockTracker() {
+    enteredPin = '';
+    updatePasscodeDots();
+    isPasscodeLocked = false;
+    setLastUnlockTime(Date.now());
+    const overlay = document.getElementById('passcodeOverlay');
+    if (overlay) overlay.classList.remove('active');
+  }
+
+  function lockTrackerNow() {
+    isPasscodeLocked = true;
+    enteredPin = '';
+    updatePasscodeDots();
+    const errMsg = document.getElementById('passcodeErrorMsg');
+    if (errMsg) errMsg.textContent = '';
+    const overlay = document.getElementById('passcodeOverlay');
+    if (overlay) overlay.classList.add('active');
+  }
+
+  function checkHourlySessionTimeout() {
+    const lastUnlock = getLastUnlockTime();
+    const elapsed = Date.now() - lastUnlock;
+
+    if (elapsed >= SESSION_TIMEOUT_MS || lastUnlock === 0) {
+      if (!isPasscodeLocked) {
+        lockTrackerNow();
+      }
+    }
+  }
+
+  function openChangePinPrompt() {
+    const currentStored = getStoredPin();
+    const oldPin = prompt(`Enter current passcode (Default is ${DEFAULT_PIN}):`);
+    if (oldPin === null) return;
+    if (oldPin !== currentStored) {
+      alert("❌ Incorrect current passcode.");
+      return;
+    }
+    const newPin = prompt("Enter new 4-digit passcode:");
+    if (!newPin || newPin.length !== 4 || isNaN(parseInt(newPin, 10))) {
+      alert("❌ Passcode must be exactly 4 numbers.");
+      return;
+    }
+    setStoredPin(newPin);
+    alert(`✅ Store passcode updated to: ${newPin}`);
+  }
+
+  function setupPasscodeGate() {
+    const lastUnlock = getLastUnlockTime();
+    const elapsed = Date.now() - lastUnlock;
+
+    if (elapsed >= SESSION_TIMEOUT_MS || lastUnlock === 0) {
+      lockTrackerNow();
+    } else {
+      isPasscodeLocked = false;
+      const overlay = document.getElementById('passcodeOverlay');
+      if (overlay) overlay.classList.remove('active');
+    }
+
+    // Periodic check every 10 seconds
+    setInterval(() => {
+      checkHourlySessionTimeout();
+      checkDayRollover();
+    }, 10000);
+
+    // Check on tab visible / awake from sleep
+    document.addEventListener('visibilitychange', () => {
+      if (document.visibilityState === 'visible') {
+        checkHourlySessionTimeout();
+        checkDayRollover();
+      }
+    });
+
+    window.addEventListener('focus', () => {
+      checkHourlySessionTimeout();
+      checkDayRollover();
+    });
+
+    // Physical keyboard listener
+    window.addEventListener('keydown', (e) => {
+      const overlay = document.getElementById('passcodeOverlay');
+      if (overlay && overlay.classList.contains('active')) {
+        if (e.key >= '0' && e.key <= '9') {
+          enterPasscodeDigit(e.key);
+        } else if (e.key === 'Backspace') {
+          deletePasscodeDigit();
+        } else if (e.key === 'Escape') {
+          enteredPin = '';
+          updatePasscodeDots();
+        }
+      }
+    });
+  }
+
   // Initialize
-  checkPasscodeGate();
-  setInterval(checkPasscodeGate, 15000); // Poll passcode gate every 15s to enforce 1-hour expiry on active iPad
+  checkDayRollover();
   renderTableStructure();
   updateSortHeaderIcons();
   updateTotals();
   reorderRows();
+  updateUndoButton();
   initCloudSync();
-  setupAutoEngines();
+  setupHourlyAutoSave();
+  setupDailyAutoArchive();
+  setupPasscodeGate();
 </script>
 </body>
 </html>
