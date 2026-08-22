@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-<title>🧰 GB Tracker</title>
+<title>🧰GB Focus & Follow 🆙</title>
 <!-- Lightweight MQTT over WebSockets for Instant Serverless Cloud Sync -->
 <script src="https://unpkg.com/mqtt/dist/mqtt.min.js"></script>
 <style>
@@ -749,7 +749,7 @@
   <!-- Top Action Bar -->
   <div class="top-bar">
     <div class="app-title">
-      🧰 GB Tracker
+      🧰GB Focus & Follow 🆙
       <span class="sync-badge" id="syncStatus">🔄 Connecting Cloud Sync...</span>
       <span class="sync-badge" id="autoSaveBadge">⏰ Auto-Archive: 8:59 PM Daily</span>
     </div>
@@ -979,9 +979,9 @@
   </div>
 
 <script>
-  const STORAGE_KEY_LIVE = "gb_tracker_live_v10";
-  const STORAGE_KEY_HISTORY = "gb_tracker_history_records_v10";
-  const SYNC_TOPIC = "apple_retail_gb_tracker_sync_v10";
+  const STORAGE_KEY_LIVE = "gb_tracker_live_v11";
+  const STORAGE_KEY_HISTORY = "gb_tracker_history_records_v11";
+  const SYNC_TOPIC = "apple_retail_gb_tracker_sync_v11";
   const CLIENT_ID = "client_" + Math.random().toString(36).substring(2, 10);
   
   const INITIAL_ROSTER = [
@@ -1049,7 +1049,8 @@
   ];
 
   let currentTab = 'daily'; // 'daily' | 'prior' | 'weekly' | 'monthly' | 'quarterly' | 'history'
-  let selectedPeriodKey = 'current';
+  let selectedPeriodKey = 'yesterday';
+  let activeShiftDate = getTodayString();
 
   // Live active shift data
   let data = INITIAL_ROSTER.map((item, idx) => ({
@@ -1098,6 +1099,7 @@
     try {
       data = JSON.parse(previousSnapshot);
       lastVersion = Date.now();
+      syncCurrentDayToHistory();
       saveLocalState();
       renderTableStructure();
       updateTotals();
@@ -1169,9 +1171,12 @@
     const savedLive = localStorage.getItem(STORAGE_KEY_LIVE);
     if (savedLive) {
       const parsed = JSON.parse(savedLive);
-      if (Array.isArray(parsed.data) && parsed.data.length > 0) {
+      if (parsed && Array.isArray(parsed.data) && parsed.data.length > 0) {
         lastVersion = parsed.version || 0;
         data = parsed.data;
+        if (parsed.date) {
+          activeShiftDate = parsed.date;
+        }
       }
     }
   } catch(e) {}
@@ -1186,11 +1191,65 @@
     }
   } catch(e) {}
 
+  function syncCurrentDayToHistory() {
+    const hasAnyActivity = data.some(d => d.checkedIn || d.ac > 0 || d.pz > 0 || d.biz > 0 || d.acc > 0 || d.notes || d.step);
+    if (!hasAnyActivity) return;
+
+    const today = activeShiftDate || getTodayString();
+    const existingIdx = historyRecords.findIndex(r => r.date === today);
+    const snapshot = {
+      date: today,
+      timestamp: Date.now(),
+      data: JSON.parse(JSON.stringify(data))
+    };
+
+    if (existingIdx >= 0) {
+      historyRecords[existingIdx] = snapshot;
+    } else {
+      historyRecords.unshift(snapshot);
+    }
+    historyRecords.sort((a, b) => (b.date > a.date ? 1 : (b.date < a.date ? -1 : 0)));
+  }
+
   function saveLocalState() {
     try {
-      localStorage.setItem(STORAGE_KEY_LIVE, JSON.stringify({ data: data, version: lastVersion }));
+      localStorage.setItem(STORAGE_KEY_LIVE, JSON.stringify({ 
+        date: activeShiftDate || getTodayString(), 
+        data: data, 
+        version: lastVersion 
+      }));
       localStorage.setItem(STORAGE_KEY_HISTORY, JSON.stringify(historyRecords));
     } catch(e) {}
+  }
+
+  function checkDayRollover() {
+    const today = getTodayString();
+    if (activeShiftDate && activeShiftDate !== today) {
+      // 1. Ensure previous day's shift is permanently recorded in history
+      syncCurrentDayToHistory();
+
+      // 2. Initialize fresh shift for today
+      data = INITIAL_ROSTER.map((item, idx) => ({
+        id: idx,
+        name: item.name,
+        role: item.role,
+        checkedIn: false,
+        ac: 0,
+        pz: 0,
+        biz: 0,
+        acc: 0,
+        step: "",
+        notes: ""
+      }));
+      activeShiftDate = today;
+      lastVersion = Date.now();
+      saveLocalState();
+      renderTableStructure();
+      updateTotals();
+      reorderRows();
+      flashAutoSaveBadge(`📅 New Shift Initialized (${today})`);
+      broadcastChange();
+    }
   }
 
   let currentSort = {
@@ -1241,16 +1300,23 @@
     }
 
     if (currentTab === 'prior') {
-      const priorDate = getPriorDayString();
-      const priorRec = historyRecords.find(r => r.date === priorDate);
-      if (priorRec && Array.isArray(priorRec.data)) {
-        return priorRec.data;
+      let targetDate = selectedPeriodKey;
+      if (targetDate === 'yesterday' || targetDate === 'current' || !targetDate) {
+        targetDate = getPriorDayString();
       }
-      // If no snapshot for yesterday yet, check latest available history record or return zeroed template
-      if (historyRecords.length > 0 && selectedPeriodKey !== 'yesterday') {
-        const match = historyRecords.find(r => r.date === selectedPeriodKey);
-        if (match && Array.isArray(match.data)) return match.data;
+
+      // 1. Try finding target date in history
+      let match = historyRecords.find(r => r.date === targetDate);
+
+      // 2. If looking for yesterday and not found, check most recent history record
+      if (!match && (selectedPeriodKey === 'yesterday' || selectedPeriodKey === 'current') && historyRecords.length > 0) {
+        match = historyRecords[0];
       }
+
+      if (match && Array.isArray(match.data)) {
+        return match.data;
+      }
+
       return INITIAL_ROSTER.map((m, idx) => ({
         id: idx,
         name: m.name,
@@ -1261,7 +1327,7 @@
         biz: 0,
         acc: 0,
         step: "-",
-        notes: "No archived log for this date"
+        notes: `No archived shift found for ${targetDate}`
       }));
     }
 
@@ -2071,7 +2137,7 @@
       container.innerHTML = `
         <div style="padding: 30px; text-align: center; color: var(--text-secondary);">
           <h3>No Archived Shifts Yet</h3>
-          <p style="margin-top: 6px; font-size: 13px;">Tap "Save / Archive Day" at the end of each shift to build your historical performance logs.</p>
+          <p style="margin-top: 6px; font-size: 13px;">Daily shifts automatically save in real time and archive permanently at 8:59 PM.</p>
         </div>
       `;
       return;
@@ -2079,14 +2145,16 @@
 
     historyRecords.forEach((rec, idx) => {
       let recAc = 0, recPz = 0, recBiz = 0, recAcc = 0, recSlam = 0, recChecked = 0;
-      rec.data.forEach(p => {
-        if (p.checkedIn) recChecked++;
-        recAc += (p.ac || 0);
-        recPz += (p.pz || 0);
-        recBiz += (p.biz || 0);
-        recAcc += (p.acc || 0);
-        if (getHitCount(p) === 4) recSlam++;
-      });
+      if (Array.isArray(rec.data)) {
+        rec.data.forEach(p => {
+          if (p.checkedIn) recChecked++;
+          recAc += (p.ac || 0);
+          recPz += (p.pz || 0);
+          recBiz += (p.biz || 0);
+          recAcc += (p.acc || 0);
+          if (getHitCount(p) === 4) recSlam++;
+        });
+      }
 
       const item = document.createElement('div');
       item.className = 'history-item';
@@ -2096,7 +2164,8 @@
           <div class="history-meta">👥 ${recChecked} Checked In • 🏆 ${recSlam} Grand Slams • 🍎 ${recAc} AC+ • 🔄 ${recPz} PZ • 💼 ${recBiz} Biz • 🎧 ${recAcc} Acc</div>
         </div>
         <div class="history-actions">
-          <button class="secondary" style="min-height: 32px; padding: 4px 10px; font-size: 12px;" onclick="exportHistoryCSV(${idx})">📥 Export Day CSV</button>
+          <button class="secondary" style="min-height: 32px; padding: 4px 10px; font-size: 12px;" onclick="viewHistoryInPriorTab('${rec.date}')">👁️ View Day</button>
+          <button class="secondary" style="min-height: 32px; padding: 4px 10px; font-size: 12px;" onclick="exportHistoryCSV(${idx})">📥 Export CSV</button>
           <button class="secondary" style="min-height: 32px; padding: 4px 10px; font-size: 12px;" onclick="restoreHistoryToLive(${idx})">🔄 Restore to Live</button>
           <button class="danger" style="min-height: 32px; padding: 4px 8px; font-size: 12px;" onclick="deleteHistoryRecord(${idx})">🗑️</button>
         </div>
@@ -2105,11 +2174,21 @@
     });
   }
 
+  function viewHistoryInPriorTab(dateStr) {
+    switchTab('prior');
+    const sel = document.getElementById('periodSelector');
+    if (sel) {
+      sel.value = dateStr;
+      onPeriodChange();
+    }
+  }
+
   function restoreHistoryToLive(idx) {
     const rec = historyRecords[idx];
     if (!rec) return;
     if (confirm(`Load shift from ${rec.date} into your Live Daily tracker? Current unsaved live counts will be overwritten.`)) {
       data = JSON.parse(JSON.stringify(rec.data));
+      activeShiftDate = rec.date;
       lastVersion = Date.now();
       saveLocalState();
       switchTab('daily');
@@ -2143,6 +2222,7 @@
         renderCheckInVisual(d.id);
       });
       lastVersion = Date.now();
+      syncCurrentDayToHistory();
       saveLocalState();
       updateTotals();
       broadcastChange();
@@ -2178,7 +2258,7 @@
     const url = window.URL.createObjectURL(blob);
     const a = document.createElement("a");
     a.setAttribute("href", url);
-    a.setAttribute("download", `GB_Tracker_${titleHeader}.csv`);
+    a.setAttribute("download", `GB_Focus_Follow_${titleHeader}.csv`);
     a.click();
   }
 
@@ -2186,17 +2266,19 @@
     const rec = historyRecords[idx];
     if (!rec) return;
     let csv = "Checked In,Name,Job Title,Grand Slam Status (🏆),AppleCare+ (🍎),PZ Conversion (🔄),Business (💼),Accessories (🎧),Apple Steps of Services,Notes\n";
-    rec.data.forEach(p => {
-      const hits = getHitCount(p);
-      const slamLabel = hits === 4 ? "GRAND SLAM (4/4) 🏆" : `${hits}/4`;
-      const inStatus = p.checkedIn ? "Yes" : "No";
-      csv += `"${inStatus}","${p.name}","${p.role}","${slamLabel}",${p.ac || 0},${p.pz || 0},${p.biz || 0},${p.acc || 0},"${p.step || ''}","${p.notes || ''}"\n`;
-    });
+    if (Array.isArray(rec.data)) {
+      rec.data.forEach(p => {
+        const hits = getHitCount(p);
+        const slamLabel = hits === 4 ? "GRAND SLAM (4/4) 🏆" : `${hits}/4`;
+        const inStatus = p.checkedIn ? "Yes" : "No";
+        csv += `"${inStatus}","${p.name}","${p.role}","${slamLabel}",${p.ac || 0},${p.pz || 0},${p.biz || 0},${p.acc || 0},"${p.step || ''}","${p.notes || ''}"\n`;
+      });
+    }
     const blob = new Blob([csv], { type: "text/csv" });
     const url = window.URL.createObjectURL(blob);
     const a = document.createElement("a");
     a.setAttribute("href", url);
-    a.setAttribute("download", `GB_Tracker_${rec.date}.csv`);
+    a.setAttribute("download", `GB_Focus_Follow_${rec.date}.csv`);
     a.click();
   }
 
@@ -2214,7 +2296,10 @@
       mqttClient.on('connect', () => {
         setSyncBadge('🟢 Live Cloud Multi-Device Sync Active');
         mqttClient.subscribe(SYNC_TOPIC, { qos: 1 });
-        mqttClient.publish(SYNC_TOPIC + "/req", JSON.stringify({ clientId: CLIENT_ID, version: lastVersion }));
+        mqttClient.publish(SYNC_TOPIC + "/req", JSON.stringify({ 
+          clientId: CLIENT_ID, 
+          version: lastVersion 
+        }));
       });
 
       mqttClient.on('message', (topic, payload) => {
@@ -2225,15 +2310,31 @@
               mqttClient.publish(SYNC_TOPIC, JSON.stringify({
                 clientId: CLIENT_ID,
                 version: lastVersion,
-                data: data
+                date: activeShiftDate,
+                data: data,
+                historyRecords: historyRecords
               }), { qos: 1, retain: true });
             }
             return;
           }
 
-          if (msg.clientId !== CLIENT_ID && msg.data && msg.version && msg.version > lastVersion) {
+          if (msg.clientId !== CLIENT_ID && msg.version && msg.version > lastVersion) {
             lastVersion = msg.version;
-            data = msg.data;
+            if (Array.isArray(msg.data)) data = msg.data;
+            if (msg.date) activeShiftDate = msg.date;
+
+            // Merge historical records across devices
+            if (Array.isArray(msg.historyRecords) && msg.historyRecords.length > 0) {
+              const dateMap = {};
+              historyRecords.forEach(r => { dateMap[r.date] = r; });
+              msg.historyRecords.forEach(r => {
+                if (!dateMap[r.date] || (r.timestamp && r.timestamp >= (dateMap[r.date].timestamp || 0))) {
+                  dateMap[r.date] = r;
+                }
+              });
+              historyRecords = Object.values(dateMap).sort((a, b) => (b.date > a.date ? 1 : -1));
+            }
+
             saveLocalState();
             renderTableStructure();
             updateTotals();
@@ -2257,13 +2358,16 @@
 
   function broadcastChange() {
     lastVersion = Date.now();
+    syncCurrentDayToHistory();
     saveLocalState();
     if (mqttClient && mqttClient.connected) {
       try {
         mqttClient.publish(SYNC_TOPIC, JSON.stringify({
           clientId: CLIENT_ID,
           version: lastVersion,
-          data: data
+          date: activeShiftDate,
+          data: data,
+          historyRecords: historyRecords
         }), { qos: 1, retain: true });
       } catch(e) {}
     }
@@ -2412,16 +2516,23 @@
     }
 
     // Periodic check every 10 seconds
-    setInterval(checkHourlySessionTimeout, 10000);
+    setInterval(() => {
+      checkHourlySessionTimeout();
+      checkDayRollover();
+    }, 10000);
 
     // Check on tab visible / awake from sleep
     document.addEventListener('visibilitychange', () => {
       if (document.visibilityState === 'visible') {
         checkHourlySessionTimeout();
+        checkDayRollover();
       }
     });
 
-    window.addEventListener('focus', checkHourlySessionTimeout);
+    window.addEventListener('focus', () => {
+      checkHourlySessionTimeout();
+      checkDayRollover();
+    });
 
     // Physical keyboard listener
     window.addEventListener('keydown', (e) => {
@@ -2440,6 +2551,7 @@
   }
 
   // Initialize
+  checkDayRollover();
   renderTableStructure();
   updateSortHeaderIcons();
   updateTotals();
