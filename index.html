@@ -2484,8 +2484,12 @@
   }
 
   function mergeFullState(msg) {
+    let hasChanges = false;
+
+    /* 1) LIVE SHEET MERGE — only valid when both devices are on the same shift date.
+          Guarded so a device that already rolled past midnight can never wipe
+          another device's still-in-progress day. */
     if (msg.date === activeShiftDate && Array.isArray(msg.data)) {
-      let hasChanges = false;
       msg.data.forEach(remote => {
         const local = data.find(d => d.name === remote.name);
         if (local) {
@@ -2516,28 +2520,39 @@
           });
         }
       });
+    }
 
-      // Merge history records seamlessly
-      if (Array.isArray(msg.historyRecords) && msg.historyRecords.length > 0) {
-        const dateMap = {};
-        historyRecords.forEach(r => { dateMap[r.date] = r; });
-        msg.historyRecords.forEach(r => {
-          if (!dateMap[r.date] || (r.timestamp && r.timestamp >= (dateMap[r.date].timestamp || 0))) {
-            dateMap[r.date] = r;
-            hasChanges = true;
-          }
-        });
-        historyRecords = Object.values(dateMap).sort((a, b) => (b.date > a.date ? 1 : -1));
-      }
+    /* 2) HISTORY MERGE — always runs, regardless of shift-date match.
+          Archived days are date-stamped and immutable per-date, so they merge
+          safely even when devices straddle midnight or one wakes days later.
+          A finalized record always wins over a non-finalized one for the same date. */
+    if (Array.isArray(msg.historyRecords) && msg.historyRecords.length > 0) {
+      const dateMap = {};
+      historyRecords.forEach(r => { dateMap[r.date] = r; });
+      msg.historyRecords.forEach(r => {
+        const existing = dateMap[r.date];
+        if (!existing) {
+          dateMap[r.date] = r;
+          hasChanges = true;
+        } else if (r.finalized && !existing.finalized) {
+          dateMap[r.date] = r;                       // finalized beats in-progress
+          hasChanges = true;
+        } else if (!(existing.finalized && !r.finalized) &&
+                   (r.timestamp || 0) >= (existing.timestamp || 0)) {
+          dateMap[r.date] = r;                       // otherwise newest wins
+          hasChanges = true;
+        }
+      });
+      historyRecords = Object.values(dateMap).sort((a, b) => (b.date > a.date ? 1 : -1));
+    }
 
-      if (hasChanges) {
-        syncCurrentDayToHistory();
-        saveLocalState();
-        renderTableStructure();
-        updateTotals();
-        scheduleReorder();
-        flashSyncBadge('🟢 Multi-Device Synchronized');
-      }
+    if (hasChanges) {
+      syncCurrentDayToHistory();
+      saveLocalState();
+      renderTableStructure();
+      updateTotals();
+      scheduleReorder();
+      flashSyncBadge('🟢 Multi-Device Synchronized');
     }
   }
 
