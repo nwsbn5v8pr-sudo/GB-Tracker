@@ -1220,9 +1220,12 @@
 
     const today = activeShiftDate || getTodayString();
     const existingIdx = historyRecords.findIndex(r => r.date === today);
+    const wasFinalized = existingIdx >= 0 ? !!historyRecords[existingIdx].finalized : false;
+
     const snapshot = {
       date: today,
       timestamp: Date.now(),
+      finalized: wasFinalized,
       data: JSON.parse(JSON.stringify(data))
     };
 
@@ -1248,7 +1251,27 @@
   function checkDayRollover() {
     const today = getTodayString();
     if (activeShiftDate && activeShiftDate !== today) {
-      syncCurrentDayToHistory();
+      // Finalize the closing day permanently into Prior Day + Weekly/Monthly/Quarterly
+      const closingDate = activeShiftDate;
+      const hasActiveData = data.some(d => d.checkedIn || d.ac > 0 || d.pz > 0 || d.biz > 0 || d.acc > 0 || d.notes || d.step);
+
+      if (hasActiveData) {
+        const existingIdx = historyRecords.findIndex(r => r.date === closingDate);
+        const finalSnapshot = {
+          date: closingDate,
+          timestamp: Date.now(),
+          finalized: true,
+          data: JSON.parse(JSON.stringify(data))
+        };
+        if (existingIdx >= 0) {
+          historyRecords[existingIdx] = finalSnapshot;
+        } else {
+          historyRecords.unshift(finalSnapshot);
+        }
+        historyRecords.sort((a, b) => (b.date > a.date ? 1 : (b.date < a.date ? -1 : 0)));
+      }
+
+      // Start a fresh live shift for today
       data = INITIAL_ROSTER.map(createFreshMember);
       activeShiftDate = today;
       lastVersion = Date.now();
@@ -1256,7 +1279,7 @@
       renderTableStructure();
       updateTotals();
       reorderRows();
-      flashAutoSaveBadge(`📅 New Shift Initialized (${today})`);
+      flashAutoSaveBadge(`📅 ${closingDate} Archived → New Shift (${today})`);
       broadcastFullSync();
     }
   }
@@ -1308,6 +1331,29 @@
     return hits;
   }
 
+  function parseLocalDate(dateStr) {
+    if (!dateStr) return new Date();
+    const parts = String(dateStr).split('-');
+    if (parts.length === 3) {
+      return new Date(parseInt(parts[0], 10), parseInt(parts[1], 10) - 1, parseInt(parts[2], 10));
+    }
+    return new Date(dateStr);
+  }
+
+  function getWeekKeyFromDate(dateStr) {
+    const d = parseLocalDate(dateStr);
+    return `${d.getFullYear()}-W${getWeekNumber(d)}`;
+  }
+
+  function getMonthKeyFromDate(dateStr) {
+    const d = parseLocalDate(dateStr);
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+  }
+
+  function getQuarterKeyFromDate(dateStr) {
+    return getQuarterString(parseLocalDate(dateStr));
+  }
+
   function getDisplayList() {
     if (currentTab === 'daily') {
       return data;
@@ -1319,12 +1365,19 @@
         targetDate = getPriorDayString();
       }
 
-      // 1. Try finding target date in history
+      // Find exact date match in history
       let match = historyRecords.find(r => r.date === targetDate);
 
-      // 2. If looking for yesterday and not found, check most recent history record
-      if (!match && (selectedPeriodKey === 'yesterday' || selectedPeriodKey === 'current') && historyRecords.length > 0) {
-        match = historyRecords[0];
+      // If yesterday has no record, fall back to most recent record BEFORE today
+      if (!match && (selectedPeriodKey === 'yesterday' || selectedPeriodKey === 'current')) {
+        const today = getTodayString();
+        const previousRecords = historyRecords
+          .filter(r => r.date < today)
+          .sort((a, b) => (b.date > a.date ? 1 : -1));
+        if (previousRecords.length > 0) {
+          match = previousRecords[0];
+          targetDate = match.date;
+        }
       }
 
       if (match && Array.isArray(match.data)) {
@@ -1345,45 +1398,55 @@
       }));
     }
 
-    // Filter historical records based on selected period for Weekly, Monthly, Quarterly
+    /* Weekly / Monthly / Quarterly Aggregation
+       IMPORTANT: Today's live shift is continuously mirrored into historyRecords via
+       syncCurrentDayToHistory(), so we ONLY aggregate historyRecords here to avoid
+       double-counting today's metrics. */
     let relevantRecords = [];
     const now = new Date();
+    const todayStr = getTodayString();
 
     if (currentTab === 'weekly') {
-      if (selectedPeriodKey === 'current') {
-        const curWeek = getWeekNumber(now);
-        const curYear = now.getFullYear();
-        relevantRecords = historyRecords.filter(r => {
-          const rd = new Date(r.date);
-          return getWeekNumber(rd) === curWeek && rd.getFullYear() === curYear;
-        });
-      } else {
-        relevantRecords = historyRecords.filter(r => {
-          const rd = new Date(r.date);
-          return `${rd.getFullYear()}-W${getWeekNumber(rd)}` === selectedPeriodKey;
-        });
-      }
+      const targetKey = (selectedPeriodKey === 'current' || !selectedPeriodKey)
+        ? `${now.getFullYear()}-W${getWeekNumber(now)}`
+        : selectedPeriodKey;
+      relevantRecords = historyRecords.filter(r => getWeekKeyFromDate(r.date) === targetKey);
     } else if (currentTab === 'monthly') {
-      if (selectedPeriodKey === 'current') {
-        const curMonth = now.getMonth();
-        const curYear = now.getFullYear();
-        relevantRecords = historyRecords.filter(r => {
-          const rd = new Date(r.date);
-          return rd.getMonth() === curMonth && rd.getFullYear() === curYear;
-        });
-      } else {
-        relevantRecords = historyRecords.filter(r => {
-          const rd = new Date(r.date);
-          const key = `${rd.getFullYear()}-${String(rd.getMonth() + 1).padStart(2, '0')}`;
-          return key === selectedPeriodKey;
-        });
-      }
+      const targetKey = (selectedPeriodKey === 'current' || !selectedPeriodKey)
+        ? `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`
+        : selectedPeriodKey;
+      relevantRecords = historyRecords.filter(r => getMonthKeyFromDate(r.date) === targetKey);
     } else if (currentTab === 'quarterly') {
-      if (selectedPeriodKey === 'current') {
-        const curQ = getQuarterString(now);
-        relevantRecords = historyRecords.filter(r => getQuarterString(new Date(r.date)) === curQ);
-      } else {
-        relevantRecords = historyRecords.filter(r => getQuarterString(new Date(r.date)) === selectedPeriodKey);
+      const targetKey = (selectedPeriodKey === 'current' || !selectedPeriodKey)
+        ? getQuarterString(now)
+        : selectedPeriodKey;
+      relevantRecords = historyRecords.filter(r => getQuarterKeyFromDate(r.date) === targetKey);
+    }
+
+    // Ensure today's live shift is represented even if history mirror hasn't flushed yet
+    const includesToday = relevantRecords.some(r => r.date === todayStr);
+    const todayBelongsToPeriod = (() => {
+      if (currentTab === 'weekly') {
+        const targetKey = (selectedPeriodKey === 'current' || !selectedPeriodKey)
+          ? `${now.getFullYear()}-W${getWeekNumber(now)}` : selectedPeriodKey;
+        return getWeekKeyFromDate(todayStr) === targetKey;
+      } else if (currentTab === 'monthly') {
+        const targetKey = (selectedPeriodKey === 'current' || !selectedPeriodKey)
+          ? `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}` : selectedPeriodKey;
+        return getMonthKeyFromDate(todayStr) === targetKey;
+      } else if (currentTab === 'quarterly') {
+        const targetKey = (selectedPeriodKey === 'current' || !selectedPeriodKey)
+          ? getQuarterString(now) : selectedPeriodKey;
+        return getQuarterKeyFromDate(todayStr) === targetKey;
+      }
+      return false;
+    })();
+
+    const aggregationSets = relevantRecords.map(r => r.data).filter(Array.isArray);
+    if (!includesToday && todayBelongsToPeriod && activeShiftDate === todayStr) {
+      const hasLiveActivity = data.some(d => d.checkedIn || d.ac > 0 || d.pz > 0 || d.biz > 0 || d.acc > 0);
+      if (hasLiveActivity) {
+        aggregationSets.push(data);
       }
     }
 
@@ -1406,40 +1469,22 @@
       };
     });
 
-    // If viewing current period, include live active shift
-    if (selectedPeriodKey === 'current') {
-      data.forEach(p => {
-        if (memberMap[p.name]) {
-          if (p.checkedIn) {
-            memberMap[p.name].shiftsWorked += 1;
-            memberMap[p.name].checkedIn = true;
+    aggregationSets.forEach(set => {
+      set.forEach(p => {
+        const entry = memberMap[p.name];
+        if (entry) {
+          const workedShift = p.checkedIn || (p.ac || 0) > 0 || (p.pz || 0) > 0 || (p.biz || 0) > 0 || (p.acc || 0) > 0;
+          if (workedShift) {
+            entry.shiftsWorked += 1;
+            entry.checkedIn = true;
           }
-          memberMap[p.name].ac += p.ac;
-          memberMap[p.name].pz += p.pz;
-          memberMap[p.name].biz += p.biz;
-          memberMap[p.name].acc += p.acc;
-          if (getHitCount(p) === 4) memberMap[p.name].slamsAchieved += 1;
+          entry.ac += (p.ac || 0);
+          entry.pz += (p.pz || 0);
+          entry.biz += (p.biz || 0);
+          entry.acc += (p.acc || 0);
+          if (getHitCount(p) === 4) entry.slamsAchieved += 1;
         }
       });
-    }
-
-    // Sum historical records
-    relevantRecords.forEach(rec => {
-      if (Array.isArray(rec.data)) {
-        rec.data.forEach(p => {
-          if (memberMap[p.name]) {
-            if (p.checkedIn) {
-              memberMap[p.name].shiftsWorked += 1;
-              memberMap[p.name].checkedIn = true;
-            }
-            memberMap[p.name].ac += (p.ac || 0);
-            memberMap[p.name].pz += (p.pz || 0);
-            memberMap[p.name].biz += (p.biz || 0);
-            memberMap[p.name].acc += (p.acc || 0);
-            if (getHitCount(p) === 4) memberMap[p.name].slamsAchieved += 1;
-          }
-        });
-      }
     });
 
     return Object.values(memberMap);
@@ -2057,46 +2102,50 @@
 
     if (tab === 'prior') {
       const priorStr = getPriorDayString();
+      const todayStr = getTodayString();
       sel.innerHTML += `<option value="yesterday">📅 Yesterday (${priorStr})</option>`;
-      historyRecords.forEach(r => {
-        if (r.date !== priorStr) {
+      historyRecords
+        .filter(r => r.date !== priorStr && r.date !== todayStr)
+        .sort((a, b) => (b.date > a.date ? 1 : -1))
+        .forEach(r => {
           sel.innerHTML += `<option value="${r.date}">📜 ${r.date}</option>`;
-        }
-      });
+        });
     } else if (tab === 'weekly') {
-      const curWeek = getWeekNumber(now);
-      sel.innerHTML += `<option value="current">📅 This Week (Week ${curWeek}, ${now.getFullYear()})</option>`;
+      const curWeekKey = `${now.getFullYear()}-W${getWeekNumber(now)}`;
+      sel.innerHTML += `<option value="current">📅 This Week (Week ${getWeekNumber(now)}, ${now.getFullYear()})</option>`;
       
       const weekSet = new Set();
       historyRecords.forEach(r => {
-        const d = new Date(r.date);
-        weekSet.add(`${d.getFullYear()}-W${getWeekNumber(d)}`);
+        const key = getWeekKeyFromDate(r.date);
+        if (key !== curWeekKey) weekSet.add(key);
       });
-      weekSet.forEach(w => {
+      Array.from(weekSet).sort().reverse().forEach(w => {
         sel.innerHTML += `<option value="${w}">📊 Week ${w.split('-W')[1]} (${w.split('-W')[0]})</option>`;
       });
     } else if (tab === 'monthly') {
+      const curMonthKey = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
       sel.innerHTML += `<option value="current">📅 This Month (${getMonthString(now)})</option>`;
       
       const monthSet = new Set();
       historyRecords.forEach(r => {
-        const d = new Date(r.date);
-        const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
-        monthSet.add(key);
+        const key = getMonthKeyFromDate(r.date);
+        if (key !== curMonthKey) monthSet.add(key);
       });
-      monthSet.forEach(m => {
+      Array.from(monthSet).sort().reverse().forEach(m => {
         const [y, mon] = m.split('-');
-        const dateObj = new Date(parseInt(y), parseInt(mon) - 1, 1);
+        const dateObj = new Date(parseInt(y, 10), parseInt(mon, 10) - 1, 1);
         sel.innerHTML += `<option value="${m}">🗓️ ${getMonthString(dateObj)}</option>`;
       });
     } else if (tab === 'quarterly') {
-      sel.innerHTML += `<option value="current">📅 Current Quarter (${getQuarterString(now)})</option>`;
+      const curQKey = getQuarterString(now);
+      sel.innerHTML += `<option value="current">📅 Current Quarter (${curQKey})</option>`;
       
       const qSet = new Set();
       historyRecords.forEach(r => {
-        qSet.add(getQuarterString(new Date(r.date)));
+        const key = getQuarterKeyFromDate(r.date);
+        if (key !== curQKey) qSet.add(key);
       });
-      qSet.forEach(q => {
+      Array.from(qSet).sort().reverse().forEach(q => {
         sel.innerHTML += `<option value="${q}">📈 ${q}</option>`;
       });
     }
@@ -2113,33 +2162,56 @@
 
   /* 💾 ARCHIVE & HISTORY LOGIC */
   function archiveCurrentDay(silent = false, targetDate = null) {
-    const today = targetDate || getTodayString();
+    const today = targetDate || activeShiftDate || getTodayString();
     const existingIdx = historyRecords.findIndex(r => r.date === today);
 
     const snapshot = {
       date: today,
       timestamp: Date.now(),
+      finalized: true,
       data: JSON.parse(JSON.stringify(data))
     };
 
     if (existingIdx >= 0) {
-      if (silent || confirm(`A snapshot for today (${today}) already exists. Overwrite with current shift metrics?`)) {
-        historyRecords[existingIdx] = snapshot;
-        saveLocalState();
-        if (!silent) {
-          alert(`✅ Today's shift (${today}) successfully archived!`);
-        } else {
-          flashAutoSaveBadge(`✅ Whole Day Auto-Archived (${today}) at 8:59 PM`);
-        }
-      }
+      historyRecords[existingIdx] = snapshot;
     } else {
       historyRecords.unshift(snapshot);
+    }
+    historyRecords.sort((a, b) => (b.date > a.date ? 1 : (b.date < a.date ? -1 : 0)));
+    saveLocalState();
+
+    if (!silent) {
+      alert(`✅ Shift (${today}) archived to Prior Day, Weekly, Monthly & Quarterly tallies!`);
+    } else {
+      flashAutoSaveBadge(`✅ Day Closed & Archived (${today})`);
+    }
+
+    // Propagate finalized day snapshot to all devices
+    broadcastFullSync();
+  }
+
+  /* 🌙 CLOSE THE DAY: Finalize shift → Prior Day + Roll into Weekly/Monthly/Quarterly */
+  function closeOutDay(silentAuto = true) {
+    const closingDate = activeShiftDate || getTodayString();
+    const hasActiveData = data.some(d => d.checkedIn || d.ac > 0 || d.pz > 0 || d.biz > 0 || d.acc > 0 || d.notes || d.step);
+
+    if (hasActiveData) {
+      // 1. Permanently finalize the whole day into history archive
+      archiveCurrentDay(true, closingDate);
+    }
+
+    // 2. Start a clean live shift for the next day
+    const nextDay = getTodayString();
+    if (closingDate !== nextDay || !silentAuto) {
+      data = INITIAL_ROSTER.map(createFreshMember);
+      activeShiftDate = nextDay;
+      lastVersion = Date.now();
       saveLocalState();
-      if (!silent) {
-        alert(`✅ Today's shift (${today}) saved to archive!`);
-      } else {
-        flashAutoSaveBadge(`✅ Whole Day Auto-Archived (${today}) at 8:59 PM`);
-      }
+      renderTableStructure();
+      updateTotals();
+      scheduleReorder();
+      broadcastFullSync();
+      flashAutoSaveBadge(`📅 New Shift Started (${nextDay})`);
     }
   }
 
@@ -2160,15 +2232,15 @@
   /* ⏰ HOURLY AUTO-SAVE ENGINE */
   function setupHourlyAutoSave() {
     setInterval(() => {
+      syncCurrentDayToHistory();
       saveLocalState();
-      if (mqttClient && mqttClient.connected) {
-        broadcastChange();
-      }
+      broadcastFullSync();
       flashAutoSaveBadge("💾 Auto-Saved (Hourly)");
     }, 60 * 60 * 1000); // Every 1 hour
   }
 
-  /* ⏰ 8:59 PM DAILY AUTO-ARCHIVE ENGINE (Saves Whole Day to Prior Day Archive) */
+  /* ⏰ 8:59 PM DAILY CLOSE-OUT ENGINE
+     Finalizes the whole day → Prior Day tab, then continues rolling into Weekly, Monthly, Quarterly */
   function setupDailyAutoArchive() {
     function scheduleNext859PM() {
       const now = new Date();
@@ -2181,24 +2253,33 @@
 
       const msUntil859PM = target.getTime() - now.getTime();
       setTimeout(() => {
-        const hasActiveData = data.some(d => d.checkedIn || d.ac > 0 || d.pz > 0 || d.biz > 0 || d.acc > 0);
-        if (hasActiveData) {
-          archiveCurrentDay(true);
+        const today = getTodayString();
+        const rec = historyRecords.find(r => r.date === today);
+        if (!rec || !rec.finalized) {
+          archiveCurrentDay(true, today);
         }
         scheduleNext859PM();
       }, msUntil859PM);
     }
 
-    // Minute check backup in case iPad/Mac wakes from sleep after 8:59 PM
+    // Minute-level watchdog: finalizes day if device wakes after 8:59 PM,
+    // and closes out the day fully at midnight rollover
     setInterval(() => {
       const now = new Date();
-      if (now.getHours() === 20 && now.getMinutes() === 59) {
-        const today = getTodayString();
-        const alreadyArchivedToday = historyRecords.some(r => r.date === today);
+      const today = getTodayString();
+
+      // 8:59 PM → 11:59 PM window: ensure today is finalized in archive
+      if (now.getHours() >= 20 && now.getMinutes() >= 59) {
+        const rec = historyRecords.find(r => r.date === today);
         const hasActiveData = data.some(d => d.checkedIn || d.ac > 0 || d.pz > 0 || d.biz > 0 || d.acc > 0);
-        if (hasActiveData && !alreadyArchivedToday) {
-          archiveCurrentDay(true);
+        if (hasActiveData && (!rec || !rec.finalized)) {
+          archiveCurrentDay(true, today);
         }
+      }
+
+      // Midnight rollover → move finalized day to Prior Day and reset live sheet
+      if (activeShiftDate && activeShiftDate !== today) {
+        closeOutDay(true);
       }
     }, 60000);
 
@@ -2265,11 +2346,12 @@
     if (!rec) return;
     if (confirm(`Load shift from ${rec.date} into your Live Daily tracker? Current unsaved live counts will be overwritten.`)) {
       data = JSON.parse(JSON.stringify(rec.data));
+      data.forEach(ensureMemberTs);
       activeShiftDate = rec.date;
       lastVersion = Date.now();
       saveLocalState();
       switchTab('daily');
-      broadcastChange();
+      broadcastFullSync();
     }
   }
 
@@ -2278,13 +2360,16 @@
       historyRecords.splice(idx, 1);
       saveLocalState();
       renderHistoryList();
+      broadcastFullSync();
     }
   }
 
   function resetCounts() {
     if (confirm("Reset today's active metrics, steps, and check-ins to 0?")) {
       pushUndoState();
+      const now = Date.now();
       data.forEach(d => {
+        ensureMemberTs(d);
         d.checkedIn = false;
         d.ac = 0;
         d.pz = 0;
@@ -2292,18 +2377,28 @@
         d.acc = 0;
         d.step = "";
         d.notes = "";
+        d._ts = { ac: now, pz: now, biz: now, acc: now, step: now, notes: now, checkedIn: now };
         const noteInput = document.getElementById(`notes-${d.id}`);
         if (noteInput) noteInput.value = "";
         const stepSelect = document.getElementById(`step-${d.id}`);
         if (stepSelect) stepSelect.value = "";
         renderCheckInVisual(d.id);
       });
-      lastVersion = Date.now();
-      syncCurrentDayToHistory();
+      lastVersion = now;
+
+      // Remove today's snapshot from history so aggregates reset cleanly
+      const today = activeShiftDate || getTodayString();
+      historyRecords = historyRecords.filter(r => r.date !== today);
+
       saveLocalState();
       updateTotals();
-      broadcastChange();
-      setTimeout(reorderRows, 60);
+      broadcastDelta({
+        type: 'delta_reset_day',
+        date: today,
+        ts: now
+      });
+      broadcastFullSync();
+      scheduleReorder();
     }
   }
 
