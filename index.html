@@ -979,9 +979,9 @@
   </div>
 
 <script>
-  const STORAGE_KEY_LIVE = "gb_tracker_live_v11";
-  const STORAGE_KEY_HISTORY = "gb_tracker_history_records_v11";
-  const SYNC_TOPIC = "apple_retail_gb_tracker_sync_v11";
+  const STORAGE_KEY_LIVE = "gb_focus_follow_live_v13";
+  const STORAGE_KEY_HISTORY = "gb_focus_follow_history_v13";
+  const SYNC_TOPIC = "apple_retail_gb_focus_follow_sync_v13";
   const CLIENT_ID = "client_" + Math.random().toString(36).substring(2, 10);
   
   const INITIAL_ROSTER = [
@@ -1051,22 +1051,44 @@
   let currentTab = 'daily'; // 'daily' | 'prior' | 'weekly' | 'monthly' | 'quarterly' | 'history'
   let selectedPeriodKey = 'yesterday';
   let activeShiftDate = getTodayString();
+  let reorderTimer = null;
+
+  function ensureMemberTs(m) {
+    if (!m) return m;
+    if (!m._ts || typeof m._ts !== 'object') {
+      m._ts = {
+        ac: m.ac > 0 ? 1 : 0,
+        pz: m.pz > 0 ? 1 : 0,
+        biz: m.biz > 0 ? 1 : 0,
+        acc: m.acc > 0 ? 1 : 0,
+        step: m.step ? 1 : 0,
+        notes: m.notes ? 1 : 0,
+        checkedIn: m.checkedIn ? 1 : 0
+      };
+    }
+    return m;
+  }
+
+  function createFreshMember(item, idx) {
+    return {
+      id: idx,
+      name: item.name,
+      role: item.role,
+      checkedIn: false,
+      ac: 0,
+      pz: 0,
+      biz: 0,
+      acc: 0,
+      step: "",
+      notes: "",
+      _ts: { ac: 0, pz: 0, biz: 0, acc: 0, step: 0, notes: 0, checkedIn: 0 }
+    };
+  }
 
   // Live active shift data
-  let data = INITIAL_ROSTER.map((item, idx) => ({
-    id: idx,
-    name: item.name,
-    role: item.role,
-    checkedIn: false,
-    ac: 0,
-    pz: 0,
-    biz: 0,
-    acc: 0,
-    step: "",
-    notes: ""
-  }));
+  let data = INITIAL_ROSTER.map(createFreshMember);
 
-  // Historical archived daily shifts: Array of { date: 'YYYY-MM-DD', timestamp: number, data: [...] }
+  // Historical archived daily shifts
   let historyRecords = [];
   let lastVersion = 0;
   let mqttClient = null;
@@ -1098,13 +1120,14 @@
     const previousSnapshot = undoStack.pop();
     try {
       data = JSON.parse(previousSnapshot);
+      data.forEach(ensureMemberTs);
       lastVersion = Date.now();
       syncCurrentDayToHistory();
       saveLocalState();
       renderTableStructure();
       updateTotals();
       reorderRows();
-      broadcastChange();
+      broadcastFullSync();
       updateUndoButton();
       flashAutoSaveBadge("↩️ Prior Action Undone");
     } catch(e) {}
@@ -1173,7 +1196,7 @@
       const parsed = JSON.parse(savedLive);
       if (parsed && Array.isArray(parsed.data) && parsed.data.length > 0) {
         lastVersion = parsed.version || 0;
-        data = parsed.data;
+        data = parsed.data.map(ensureMemberTs);
         if (parsed.date) {
           activeShiftDate = parsed.date;
         }
@@ -1225,22 +1248,8 @@
   function checkDayRollover() {
     const today = getTodayString();
     if (activeShiftDate && activeShiftDate !== today) {
-      // 1. Ensure previous day's shift is permanently recorded in history
       syncCurrentDayToHistory();
-
-      // 2. Initialize fresh shift for today
-      data = INITIAL_ROSTER.map((item, idx) => ({
-        id: idx,
-        name: item.name,
-        role: item.role,
-        checkedIn: false,
-        ac: 0,
-        pz: 0,
-        biz: 0,
-        acc: 0,
-        step: "",
-        notes: ""
-      }));
+      data = INITIAL_ROSTER.map(createFreshMember);
       activeShiftDate = today;
       lastVersion = Date.now();
       saveLocalState();
@@ -1248,8 +1257,13 @@
       updateTotals();
       reorderRows();
       flashAutoSaveBadge(`📅 New Shift Initialized (${today})`);
-      broadcastChange();
+      broadcastFullSync();
     }
+  }
+
+  function scheduleReorder() {
+    if (reorderTimer) clearTimeout(reorderTimer);
+    reorderTimer = setTimeout(reorderRows, 80);
   }
 
   let currentSort = {
@@ -1639,11 +1653,23 @@
     const member = data.find(d => d.id === index);
     if (!member) return;
     pushUndoState();
+    ensureMemberTs(member);
+    const now = Date.now();
     member.checkedIn = !member.checkedIn;
+    member._ts.checkedIn = now;
     renderCheckInVisual(index);
     updateTotals();
-    broadcastChange();
-    setTimeout(reorderRows, 60);
+    syncCurrentDayToHistory();
+    saveLocalState();
+    broadcastDelta({
+      type: 'delta_checkin',
+      name: member.name,
+      id: member.id,
+      checkedIn: member.checkedIn,
+      date: activeShiftDate,
+      ts: now
+    });
+    scheduleReorder();
   }
 
   function renderCheckInVisual(index) {
@@ -1664,13 +1690,23 @@
   function checkAll(status) {
     if (currentTab !== 'daily') return;
     pushUndoState();
+    const now = Date.now();
     data.forEach(d => {
+      ensureMemberTs(d);
       d.checkedIn = status;
+      d._ts.checkedIn = now;
       renderCheckInVisual(d.id);
     });
     updateTotals();
-    broadcastChange();
-    setTimeout(reorderRows, 60);
+    syncCurrentDayToHistory();
+    saveLocalState();
+    broadcastDelta({
+      type: 'delta_check_all',
+      status: status,
+      date: activeShiftDate,
+      ts: now
+    });
+    scheduleReorder();
   }
 
   function reorderRows() {
@@ -1731,19 +1767,36 @@
     if (!member) return;
 
     pushUndoState();
+    ensureMemberTs(member);
+    const now = Date.now();
     member[metric] = Math.max(0, member[metric] + delta);
+    member._ts[metric] = now;
+
     if (member[metric] > 0 && !member.checkedIn) {
       member.checkedIn = true;
+      member._ts.checkedIn = now;
       renderCheckInVisual(index);
-      setTimeout(reorderRows, 60);
+      scheduleReorder();
     } else {
       renderRow(index);
       if (currentSort.column === metric || currentSort.column === 'slam') {
-        setTimeout(reorderRows, 60);
+        scheduleReorder();
       }
     }
     updateTotals();
-    broadcastChange();
+    syncCurrentDayToHistory();
+    saveLocalState();
+
+    broadcastDelta({
+      type: 'delta_count',
+      name: member.name,
+      id: member.id,
+      metric: metric,
+      delta: delta,
+      newVal: member[metric],
+      date: activeShiftDate,
+      ts: now
+    });
   }
 
   function saveStep(index, val) {
@@ -1752,10 +1805,22 @@
     if (!member) return;
     if (member.step !== val) {
       pushUndoState();
+      ensureMemberTs(member);
+      const now = Date.now();
       member.step = val;
-      broadcastChange();
+      member._ts.step = now;
+      syncCurrentDayToHistory();
+      saveLocalState();
+      broadcastDelta({
+        type: 'delta_step',
+        name: member.name,
+        id: member.id,
+        step: val,
+        date: activeShiftDate,
+        ts: now
+      });
       if (currentSort.column === 'step') {
-        setTimeout(reorderRows, 60);
+        scheduleReorder();
       }
     }
   }
@@ -1766,8 +1831,20 @@
     if (!member) return;
     if (member.notes !== val) {
       pushUndoState();
+      ensureMemberTs(member);
+      const now = Date.now();
       member.notes = val;
-      broadcastChange();
+      member._ts.notes = now;
+      syncCurrentDayToHistory();
+      saveLocalState();
+      broadcastDelta({
+        type: 'delta_note',
+        name: member.name,
+        id: member.id,
+        notes: val,
+        date: activeShiftDate,
+        ts: now
+      });
     }
   }
 
@@ -2282,7 +2359,107 @@
     a.click();
   }
 
-  /* 🌐 ZERO-CONFIG REAL-TIME CLOUD SYNC ENGINE (Cross-Device via Secure WebSocket) */
+  /* 🌐 REAL-TIME CONFLICT-FREE MULTI-DEVICE CLOUD SYNC ENGINE */
+  function broadcastDelta(payload) {
+    if (mqttClient && mqttClient.connected) {
+      try {
+        payload.clientId = CLIENT_ID;
+        mqttClient.publish(SYNC_TOPIC, JSON.stringify(payload), { qos: 1 });
+      } catch(e) {}
+    }
+  }
+
+  function broadcastFullSync() {
+    lastVersion = Date.now();
+    syncCurrentDayToHistory();
+    saveLocalState();
+    if (mqttClient && mqttClient.connected) {
+      try {
+        mqttClient.publish(SYNC_TOPIC, JSON.stringify({
+          type: 'sync_full',
+          clientId: CLIENT_ID,
+          version: lastVersion,
+          date: activeShiftDate,
+          data: data,
+          historyRecords: historyRecords,
+          ts: Date.now()
+        }), { qos: 1 });
+      } catch(e) {}
+    }
+  }
+
+  function mergeFullState(msg) {
+    if (msg.date === activeShiftDate && Array.isArray(msg.data)) {
+      let hasChanges = false;
+      msg.data.forEach(remote => {
+        const local = data.find(d => d.name === remote.name);
+        if (local) {
+          ensureMemberTs(local);
+          const rTs = remote._ts || {};
+
+          ['ac', 'pz', 'biz', 'acc'].forEach(m => {
+            const lT = local._ts[m] || 0;
+            const rT = rTs[m] || 0;
+            if (rT > lT) {
+              local[m] = remote[m] || 0;
+              local._ts[m] = rT;
+              hasChanges = true;
+            } else if (rT === lT && lT === 0 && (remote[m] || 0) > (local[m] || 0)) {
+              local[m] = remote[m];
+              hasChanges = true;
+            }
+          });
+
+          ['checkedIn', 'step', 'notes'].forEach(f => {
+            const lT = local._ts[f] || 0;
+            const rT = rTs[f] || 0;
+            if (rT > lT) {
+              local[f] = remote[f];
+              local._ts[f] = rT;
+              hasChanges = true;
+            }
+          });
+        }
+      });
+
+      // Merge history records seamlessly
+      if (Array.isArray(msg.historyRecords) && msg.historyRecords.length > 0) {
+        const dateMap = {};
+        historyRecords.forEach(r => { dateMap[r.date] = r; });
+        msg.historyRecords.forEach(r => {
+          if (!dateMap[r.date] || (r.timestamp && r.timestamp >= (dateMap[r.date].timestamp || 0))) {
+            dateMap[r.date] = r;
+            hasChanges = true;
+          }
+        });
+        historyRecords = Object.values(dateMap).sort((a, b) => (b.date > a.date ? 1 : -1));
+      }
+
+      if (hasChanges) {
+        syncCurrentDayToHistory();
+        saveLocalState();
+        renderTableStructure();
+        updateTotals();
+        scheduleReorder();
+        flashSyncBadge('🟢 Multi-Device Synchronized');
+      }
+    }
+  }
+
+  function flashSyncBadge(txt) {
+    const el = document.getElementById('syncStatus');
+    if (el) {
+      el.textContent = txt;
+      el.style.borderColor = '#34c759';
+      el.style.color = '#34c759';
+      setTimeout(() => {
+        el.textContent = '🟢 Live Cloud Multi-Device Sync Active';
+        el.style.borderColor = '';
+        el.style.color = '';
+      }, 4000);
+    }
+  }
+
   function initCloudSync() {
     try {
       const brokerUrl = "wss://broker.emqx.io:8084/mqtt";
@@ -2290,86 +2467,163 @@
         clientId: CLIENT_ID,
         clean: true,
         connectTimeout: 4000,
-        reconnectPeriod: 3000
+        reconnectPeriod: 2500,
+        keepalive: 45
       });
 
       mqttClient.on('connect', () => {
         setSyncBadge('🟢 Live Cloud Multi-Device Sync Active');
         mqttClient.subscribe(SYNC_TOPIC, { qos: 1 });
-        mqttClient.publish(SYNC_TOPIC + "/req", JSON.stringify({ 
+        // Request sync from existing peers
+        mqttClient.publish(SYNC_TOPIC, JSON.stringify({ 
+          type: 'sync_req',
           clientId: CLIENT_ID, 
-          version: lastVersion 
-        }));
+          date: activeShiftDate,
+          ts: Date.now()
+        }), { qos: 1 });
       });
 
       mqttClient.on('message', (topic, payload) => {
         try {
           const msg = JSON.parse(payload.toString());
-          if (topic.endsWith('/req') && msg.clientId !== CLIENT_ID) {
-            if (lastVersion > 0) {
+          if (!msg || msg.clientId === CLIENT_ID) return;
+
+          if (msg.type === 'delta_count') {
+            if (msg.date === activeShiftDate) {
+              const target = data.find(d => d.name === msg.name || d.id === msg.id);
+              if (target) {
+                ensureMemberTs(target);
+                if (msg.ts >= (target._ts[msg.metric] || 0)) {
+                  target[msg.metric] = msg.newVal !== undefined ? msg.newVal : Math.max(0, (target[msg.metric] || 0) + msg.delta);
+                  target._ts[msg.metric] = msg.ts;
+                  if (target[msg.metric] > 0 && !target.checkedIn) {
+                    target.checkedIn = true;
+                    target._ts.checkedIn = msg.ts;
+                    renderCheckInVisual(target.id);
+                  }
+                  renderRow(target.id);
+                  updateTotals();
+                  syncCurrentDayToHistory();
+                  saveLocalState();
+                  scheduleReorder();
+                  flashSyncBadge(`🟢 Live Update: ${target.name} (${msg.metric.toUpperCase()})`);
+                }
+              }
+            }
+          } else if (msg.type === 'delta_checkin') {
+            if (msg.date === activeShiftDate) {
+              const target = data.find(d => d.name === msg.name || d.id === msg.id);
+              if (target) {
+                ensureMemberTs(target);
+                if (msg.ts >= (target._ts.checkedIn || 0)) {
+                  target.checkedIn = !!msg.checkedIn;
+                  target._ts.checkedIn = msg.ts;
+                  renderCheckInVisual(target.id);
+                  updateTotals();
+                  syncCurrentDayToHistory();
+                  saveLocalState();
+                  scheduleReorder();
+                  flashSyncBadge(`🟢 Live Update: ${target.name} Check-in`);
+                }
+              }
+            }
+          } else if (msg.type === 'delta_step') {
+            if (msg.date === activeShiftDate) {
+              const target = data.find(d => d.name === msg.name || d.id === msg.id);
+              if (target) {
+                ensureMemberTs(target);
+                if (msg.ts >= (target._ts.step || 0)) {
+                  target.step = msg.step || "";
+                  target._ts.step = msg.ts;
+                  const stepSelect = document.getElementById(`step-${target.id}`);
+                  if (stepSelect && document.activeElement !== stepSelect) {
+                    stepSelect.value = target.step;
+                  }
+                  syncCurrentDayToHistory();
+                  saveLocalState();
+                }
+              }
+            }
+          } else if (msg.type === 'delta_note') {
+            if (msg.date === activeShiftDate) {
+              const target = data.find(d => d.name === msg.name || d.id === msg.id);
+              if (target) {
+                ensureMemberTs(target);
+                if (msg.ts >= (target._ts.notes || 0)) {
+                  target.notes = msg.notes || "";
+                  target._ts.notes = msg.ts;
+                  const noteInput = document.getElementById(`notes-${target.id}`);
+                  if (noteInput && document.activeElement !== noteInput) {
+                    noteInput.value = target.notes;
+                  }
+                  syncCurrentDayToHistory();
+                  saveLocalState();
+                }
+              }
+            }
+          } else if (msg.type === 'delta_check_all') {
+            if (msg.date === activeShiftDate) {
+              data.forEach(d => {
+                ensureMemberTs(d);
+                d.checkedIn = !!msg.status;
+                d._ts.checkedIn = msg.ts;
+                renderCheckInVisual(d.id);
+              });
+              updateTotals();
+              syncCurrentDayToHistory();
+              saveLocalState();
+              scheduleReorder();
+            }
+          } else if (msg.type === 'delta_reset_day') {
+            if (msg.date === activeShiftDate) {
+              data.forEach(d => {
+                ensureMemberTs(d);
+                d.checkedIn = false;
+                d.ac = 0;
+                d.pz = 0;
+                d.biz = 0;
+                d.acc = 0;
+                d.step = "";
+                d.notes = "";
+                d._ts = { ac: msg.ts, pz: msg.ts, biz: msg.ts, acc: msg.ts, step: msg.ts, notes: msg.ts, checkedIn: msg.ts };
+                renderCheckInVisual(d.id);
+              });
+              syncCurrentDayToHistory();
+              saveLocalState();
+              renderTableStructure();
+              updateTotals();
+              scheduleReorder();
+            }
+          } else if (msg.type === 'sync_req') {
+            // Respond to newcomer with full state
+            if (data.some(d => d.checkedIn || d.ac > 0 || d.pz > 0 || d.biz > 0 || d.acc > 0)) {
               mqttClient.publish(SYNC_TOPIC, JSON.stringify({
+                type: 'sync_full',
                 clientId: CLIENT_ID,
-                version: lastVersion,
+                targetClientId: msg.clientId,
                 date: activeShiftDate,
                 data: data,
-                historyRecords: historyRecords
-              }), { qos: 1, retain: true });
+                historyRecords: historyRecords,
+                ts: Date.now()
+              }), { qos: 1 });
             }
-            return;
-          }
-
-          if (msg.clientId !== CLIENT_ID && msg.version && msg.version > lastVersion) {
-            lastVersion = msg.version;
-            if (Array.isArray(msg.data)) data = msg.data;
-            if (msg.date) activeShiftDate = msg.date;
-
-            // Merge historical records across devices
-            if (Array.isArray(msg.historyRecords) && msg.historyRecords.length > 0) {
-              const dateMap = {};
-              historyRecords.forEach(r => { dateMap[r.date] = r; });
-              msg.historyRecords.forEach(r => {
-                if (!dateMap[r.date] || (r.timestamp && r.timestamp >= (dateMap[r.date].timestamp || 0))) {
-                  dateMap[r.date] = r;
-                }
-              });
-              historyRecords = Object.values(dateMap).sort((a, b) => (b.date > a.date ? 1 : -1));
+          } else if (msg.type === 'sync_full') {
+            if (!msg.targetClientId || msg.targetClientId === CLIENT_ID) {
+              mergeFullState(msg);
             }
-
-            saveLocalState();
-            renderTableStructure();
-            updateTotals();
-            reorderRows();
-            setSyncBadge('🟢 Live Cloud Sync Active');
           }
         } catch(err) {}
       });
 
       mqttClient.on('error', () => {
-        setSyncBadge('💾 Saved to iPad');
+        setSyncBadge('💾 Saved to iPad (Offline)');
       });
 
       mqttClient.on('offline', () => {
-        setSyncBadge('💾 Saved to iPad');
+        setSyncBadge('💾 Saved to iPad (Offline)');
       });
     } catch(e) {
-      setSyncBadge('💾 Saved to iPad');
-    }
-  }
-
-  function broadcastChange() {
-    lastVersion = Date.now();
-    syncCurrentDayToHistory();
-    saveLocalState();
-    if (mqttClient && mqttClient.connected) {
-      try {
-        mqttClient.publish(SYNC_TOPIC, JSON.stringify({
-          clientId: CLIENT_ID,
-          version: lastVersion,
-          date: activeShiftDate,
-          data: data,
-          historyRecords: historyRecords
-        }), { qos: 1, retain: true });
-      } catch(e) {}
+      setSyncBadge('💾 Saved to iPad (Offline)');
     }
   }
 
