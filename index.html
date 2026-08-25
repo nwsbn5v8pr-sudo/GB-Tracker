@@ -1450,10 +1450,11 @@
       }
     }
 
-    // Aggregate metrics by member name
+    // Aggregate metrics by member id (unique) — never by name, since two
+    // different specialists can share the same display name.
     const memberMap = {};
     INITIAL_ROSTER.forEach((m, idx) => {
-      memberMap[m.name] = {
+      memberMap[idx] = {
         id: idx,
         name: m.name,
         role: m.role,
@@ -1471,7 +1472,7 @@
 
     aggregationSets.forEach(set => {
       set.forEach(p => {
-        const entry = memberMap[p.name];
+        const entry = memberMap[p.id];
         if (entry) {
           const workedShift = p.checkedIn || (p.ac || 0) > 0 || (p.pz || 0) > 0 || (p.biz || 0) > 0 || (p.acc || 0) > 0;
           if (workedShift) {
@@ -2491,7 +2492,7 @@
           another device's still-in-progress day. */
     if (msg.date === activeShiftDate && Array.isArray(msg.data)) {
       msg.data.forEach(remote => {
-        const local = data.find(d => d.name === remote.name);
+        const local = data.find(d => d.id === remote.id);
         if (local) {
           ensureMemberTs(local);
           const rTs = remote._ts || {};
@@ -2600,7 +2601,7 @@
 
           if (msg.type === 'delta_count') {
             if (msg.date === activeShiftDate) {
-              const target = data.find(d => d.name === msg.name || d.id === msg.id);
+              const target = data.find(d => d.id === msg.id);
               if (target) {
                 ensureMemberTs(target);
                 if (msg.ts >= (target._ts[msg.metric] || 0)) {
@@ -2622,7 +2623,7 @@
             }
           } else if (msg.type === 'delta_checkin') {
             if (msg.date === activeShiftDate) {
-              const target = data.find(d => d.name === msg.name || d.id === msg.id);
+              const target = data.find(d => d.id === msg.id);
               if (target) {
                 ensureMemberTs(target);
                 if (msg.ts >= (target._ts.checkedIn || 0)) {
@@ -2639,7 +2640,7 @@
             }
           } else if (msg.type === 'delta_step') {
             if (msg.date === activeShiftDate) {
-              const target = data.find(d => d.name === msg.name || d.id === msg.id);
+              const target = data.find(d => d.id === msg.id);
               if (target) {
                 ensureMemberTs(target);
                 if (msg.ts >= (target._ts.step || 0)) {
@@ -2656,7 +2657,7 @@
             }
           } else if (msg.type === 'delta_note') {
             if (msg.date === activeShiftDate) {
-              const target = data.find(d => d.name === msg.name || d.id === msg.id);
+              const target = data.find(d => d.id === msg.id);
               if (target) {
                 ensureMemberTs(target);
                 if (msg.ts >= (target._ts.notes || 0)) {
@@ -2705,8 +2706,12 @@
               scheduleReorder();
             }
           } else if (msg.type === 'sync_req') {
-            // Respond to newcomer with full state
-            if (data.some(d => d.checkedIn || d.ac > 0 || d.pz > 0 || d.biz > 0 || d.acc > 0)) {
+            // Respond to newcomer with full state whenever we have anything worth sharing —
+            // live activity OR archived history. Previously this only fired on live activity,
+            // so a device with no taps yet today (but full history) stayed silent and a
+            // freshly-opened device would appear to have "lost" all its data.
+            if (data.some(d => d.checkedIn || d.ac > 0 || d.pz > 0 || d.biz > 0 || d.acc > 0) ||
+                historyRecords.length > 0) {
               mqttClient.publish(SYNC_TOPIC, JSON.stringify({
                 type: 'sync_full',
                 clientId: CLIENT_ID,
