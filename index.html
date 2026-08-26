@@ -751,7 +751,7 @@
     <div class="app-title">
       🧰GB Focus & Follow 🆙
       <span class="sync-badge" id="syncStatus">🔄 Connecting Cloud Sync...</span>
-      <span class="sync-badge" id="autoSaveBadge">⏰ Auto-Archive: 8:59 PM Daily</span>
+      <span class="sync-badge" id="autoSaveBadge">💾 Real-Time Sync</span>
     </div>
     <div class="btn-group">
       <button class="secondary" id="btnUndo" onclick="undoAction()" title="Undo prior action">↩️ Undo</button>
@@ -1057,16 +1057,36 @@
     if (!m) return m;
     if (!m._ts || typeof m._ts !== 'object') {
       m._ts = {
-        ac: m.ac > 0 ? 1 : 0,
-        pz: m.pz > 0 ? 1 : 0,
-        biz: m.biz > 0 ? 1 : 0,
-        acc: m.acc > 0 ? 1 : 0,
         step: m.step ? 1 : 0,
         notes: m.notes ? 1 : 0,
         checkedIn: m.checkedIn ? 1 : 0
       };
     }
+    // _by: per-device contribution ledger (PN-Counter CRDT) for additive metrics.
+    // Each device only ever writes its OWN slot, so two devices tapping the same
+    // counter concurrently both survive — the displayed value is the SUM of all
+    // slots, never a last-write-wins overwrite that can silently drop a tap.
+    if (!m._by || typeof m._by !== 'object') {
+      m._by = { ac: {}, pz: {}, biz: {}, acc: {} };
+      // Seed with whatever the member currently shows, attributed to a
+      // synthetic "legacy" bucket so existing/migrated data isn't lost.
+      ['ac', 'pz', 'biz', 'acc'].forEach(k => {
+        if ((m[k] || 0) > 0) m._by[k]['_legacy'] = m[k];
+      });
+    }
+    ['ac', 'pz', 'biz', 'acc'].forEach(k => { if (!m._by[k]) m._by[k] = {}; });
     return m;
+  }
+
+  function counterTotal(m, metric) {
+    const buckets = (m._by && m._by[metric]) || {};
+    let sum = 0;
+    for (const k in buckets) sum += (buckets[k] || 0);
+    return Math.max(0, sum);
+  }
+
+  function recomputeMemberTotals(m) {
+    ['ac', 'pz', 'biz', 'acc'].forEach(k => { m[k] = counterTotal(m, k); });
   }
 
   function createFreshMember(item, idx) {
@@ -1081,7 +1101,8 @@
       acc: 0,
       step: "",
       notes: "",
-      _ts: { ac: 0, pz: 0, biz: 0, acc: 0, step: 0, notes: 0, checkedIn: 0 }
+      _ts: { step: 0, notes: 0, checkedIn: 0 },
+      _by: { ac: {}, pz: {}, biz: {}, acc: {} }
     };
   }
 
@@ -1815,8 +1836,15 @@
     pushUndoState();
     ensureMemberTs(member);
     const now = Date.now();
-    member[metric] = Math.max(0, member[metric] + delta);
-    member._ts[metric] = now;
+
+    // Write only to THIS device's own bucket for the metric (PN-Counter CRDT).
+    // Never touch other devices' buckets — that's what let concurrent taps
+    // clobber each other before. The visible total is always the sum of all
+    // devices' buckets, so two people tapping +1 on the same counter at the
+    // same time both count, no matter what order the network delivers them.
+    const myBucket = (member._by[metric][CLIENT_ID] || 0);
+    member._by[metric][CLIENT_ID] = Math.max(0, myBucket + delta);
+    recomputeMemberTotals(member);
 
     if (member[metric] > 0 && !member.checkedIn) {
       member.checkedIn = true;
@@ -1838,8 +1866,7 @@
       name: member.name,
       id: member.id,
       metric: metric,
-      delta: delta,
-      newVal: member[metric],
+      myBucketVal: member._by[metric][CLIENT_ID],
       date: activeShiftDate,
       ts: now
     });
@@ -2223,68 +2250,11 @@
       badge.style.borderColor = '#34c759';
       badge.style.color = '#34c759';
       setTimeout(() => {
-        badge.textContent = '⏰ Auto-Archive: 8:59 PM Daily';
+        badge.textContent = '💾 Real-Time Sync';
         badge.style.borderColor = '';
         badge.style.color = '';
       }, 8000);
     }
-  }
-
-  /* ⏰ HOURLY AUTO-SAVE ENGINE */
-  function setupHourlyAutoSave() {
-    setInterval(() => {
-      syncCurrentDayToHistory();
-      saveLocalState();
-      broadcastFullSync();
-      flashAutoSaveBadge("💾 Auto-Saved (Hourly)");
-    }, 60 * 60 * 1000); // Every 1 hour
-  }
-
-  /* ⏰ 8:59 PM DAILY CLOSE-OUT ENGINE
-     Finalizes the whole day → Prior Day tab, then continues rolling into Weekly, Monthly, Quarterly */
-  function setupDailyAutoArchive() {
-    function scheduleNext859PM() {
-      const now = new Date();
-      const target = new Date();
-      target.setHours(20, 59, 0, 0); // 8:59:00 PM local time
-
-      if (now.getTime() >= target.getTime()) {
-        target.setDate(target.getDate() + 1);
-      }
-
-      const msUntil859PM = target.getTime() - now.getTime();
-      setTimeout(() => {
-        const today = getTodayString();
-        const rec = historyRecords.find(r => r.date === today);
-        if (!rec || !rec.finalized) {
-          archiveCurrentDay(true, today);
-        }
-        scheduleNext859PM();
-      }, msUntil859PM);
-    }
-
-    // Minute-level watchdog: finalizes day if device wakes after 8:59 PM,
-    // and closes out the day fully at midnight rollover
-    setInterval(() => {
-      const now = new Date();
-      const today = getTodayString();
-
-      // 8:59 PM → 11:59 PM window: ensure today is finalized in archive
-      if (now.getHours() >= 20 && now.getMinutes() >= 59) {
-        const rec = historyRecords.find(r => r.date === today);
-        const hasActiveData = data.some(d => d.checkedIn || d.ac > 0 || d.pz > 0 || d.biz > 0 || d.acc > 0);
-        if (hasActiveData && (!rec || !rec.finalized)) {
-          archiveCurrentDay(true, today);
-        }
-      }
-
-      // Midnight rollover → move finalized day to Prior Day and reset live sheet
-      if (activeShiftDate && activeShiftDate !== today) {
-        closeOutDay(true);
-      }
-    }, 60000);
-
-    scheduleNext859PM();
   }
 
   function renderHistoryList() {
@@ -2378,7 +2348,8 @@
         d.acc = 0;
         d.step = "";
         d.notes = "";
-        d._ts = { ac: now, pz: now, biz: now, acc: now, step: now, notes: now, checkedIn: now };
+        d._ts = { step: now, notes: now, checkedIn: now };
+        d._by = { ac: {}, pz: {}, biz: {}, acc: {} };
         const noteInput = document.getElementById(`notes-${d.id}`);
         if (noteInput) noteInput.value = "";
         const stepSelect = document.getElementById(`step-${d.id}`);
@@ -2495,21 +2466,26 @@
         const local = data.find(d => d.id === remote.id);
         if (local) {
           ensureMemberTs(local);
-          const rTs = remote._ts || {};
+          const remoteBy = remote._by || {};
 
+          // PN-Counter merge: union every device's bucket for every metric.
+          // Never overwrite a whole counter — only adopt individual per-device
+          // buckets we don't have yet or that changed, then recompute the sum.
+          // This guarantees concurrent taps on the same counter from different
+          // devices always add up, regardless of arrival order or timing.
           ['ac', 'pz', 'biz', 'acc'].forEach(m => {
-            const lT = local._ts[m] || 0;
-            const rT = rTs[m] || 0;
-            if (rT > lT) {
-              local[m] = remote[m] || 0;
-              local._ts[m] = rT;
-              hasChanges = true;
-            } else if (rT === lT && lT === 0 && (remote[m] || 0) > (local[m] || 0)) {
-              local[m] = remote[m];
-              hasChanges = true;
+            const remoteBuckets = remoteBy[m] || {};
+            for (const clientId in remoteBuckets) {
+              const rVal = remoteBuckets[clientId] || 0;
+              if ((local._by[m][clientId] || 0) !== rVal) {
+                local._by[m][clientId] = rVal;
+                hasChanges = true;
+              }
             }
           });
+          recomputeMemberTotals(local);
 
+          const rTs = remote._ts || {};
           ['checkedIn', 'step', 'notes'].forEach(f => {
             const lT = local._ts[f] || 0;
             const rT = rTs[f] || 0;
@@ -2604,9 +2580,14 @@
               const target = data.find(d => d.id === msg.id);
               if (target) {
                 ensureMemberTs(target);
-                if (msg.ts >= (target._ts[msg.metric] || 0)) {
-                  target[msg.metric] = msg.newVal !== undefined ? msg.newVal : Math.max(0, (target[msg.metric] || 0) + msg.delta);
-                  target._ts[msg.metric] = msg.ts;
+                // Merge as a PN-Counter: adopt the sender's own bucket value for
+                // their clientId. This never touches OUR bucket or any other
+                // device's bucket, so concurrent taps from different devices
+                // always sum correctly instead of one overwriting the other.
+                const senderBucketVal = msg.myBucketVal !== undefined ? msg.myBucketVal : 0;
+                if (senderBucketVal !== (target._by[msg.metric][msg.clientId] || 0)) {
+                  target._by[msg.metric][msg.clientId] = senderBucketVal;
+                  recomputeMemberTotals(target);
                   if (target[msg.metric] > 0 && !target.checkedIn) {
                     target.checkedIn = true;
                     target._ts.checkedIn = msg.ts;
@@ -2696,7 +2677,8 @@
                 d.acc = 0;
                 d.step = "";
                 d.notes = "";
-                d._ts = { ac: msg.ts, pz: msg.ts, biz: msg.ts, acc: msg.ts, step: msg.ts, notes: msg.ts, checkedIn: msg.ts };
+                d._ts = { step: msg.ts, notes: msg.ts, checkedIn: msg.ts };
+                d._by = { ac: {}, pz: {}, biz: {}, acc: {} };
                 renderCheckInVisual(d.id);
               });
               syncCurrentDayToHistory();
@@ -2927,8 +2909,6 @@
   reorderRows();
   updateUndoButton();
   initCloudSync();
-  setupHourlyAutoSave();
-  setupDailyAutoArchive();
   setupPasscodeGate();
 </script>
 </body>
