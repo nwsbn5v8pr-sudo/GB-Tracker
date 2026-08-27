@@ -2786,36 +2786,12 @@
      changed (local edit, post-handshake merge, or date rollover) — never in a
      blind loop on receipt of a peer message. (9) */
   function publishState(reason) {
+    // SAFETY: never publish the complete local roster. A newly opened iPad
+    // may have stale localStorage. Normal edits are sent by broadcastDelta().
     syncCurrentDayToHistory();
     saveLocalState();
-    if (!mqttReady()) {
-      markPending('publishState:' + reason);
-      syncLog('publishState skipped (offline) —', reason);
-      return;
-    }
-    if (handshakeActive) {
-      markPending('publishState:' + reason);
-      syncLog('publishState deferred (handshake in progress) —', reason);
-      return;
-    }
-    lastVersion = nextVersion();
-    try {
-      mqttClient.publish(TOPIC_STATE, JSON.stringify({
-        type: 'sync_full',
-        clientId: CLIENT_ID,
-        msgId: newMsgId(),
-        version: lastVersion,
-        date: activeShiftDate,
-        data: data,
-        historyRecords: historyRecords,
-        ts: Date.now()
-      }), PUB_OPTS);
-      syncLog('published full state —', reason, { version: lastVersion, date: activeShiftDate });
-      clearPending();
-    } catch (e) {
-      syncWarn('publishState failed; marking pending', e);
-      markPending('publishState:' + reason);
-    }
+    syncLog('BLOCKED full-state publish:', reason);
+    return;
   }
 
   /* 5) + 6) + 11) Per-record merge. Returns true only if OUR state changed.
@@ -3150,25 +3126,10 @@
               flashSyncBadge('🧹 Live Day Reset Across All iPads');
             }
           } else if (msg.type === 'sync_req') {
-            // 5) Answer newcomers with our state if we have anything at all.
-            const haveLive = data.some(d => d.checkedIn || d.ac > 0 || d.pz > 0 || d.biz > 0 || d.acc > 0);
-            if (haveLive || historyRecords.length > 0) {
-              syncLog('responding to sync_req from', msg.clientId);
-              mqttClient.publish(TOPIC_STATE, JSON.stringify({
-                type: 'sync_full',
-                clientId: CLIENT_ID,
-                msgId: newMsgId(),
-                targetClientId: msg.clientId,
-                version: lastVersion,
-                date: activeShiftDate,
-                data: data,
-                historyRecords: historyRecords,
-                ts: Date.now()
-              }), PUB_OPTS);
-            } else {
-              syncLog('sync_req from', msg.clientId, '— nothing to share, staying quiet');
-            }
-
+            // Do NOT answer with a full roster. Full snapshots are unsafe for
+            // rotating iPads because the requester may hold stale local data.
+            syncLog('sync_req received — full roster response blocked');
+            return;
           } else if (msg.type === 'sync_full') {
             if (!msg.targetClientId || msg.targetClientId === CLIENT_ID) {
               // 9) merge only; do NOT auto-rebroadcast the same content.
