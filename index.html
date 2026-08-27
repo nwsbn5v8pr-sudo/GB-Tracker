@@ -4,8 +4,9 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
 <title>🧰GB Focus & Follow 🆙</title>
-<!-- Lightweight MQTT over WebSockets for Instant Serverless Cloud Sync -->
+<!-- MQTT retained only for legacy compatibility; live sync uses Supabase -->
 <script src="https://unpkg.com/mqtt/dist/mqtt.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <style>
   :root {
     --bg-primary: #f2f2f7;
@@ -2113,7 +2114,8 @@
       myBucketVal: member._by[metric][CLIENT_ID],
       myBucketTs: now,
       date: activeShiftDate,
-      ts: now
+      ts: now,
+      delta: delta
     });
   }
 
@@ -2497,31 +2499,26 @@
   /* 💾 ARCHIVE & HISTORY LOGIC */
   function archiveCurrentDay(silent = false, targetDate = null) {
     const today = targetDate || activeShiftDate || getTodayString();
-    const existingIdx = historyRecords.findIndex(r => r.date === today);
-
     const snapshot = {
       date: today,
       timestamp: Date.now(),
       finalized: true,
       data: JSON.parse(JSON.stringify(data))
     };
-
-    if (existingIdx >= 0) {
-      historyRecords[existingIdx] = snapshot;
-    } else {
-      historyRecords.unshift(snapshot);
-    }
-    historyRecords.sort((a, b) => (b.date > a.date ? 1 : (b.date < a.date ? -1 : 0)));
+    const existingIdx = historyRecords.findIndex(r => r.date === today);
+    if (existingIdx >= 0) historyRecords[existingIdx] = snapshot;
+    else historyRecords.unshift(snapshot);
+    historyRecords.sort((a,b) => (b.date > a.date ? 1 : (b.date < a.date ? -1 : 0)));
     saveLocalState();
 
-    if (!silent) {
-      alert(`✅ Shift (${today}) archived to Prior Day, Weekly, Monthly & Quarterly tallies!`);
-    } else {
-      flashAutoSaveBadge(`✅ Day Closed & Archived (${today})`);
-    }
+    if (!silent) alert(`✅ Shift (${today}) archived to Prior Day, Weekly, Monthly & Quarterly tallies!`);
+    else flashAutoSaveBadge(`✅ Day Closed & Archived (${today})`);
 
-    // Propagate finalized day snapshot to all devices
-    publishState('archive-day');
+    if (cloudReady) {
+      supabaseClient.rpc('gb_focus_follow_archive_current',{p_client_id:CLIENT_ID})
+        .then(({error}) => { if(error) throw error; })
+        .catch(e => syncWarn('Central history archive failed',e));
+    }
   }
 
   /* NOTE: A previous `closeOutDay()` helper was removed here. It was unreachable
@@ -2664,24 +2661,13 @@
 
   function resetCounts() {
     if(!confirm("RESET TODAY'S LIVE TRACKER ON ALL IPADS?\n\nThis clears today's check-ins, metrics, steps, and notes across all connected/reconnecting iPads.\n\nHistorical / previous-day records will NOT be deleted.")) return;
-    if(!mqttReady()){
-      setSyncBadge('⚠️ MQTT offline — cannot reset all iPads');
-      alert('Cloud Sync is offline. The room-wide reset was not performed.');
-      return;
-    }
-    const resetTs=Date.now(), resetId=newMsgId(), resetDay=activeShiftDate||getTodayString();
-    applyRoomReset(resetId,resetTs,resetDay,CLIENT_ID);
-    try {
-      mqttClient.publish(TOPIC_STATE,JSON.stringify({
-        type:'delta_reset_day',clientId:CLIENT_ID,msgId:resetId,date:resetDay,
-        ts:resetTs,roomResetId:resetId,historyPreserved:true
-      }),PUB_OPTS);
+    if(!cloudReady){ alert('Cloud Sync is not ready. The room-wide reset was not performed.'); return; }
+    supabaseClient.rpc('gb_focus_follow_reset_day',{p_client_id:CLIENT_ID}).then(({error})=>{
+      if(error) throw error;
+      lastRoomResetId='supabase-reset-'+Date.now(); lastRoomResetTs=Date.now();
       setSyncBadge('🧹 Reset Sent to All iPads');
-      syncLog('ROOM RESET PUBLISHED',{resetId,resetDay,historyPreserved:true});
-    } catch(e) {
-      setSyncBadge('⚠️ Local reset applied; room reset send failed');
-      syncWarn('ROOM RESET PUBLISH FAILED',e);
-    }
+      return loadCentralState();
+    }).catch(e=>{ syncWarn('Central reset failed',e); alert('The room-wide reset failed. No local-only reset was performed.'); });
   }
 
   function exportCSV() {
@@ -2737,428 +2723,207 @@
   }
 
   /* ============================================================
-     🌐 MQTT SYNC ENGINE
-     Requirements implemented here:
-      2)  retain:false on every publish — no retained snapshots at all.
-      4)  connect → subscribe both topics → request peer state → WAIT → merge
-          → only then publish (and only if something actually changed).
-      5)  A new/empty device can never erase peers: merges are per-record and
-          strictly newer-wins; an empty device simply has nothing newer.
-      6)  Per-record `updatedAt` + per-field `_ts` conflict resolution; history
-          merged by stable id/date, never blindly replaced.
-      9)  Loop prevention: we only publish when local state actually changed.
-      10) QoS 1 everywhere.
-      11) Duplicate/older messages ignored via msgId de-dupe + record-level ts.
-      12) Auto-reconnect configured for Wi-Fi drops.
+     ☁️ SUPABASE CENTRAL SYNC ENGINE
+     Supabase is the ONLY source of truth for this tracker.
+     localStorage is an offline/display cache only and is NEVER uploaded as
+     a complete roster. Each user action is an atomic RPC against one member.
+     Realtime broadcasts database commits to every iPad.
      ============================================================ */
+  const SUPABASE_URL = 'https://bkmpqjoqcilicmfahemg.supabase.co';
+  const SUPABASE_PUBLISHABLE_KEY = 'sb_publishable_ss_a29uxD1FZWZ0at6uk_Q_a55sCjRg';
+  const supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY);
+  let cloudReady = false;
+  let cloudChannel = null;
+  let cloudRefreshTimer = null;
+  let centralEditQueue = [];
 
-  const PUB_OPTS = { qos: 1, retain: false };   // 2) + 10)
-
-  function mqttReady() {
-    return !!(mqttClient && mqttClient.connected);
+  function dbToApp(row) {
+    return ensureMemberTs({
+      id: parseInt(row.id, 10),
+      name: row.name || '',
+      role: row.role || '',
+      checkedIn: !!row.checked_in,
+      ac: Number(row.ac || 0),
+      pz: Number(row.pz || 0),
+      biz: Number(row.biz || 0),
+      acc: Number(row.acc || 0),
+      step: row.step || '',
+      notes: row.notes || '',
+      updatedAt: row.updated_at ? Date.parse(row.updated_at) || 0 : 0,
+      _ts: { step: 0, notes: 0, checkedIn: row.updated_at ? Date.parse(row.updated_at) || 0 : 0 },
+      _by: { ac: {}, pz: {}, biz: {}, acc: {} },
+      _byTs: { ac: {}, pz: {}, biz: {}, acc: {} },
+      _ckpt: {},
+      _adopted: {},
+      _revision: Number(row.revision || 0)
+    });
   }
 
-  /* 8) Every outbound edit goes through here. If we're offline the change is
-        already in localStorage (callers save first) and simply gets flagged
-        pending for merge-on-reconnect. */
+  function applyCentralRows(rows) {
+    const mapped = (rows || []).filter(r => !r.removed).map(dbToApp);
+    if (!mapped.length) return;
+    mapped.sort((a,b) => a.id-b.id);
+    data = mapped;
+    activeShiftDate = getTodayString();
+    lastVersion = Math.max(lastVersion || 0, Date.now());
+    saveLocalState();
+    renderTableStructure();
+    updateTotals();
+    reorderRows();
+  }
+
+  async function loadCentralState() {
+    setSyncBadge('🔄 Loading Central Tracker…');
+    try {
+      const { data: rows, error } = await supabaseClient.rpc('gb_focus_follow_ensure_today', { p_client_id: CLIENT_ID });
+      if (error) throw error;
+      applyCentralRows(rows);
+
+      const { data: hist, error: histErr } = await supabaseClient
+        .from('gb_focus_follow_history')
+        .select('*')
+        .order('history_date', { ascending: false });
+      if (!histErr && Array.isArray(hist)) {
+        historyRecords = hist.map(h => ({
+          id: h.id,
+          date: h.history_date,
+          timestamp: Date.parse(h.updated_at || h.created_at) || Date.now(),
+          finalized: true,
+          data: Array.isArray(h.snapshot) ? h.snapshot.map(dbToApp) : []
+        }));
+        saveLocalState();
+        renderHistoryList();
+      }
+      cloudReady = true;
+      setSyncBadge('🟢 Supabase Live — All iPads Synced');
+      await flushCentralEditQueue();
+      return true;
+    } catch (e) {
+      cloudReady = false;
+      syncWarn('Supabase initial load failed; local cache retained', e);
+      setSyncBadge('⚠️ Cloud unavailable — Local Cache');
+      return false;
+    }
+  }
+
+  async function applyCentralEdit(payload) {
+    if (!payload || !payload.type) return;
+    try {
+      let result;
+      if (payload.type === 'delta_count') {
+        result = await supabaseClient.rpc('gb_focus_follow_increment_metric', {
+          p_id: String(payload.id), p_metric: payload.metric, p_delta: Number(payload.delta || 0), p_client_id: CLIENT_ID
+        });
+      } else if (payload.type === 'delta_set_exact') {
+        result = await supabaseClient.rpc('gb_focus_follow_set_exact', {
+          p_id: String(payload.id), p_metric: payload.metric, p_value: Number(payload.val || 0), p_client_id: CLIENT_ID
+        });
+      } else if (payload.type === 'delta_checkin') {
+        result = await supabaseClient.rpc('gb_focus_follow_patch_member', {
+          p_id: String(payload.id), p_checked_in: !!payload.checkedIn, p_client_id: CLIENT_ID
+        });
+      } else if (payload.type === 'delta_step') {
+        result = await supabaseClient.rpc('gb_focus_follow_patch_member', {
+          p_id: String(payload.id), p_step: payload.step || '', p_client_id: CLIENT_ID
+        });
+      } else if (payload.type === 'delta_note') {
+        result = await supabaseClient.rpc('gb_focus_follow_patch_member', {
+          p_id: String(payload.id), p_notes: payload.notes || '', p_client_id: CLIENT_ID
+        });
+      } else if (payload.type === 'delta_check_all') {
+        result = await supabaseClient.rpc('gb_focus_follow_check_all', {
+          p_status: !!payload.status, p_client_id: CLIENT_ID
+        });
+      } else {
+        return;
+      }
+      if (result && result.error) throw result.error;
+    } catch (e) {
+      syncWarn('Central edit failed', payload.type, e);
+      throw e;
+    }
+  }
+
+  async function flushCentralEditQueue() {
+    if (!cloudReady || !centralEditQueue.length) return;
+    const q = centralEditQueue.slice();
+    centralEditQueue = [];
+    for (const payload of q) {
+      try { await applyCentralEdit(payload); }
+      catch (e) { centralEditQueue.push(payload); }
+    }
+  }
+
   function broadcastDelta(payload) {
     payload.clientId = CLIENT_ID;
     payload.msgId = newMsgId();
     payload.v = nextVersion();
-    if (!mqttReady()) {
+    // Never send localStorage or a full roster. Queue the exact user action.
+    if (!cloudReady) {
+      centralEditQueue.push(JSON.parse(JSON.stringify(payload)));
       markPending(payload.type);
       return;
     }
-    // 4) Don't shout over peers while we're still waiting for their state.
-    if (handshakeActive) {
-      markPending(payload.type + ' (during handshake)');
-      return;
-    }
-    try {
-      mqttClient.publish(TOPIC_STATE, JSON.stringify(payload), PUB_OPTS);
-    } catch (e) {
-      syncWarn('publish delta failed; marking pending', e);
+    applyCentralEdit(payload).catch(() => {
+      centralEditQueue.push(JSON.parse(JSON.stringify(payload)));
       markPending(payload.type);
-    }
+    });
   }
 
-  /* Publishes the full merged state. Called ONLY when local state genuinely
-     changed (local edit, post-handshake merge, or date rollover) — never in a
-     blind loop on receipt of a peer message. (9) */
   function publishState(reason) {
-    // SAFETY: never publish the complete local roster. A newly opened iPad
-    // may have stale localStorage. Normal edits are sent by broadcastDelta().
-    syncCurrentDayToHistory();
+    // Intentionally disabled. This tracker never uploads a complete local state.
+    syncLog('Blocked full-state publish:', reason);
+    if (cloudReady) loadCentralState();
+  }
+
+  function applyRealtimeMember(row) {
+    if (!row || row.removed) return;
+    const incoming = dbToApp(row);
+    const idx = data.findIndex(d => String(d.id) === String(incoming.id));
+    if (idx < 0) return;
+    // Database revision is authoritative. Replace only this member.
+    data[idx] = incoming;
     saveLocalState();
-    syncLog('BLOCKED full-state publish:', reason);
-    return;
-  }
-
-  /* 5) + 6) + 11) Per-record merge. Returns true only if OUR state changed.
-     An empty/new device contributes nothing here, so it can never wipe peers. */
-  function mergeFullState(msg) {
-    let hasChanges = false;
-
-    // ---- LIVE BOARD (same shift date only) ----
-    // 14) Never touches activeShiftDate and never resets the board; a peer on a
-    // different date is simply ignored for the live merge.
-    if (msg.date === activeShiftDate && Array.isArray(msg.data)) {
-      msg.data.forEach(remote => {
-        const local = data.find(d => d.id === remote.id);
-        if (!local) return;
-        ensureMemberTs(local);
-        const remoteBy = remote._by || {};
-
-        // PN-Counter union — each device owns its own bucket, so concurrent
-        // taps from different devices always sum instead of overwriting.
-        // Option B: also merge the authoritative checkpoint (last-write-wins)
-        // and the per-bucket timestamps that decide which deltas a checkpoint
-        // supersedes. This is a per-field union — never an array replacement.
-        METRIC_KEYS.forEach(m => {
-          // (a) checkpoint: strictly newer wins
-          const rc = (remote._ckpt || {})[m];
-          if (rc && typeof rc.ts === 'number') {
-            const lc = local._ckpt[m];
-            if (!lc || rc.ts > lc.ts) {
-              local._ckpt[m] = { val: rc.val || 0, ts: rc.ts, by: rc.by };
-              hasChanges = true;
-            }
-          }
-          // (b) per-device deltas: adopt each peer's own bucket + its stamp
-          const remoteBuckets = (remoteBy[m] || {});
-          const remoteStamps  = ((remote._byTs || {})[m] || {});
-          for (const cid in remoteBuckets) {
-            const rVal = remoteBuckets[cid] || 0;
-            // Never let a peer rewrite OUR OWN bucket — we are the authority
-            // for our own contributions. This is what stops a stale/duplicate
-            // message from clawing back taps we just made.
-            if (cid === CLIENT_ID) continue;
-            const rStamp = remoteStamps[cid] || 0;
-            const lStamp = local._byTs[m][cid] || 0;
-            // A device is AUTHORITATIVE for its own bucket, so when the sender
-            // reports its own contribution we accept an equal timestamp too
-            // (two taps can land in the same millisecond, and a frozen/coarse
-            // clock would otherwise deadlock the merge and desync devices).
-            // For buckets the sender is merely relaying about a third device,
-            // require a strictly newer stamp so stale relays can't regress us.
-            const isOwnerReport = (cid === msg.clientId);
-            const takeIt = !(cid in local._by[m]) ||
-                           (isOwnerReport ? rStamp >= lStamp : rStamp > lStamp);
-            if (takeIt) {
-              if ((local._by[m][cid] || 0) !== rVal || rStamp !== lStamp) {
-                local._by[m][cid] = rVal;
-                local._byTs[m][cid] = rStamp;
-                hasChanges = true;
-              }
-            }
-          }
-        });
-        recomputeMemberTotals(local);
-
-        // 11) Record-level timestamps stay authoritative for LWW fields.
-        const rTs = remote._ts || {};
-        ['checkedIn', 'step', 'notes'].forEach(f => {
-          const lT = local._ts[f] || 0;
-          const rT = rTs[f] || 0;
-          if (rT > lT) {
-            local[f] = remote[f];
-            local._ts[f] = rT;
-            hasChanges = true;
-          }
-        });
-        if ((remote.updatedAt || 0) > (local.updatedAt || 0)) {
-          local.updatedAt = remote.updatedAt;
-        }
-      });
-    } else if (msg.date && msg.date !== activeShiftDate) {
-      syncLog('ignoring live board from different date', { peerDate: msg.date, myDate: activeShiftDate });
-    }
-
-    // ---- HISTORY (always merged; keyed by stable date/id) ----
-    if (Array.isArray(msg.historyRecords) && msg.historyRecords.length > 0) {
-      const byDate = {};
-      historyRecords.forEach(r => { byDate[r.date] = r; });
-      msg.historyRecords.forEach(raw => {
-        const r = normalizeHistoryRecord(raw);
-        if (!r) return;
-        const existing = byDate[r.date];
-        if (!existing) {
-          byDate[r.date] = r; hasChanges = true;
-        } else if (r.finalized && !existing.finalized) {
-          byDate[r.date] = r; hasChanges = true;              // finalized wins
-        } else if (!(existing.finalized && !r.finalized) &&
-                   (r.timestamp || 0) > (existing.timestamp || 0)) {
-          byDate[r.date] = r; hasChanges = true;              // strictly newer wins
-        }
-      });
-      historyRecords = Object.values(byDate).sort((a, b) => (b.date > a.date ? 1 : -1));
-    }
-
-    if (hasChanges) {
-      syncCurrentDayToHistory();
-      saveLocalState();
-      renderTableStructure();
-      updateTotals();
-      scheduleReorder();
-      flashSyncBadge('🟢 Multi-Device Synchronized');
-      syncLog('merged peer state — local state CHANGED', { from: msg.clientId });
-    } else {
-      syncLog('merged peer state — no change (ignored duplicate/older)', { from: msg.clientId });
-    }
-    return hasChanges;   // 9) caller decides whether a rebroadcast is warranted
-  }
-
-  function flashSyncBadge(txt) {
-    const el = document.getElementById('syncStatus');
-    if (el) {
-      el.textContent = txt;
-      el.style.borderColor = '#34c759';
-      el.style.color = '#34c759';
-      setTimeout(() => {
-        el.textContent = '🟢 Live Cloud Multi-Device Sync Active';
-        el.style.borderColor = '';
-        el.style.color = '';
-      }, 4000);
-    }
-  }
-
-  /* 4) Ask peers for state, then wait before publishing anything of our own. */
-  function beginHandshake(reason) {
-    handshakeActive = true;
-    if (handshakeTimer) clearTimeout(handshakeTimer);
-    syncLog('handshake START (' + reason + ') — requesting peer state, holding our own publishes');
-
-    try {
-      mqttClient.publish(TOPIC_REQ, JSON.stringify({
-        type: 'sync_req',
-        clientId: CLIENT_ID,
-        msgId: newMsgId(),
-        date: activeShiftDate,
-        ts: Date.now()
-      }), PUB_OPTS);
-    } catch (e) {
-      syncWarn('sync_req publish failed', e);
-    }
-
-    handshakeTimer = setTimeout(() => {
-      handshakeActive = false;
-      syncLog('handshake END — safe to publish now', { hadPending: hasPendingChanges });
-      // 8) Only now do we push our merged result, and only if we actually have
-      // offline/pending edits worth sharing. Otherwise stay quiet (9).
-      if (hasPendingChanges) {
-        publishState('post-handshake pending merge');
-      }
-    }, HANDSHAKE_WAIT_MS);
+    renderRow(incoming.id);
+    renderCheckInVisual(incoming.id);
+    updateTotals();
+    scheduleReorder();
   }
 
   function initCloudSync() {
-    try {
-      const brokerUrl = "wss://broker.emqx.io:8084/mqtt";
-      // 3) Stable clientId. 12) Auto-reconnect tuned for Wi-Fi drops.
-      mqttClient = mqtt.connect(brokerUrl, {
-        clientId: CLIENT_ID,
-        clean: true,
-        connectTimeout: 8000,
-        reconnectPeriod: 2000,
-        keepalive: 30,
-        resubscribe: true
-      });
-
-      mqttClient.on('connect', () => {
-        setSyncBadge('🟢 Live Cloud Multi-Device Sync Active');
-        syncLog('MQTT connected as', CLIENT_ID, '→ topics', TOPIC_STATE, TOPIC_REQ);
-        // 4) Subscribe to BOTH topics before requesting state.
-        mqttClient.subscribe([TOPIC_STATE, TOPIC_REQ], { qos: 1 }, (err) => {
-          if (err) { syncWarn('subscribe failed', err); return; }
-          beginHandshake('connect');
-        });
-      });
-
-      mqttClient.on('reconnect', () => {
-        syncLog('MQTT reconnecting…');
-        setSyncBadge('🔄 Reconnecting Cloud Sync…');
-      });
-
-      mqttClient.on('message', (topic, payload) => {
-        let msg;
-        try { msg = JSON.parse(payload.toString()); }
-        catch (e) { syncWarn('unparseable message ignored'); return; }
-        if (!msg || msg.clientId === CLIENT_ID) return;   // ignore our own echo
-        if (alreadySeen(msg.msgId)) {                     // 11) duplicate guard
-          syncLog('duplicate message ignored', msg.type, msg.msgId);
-          return;
-        }
-
+    loadCentralState();
+    cloudChannel = supabaseClient
+      .channel('gb-focus-follow-live')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'gb_focus_follow_members' }, payload => {
         try {
-          if (msg.type === 'delta_count') {
-            if (msg.date !== activeShiftDate) return;
-            const target = data.find(d => d.id === msg.id);
-            if (!target) return;
-            ensureMemberTs(target);
-            // Sender is the sole authority for its own bucket.
-            if (msg.clientId === CLIENT_ID) return;
-            const senderBucketVal = msg.myBucketVal !== undefined ? msg.myBucketVal : 0;
-            const senderStamp = msg.myBucketTs || msg.ts || 0;
-            const knownStamp = target._byTs[msg.metric][msg.clientId] || 0;
-            // 11) Ignore a stale/replayed report for that device's bucket.
-            if (senderStamp < knownStamp) {
-              syncLog('ignoring stale delta_count', { member: target.name, metric: msg.metric, from: msg.clientId });
-              return;
-            }
-            if (senderBucketVal !== (target._by[msg.metric][msg.clientId] || 0) || senderStamp !== knownStamp) {
-              target._by[msg.metric][msg.clientId] = senderBucketVal;
-              target._byTs[msg.metric][msg.clientId] = senderStamp;
-              recomputeMemberTotals(target);
-              touchMember(target, msg.ts);
-              if (target[msg.metric] > 0 && !target.checkedIn) {
-                target.checkedIn = true;
-                target._ts.checkedIn = msg.ts;
-                renderCheckInVisual(target.id);
-              }
-              renderRow(target.id);
-              updateTotals();
-              syncCurrentDayToHistory();
-              saveLocalState();
-              scheduleReorder();
-              flashSyncBadge(`🟢 Live Update: ${target.name} (${msg.metric.toUpperCase()})`);
-              syncLog('applied delta_count', { member: target.name, metric: msg.metric, from: msg.clientId });
-            }
-
-          } else if (msg.type === 'delta_set_exact') {
-            // Option B authoritative override — last-write-wins by timestamp.
-            if (msg.date !== activeShiftDate) return;
-            const target = data.find(d => d.id === msg.id);
-            if (!target) return;
-            ensureMemberTs(target);
-            const existing = target._ckpt[msg.metric];
-            if (existing && (msg.ts || 0) <= existing.ts) {
-              syncLog('ignoring older set_exact', { member: target.name, metric: msg.metric, from: msg.clientId });
-              return;
-            }
-            target._ckpt[msg.metric] = { val: msg.val || 0, ts: msg.ts, by: msg.clientId };
-            recomputeMemberTotals(target);   // drops only pre-checkpoint deltas
-            touchMember(target, msg.ts);
-            if (target[msg.metric] > 0 && !target.checkedIn) {
-              target.checkedIn = true;
-              target._ts.checkedIn = msg.ts;
-              renderCheckInVisual(target.id);
-            }
-            renderRow(target.id);
-            updateTotals();
-            syncCurrentDayToHistory();
-            saveLocalState();
-            scheduleReorder();
-            flashSyncBadge(`✏️ ${target.name} ${msg.metric.toUpperCase()} set to ${msg.val}`);
-            syncLog('applied delta_set_exact', { member: target.name, metric: msg.metric, val: msg.val, from: msg.clientId });
-
-          } else if (msg.type === 'delta_checkin') {
-            if (msg.date !== activeShiftDate) return;
-            const target = data.find(d => d.id === msg.id);
-            if (!target) return;
-            ensureMemberTs(target);
-            if (msg.ts > (target._ts.checkedIn || 0)) {   // 11) strictly newer only
-              target.checkedIn = !!msg.checkedIn;
-              target._ts.checkedIn = msg.ts;
-              touchMember(target, msg.ts);
-              renderCheckInVisual(target.id);
-              updateTotals();
-              syncCurrentDayToHistory();
-              saveLocalState();
-              scheduleReorder();
-              flashSyncBadge(`🟢 Live Update: ${target.name} Check-in`);
-            }
-
-          } else if (msg.type === 'delta_step') {
-            if (msg.date !== activeShiftDate) return;
-            const target = data.find(d => d.id === msg.id);
-            if (!target) return;
-            ensureMemberTs(target);
-            if (msg.ts > (target._ts.step || 0)) {
-              target.step = msg.step || "";
-              target._ts.step = msg.ts;
-              touchMember(target, msg.ts);
-              const stepSelect = document.getElementById(`step-${target.id}`);
-              if (stepSelect && document.activeElement !== stepSelect) stepSelect.value = target.step;
-              syncCurrentDayToHistory();
-              saveLocalState();
-            }
-
-          } else if (msg.type === 'delta_note') {
-            if (msg.date !== activeShiftDate) return;
-            const target = data.find(d => d.id === msg.id);
-            if (!target) return;
-            ensureMemberTs(target);
-            if (msg.ts > (target._ts.notes || 0)) {
-              target.notes = msg.notes || "";
-              target._ts.notes = msg.ts;
-              touchMember(target, msg.ts);
-              const noteInput = document.getElementById(`notes-${target.id}`);
-              if (noteInput && document.activeElement !== noteInput) noteInput.value = target.notes;
-              syncCurrentDayToHistory();
-              saveLocalState();
-            }
-
-          } else if (msg.type === 'delta_check_all') {
-            if (msg.date !== activeShiftDate) return;
-            let changed = false;
-            data.forEach(d => {
-              ensureMemberTs(d);
-              if (msg.ts > (d._ts.checkedIn || 0)) {
-                d.checkedIn = !!msg.status;
-                d._ts.checkedIn = msg.ts;
-                touchMember(d, msg.ts);
-                renderCheckInVisual(d.id);
-                changed = true;
-              }
-            });
-            if (changed) {
-              updateTotals();
-              syncCurrentDayToHistory();
-              saveLocalState();
-              scheduleReorder();
-            }
-
-          } else if (msg.type === 'delta_reset_day') {
-            if (msg.date !== activeShiftDate) return;
-            const resetId=String(msg.roomResetId||msg.msgId||''), resetTs=Number(msg.ts||0);
-            if(!resetId)return;
-            if(applyRoomReset(resetId,resetTs,msg.date,msg.clientId||'remote')){
-              flashSyncBadge('🧹 Live Day Reset Across All iPads');
-            }
-          } else if (msg.type === 'sync_req') {
-            // Do NOT answer with a full roster. Full snapshots are unsafe for
-            // rotating iPads because the requester may hold stale local data.
-            syncLog('sync_req received — full roster response blocked');
-            return;
-          } else if (msg.type === 'sync_full') {
-            if (!msg.targetClientId || msg.targetClientId === CLIENT_ID) {
-              // 9) merge only; do NOT auto-rebroadcast the same content.
-              mergeFullState(msg);
-            }
+          if (payload.eventType === 'DELETE') {
+            const id = String(payload.old && payload.old.id);
+            data = data.filter(d => String(d.id) !== id);
+            renderTableStructure(); updateTotals(); reorderRows();
+          } else {
+            applyRealtimeMember(payload.new);
           }
-        } catch (err) {
-          syncWarn('error handling message', msg && msg.type, err);
-        }
+          setSyncBadge('🟢 Supabase Live — All iPads Synced');
+        } catch (e) { syncWarn('Realtime member handler failed', e); }
+      })
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'gb_focus_follow_history' }, async () => {
+        try {
+          const { data: hist } = await supabaseClient.from('gb_focus_follow_history').select('*').order('history_date', { ascending:false });
+          if (Array.isArray(hist)) {
+            historyRecords = hist.map(h => ({ id:h.id,date:h.history_date,timestamp:Date.parse(h.updated_at||h.created_at)||Date.now(),finalized:true,data:Array.isArray(h.snapshot)?h.snapshot.map(dbToApp):[] }));
+            saveLocalState(); renderHistoryList();
+          }
+        } catch(e) { syncWarn('Realtime history refresh failed',e); }
+      })
+      .subscribe(status => {
+        syncLog('Supabase realtime:', status);
+        if (status === 'SUBSCRIBED') setSyncBadge('🟢 Supabase Live — All iPads Synced');
       });
 
-      mqttClient.on('error', (e) => {
-        // 13) A failed connection must never clear or reset live data.
-        syncWarn('MQTT error (data left intact)', e && e.message);
-        setSyncBadge('💾 Saved to iPad (Offline)');
-      });
-
-      mqttClient.on('close', () => {
-        syncLog('MQTT connection closed (data left intact)');
-      });
-
-      mqttClient.on('offline', () => {
-        syncLog('MQTT offline — edits will be queued as pending');
-        setSyncBadge('💾 Saved to iPad (Offline)');
-      });
-    } catch (e) {
-      syncWarn('initCloudSync threw (data left intact)', e);
-      setSyncBadge('💾 Saved to iPad (Offline)');
-    }
+    if (cloudRefreshTimer) clearInterval(cloudRefreshTimer);
+    cloudRefreshTimer = setInterval(() => {
+      if (cloudReady && document.visibilityState !== 'hidden') loadCentralState();
+    }, 30000);
   }
 
   function setSyncBadge(txt) {
