@@ -1305,7 +1305,23 @@
       data.forEach(ensureMemberTs);
       lastVersion = nextVersion();
       syncCurrentDayToHistory();
-      saveLocalState();
+      try {
+    const rd=localStorage.getItem(`${STORAGE_KEY_LIVE}_room_reset_day`);
+    const rt=Number(localStorage.getItem(`${STORAGE_KEY_LIVE}_room_reset_ts`)||0);
+    const ri=localStorage.getItem(`${STORAGE_KEY_LIVE}_room_reset_id`)||'';
+    if(rd===getTodayString() && rt && ri){
+      lastRoomResetId=ri; lastRoomResetTs=rt;
+      data.forEach(d=>{
+        ensureMemberTs(d); d.checkedIn=false; d.ac=0; d.pz=0; d.biz=0; d.acc=0; d.step=""; d.notes="";
+        d._ts={step:rt,notes:rt,checkedIn:rt}; d._by={ac:{},pz:{},biz:{},acc:{}};
+        d._byTs={ac:{},pz:{},biz:{},acc:{}}; d._ckpt={}; d._adopted={};
+        METRIC_KEYS.forEach(k=>{d._ckpt[k]={val:0,ts:rt,by:'room-reset'};d._adopted[k]=rt;});
+        d.updatedAt=rt;
+      });
+    }
+  } catch(e) {}
+
+  saveLocalState();
       renderTableStructure();
       updateTotals();
       reorderRows();
@@ -2605,51 +2621,66 @@
     }
   }
 
+  let lastRoomResetId = '';
+  let lastRoomResetTs = 0;
+
+  function applyRoomReset(resetId, resetTs, resetDay, sourceClientId) {
+    resetTs = Number(resetTs || 0);
+    resetDay = resetDay || getTodayString();
+    if (resetDay !== activeShiftDate) return false;
+    if (resetId && resetId === lastRoomResetId) return false;
+    if (resetTs && resetTs < lastRoomResetTs) return false;
+    lastRoomResetId = resetId || ('room-reset-' + resetTs);
+    lastRoomResetTs = resetTs || Date.now();
+
+    pushUndoState();
+    data.forEach(d => {
+      ensureMemberTs(d);
+      d.checkedIn=false; d.ac=0; d.pz=0; d.biz=0; d.acc=0; d.step=""; d.notes="";
+      d._ts={step:lastRoomResetTs,notes:lastRoomResetTs,checkedIn:lastRoomResetTs};
+      d._by={ac:{},pz:{},biz:{},acc:{}};
+      d._byTs={ac:{},pz:{},biz:{},acc:{}};
+      d._ckpt={}; d._adopted={};
+      METRIC_KEYS.forEach(k => {
+        d._ckpt[k]={val:0,ts:lastRoomResetTs,by:sourceClientId||CLIENT_ID};
+        d._adopted[k]=lastRoomResetTs;
+      });
+      d.updatedAt=lastRoomResetTs;
+      const n=document.getElementById(`notes-${d.id}`); if(n)n.value="";
+      const st=document.getElementById(`step-${d.id}`); if(st)st.value="";
+      renderCheckInVisual(d.id);
+    });
+    lastVersion=nextVersion();
+    saveLocalState(); updateTotals(); scheduleReorder();
+    try {
+      localStorage.setItem(`${STORAGE_KEY_LIVE}_room_reset_id`,lastRoomResetId);
+      localStorage.setItem(`${STORAGE_KEY_LIVE}_room_reset_ts`,String(lastRoomResetTs));
+      localStorage.setItem(`${STORAGE_KEY_LIVE}_room_reset_day`,resetDay);
+    } catch(e){}
+    setSyncBadge('🧹 Live Day Reset Across Store');
+    syncLog('ROOM RESET APPLIED',{resetId:lastRoomResetId,resetTs:lastRoomResetTs,resetDay,from:sourceClientId||CLIENT_ID,historyPreserved:true});
+    return true;
+  }
+
   function resetCounts() {
-    if (confirm("Reset today's active metrics, steps, and check-ins to 0?")) {
-      pushUndoState();
-      const now = Date.now();
-      data.forEach(d => {
-        ensureMemberTs(d);
-        d.checkedIn = false;
-        d.ac = 0;
-        d.pz = 0;
-        d.biz = 0;
-        d.acc = 0;
-        d.step = "";
-        d.notes = "";
-        d._ts = { step: now, notes: now, checkedIn: now };
-        d._by = { ac: {}, pz: {}, biz: {}, acc: {} };
-        d._byTs = { ac: {}, pz: {}, biz: {}, acc: {} };
-        // Record the reset as an authoritative zero checkpoint so a late
-        // pre-reset tap from another device cannot resurrect an old total.
-        d._ckpt = {};
-        d._adopted = {};
-        METRIC_KEYS.forEach(k => {
-          d._ckpt[k] = { val: 0, ts: now, by: CLIENT_ID };
-          d._adopted[k] = now;
-        });
-        d.updatedAt = now;
-        const noteInput = document.getElementById(`notes-${d.id}`);
-        if (noteInput) noteInput.value = "";
-        const stepSelect = document.getElementById(`step-${d.id}`);
-        if (stepSelect) stepSelect.value = "";
-        renderCheckInVisual(d.id);
-      });
-      lastVersion = nextVersion();
-
-      // Remove today's snapshot from history so aggregates reset cleanly
-      const today = activeShiftDate || getTodayString();
-      historyRecords = historyRecords.filter(r => r.date !== today);
-
-      saveLocalState();
-      updateTotals();
-      broadcastDelta({
-        type: 'delta_reset_day',
-        date: today,
-        ts: now
-      });
-      scheduleReorder();
+    if(!confirm("RESET TODAY'S LIVE TRACKER ON ALL IPADS?\n\nThis clears today's check-ins, metrics, steps, and notes across all connected/reconnecting iPads.\n\nHistorical / previous-day records will NOT be deleted.")) return;
+    if(!mqttReady()){
+      setSyncBadge('⚠️ MQTT offline — cannot reset all iPads');
+      alert('Cloud Sync is offline. The room-wide reset was not performed.');
+      return;
+    }
+    const resetTs=Date.now(), resetId=newMsgId(), resetDay=activeShiftDate||getTodayString();
+    applyRoomReset(resetId,resetTs,resetDay,CLIENT_ID);
+    try {
+      mqttClient.publish(TOPIC_STATE,JSON.stringify({
+        type:'delta_reset_day',clientId:CLIENT_ID,msgId:resetId,date:resetDay,
+        ts:resetTs,roomResetId:resetId,historyPreserved:true
+      }),PUB_OPTS);
+      setSyncBadge('🧹 Reset Sent to All iPads');
+      syncLog('ROOM RESET PUBLISHED',{resetId,resetDay,historyPreserved:true});
+    } catch(e) {
+      setSyncBadge('⚠️ Local reset applied; room reset send failed');
+      syncWarn('ROOM RESET PUBLISH FAILED',e);
     }
   }
 
@@ -3112,46 +3143,12 @@
             }
 
           } else if (msg.type === 'delta_reset_day') {
-            // An explicit operator-initiated reset for THIS date only.
             if (msg.date !== activeShiftDate) return;
-            // ---- STALE-RESET GUARD (audit finding) ----------------------
-            // This is the only inbound message that intentionally destroys
-            // data, so it needs an age check like every other handler. A
-            // device that was offline since this morning can otherwise
-            // deliver a queued 9 AM reset at 3 PM and wipe the afternoon.
-            const newestLocalEdit = data.reduce((mx, d) => Math.max(mx, d.updatedAt || 0), 0);
-            if ((msg.ts || 0) < newestLocalEdit) {
-              syncWarn('IGNORING STALE delta_reset_day', {
-                resetTs: msg.ts, newestLocalEdit: newestLocalEdit, from: msg.clientId
-              });
-              return;
+            const resetId=String(msg.roomResetId||msg.msgId||''), resetTs=Number(msg.ts||0);
+            if(!resetId)return;
+            if(applyRoomReset(resetId,resetTs,msg.date,msg.clientId||'remote')){
+              flashSyncBadge('🧹 Live Day Reset Across All iPads');
             }
-            syncLog('peer reset day', msg.date, 'from', msg.clientId);
-            data.forEach(d => {
-              ensureMemberTs(d);
-              d.checkedIn = false;
-              d.ac = 0; d.pz = 0; d.biz = 0; d.acc = 0;
-              d.step = ""; d.notes = "";
-              d._ts = { step: msg.ts, notes: msg.ts, checkedIn: msg.ts };
-              d._by = { ac: {}, pz: {}, biz: {}, acc: {} };
-              d._byTs = { ac: {}, pz: {}, biz: {}, acc: {} };
-              // A reset is itself an authoritative zero checkpoint, so a
-              // late-arriving pre-reset tap can't resurrect an old total.
-              d._ckpt = {};
-              d._adopted = {};
-              METRIC_KEYS.forEach(k => {
-                d._ckpt[k] = { val: 0, ts: msg.ts, by: msg.clientId };
-                d._adopted[k] = msg.ts;
-              });
-              d.updatedAt = msg.ts;
-              renderCheckInVisual(d.id);
-            });
-            historyRecords = historyRecords.filter(r => r.date !== msg.date);
-            saveLocalState();
-            renderTableStructure();
-            updateTotals();
-            scheduleReorder();
-
           } else if (msg.type === 'sync_req') {
             // 5) Answer newcomers with our state if we have anything at all.
             const haveLive = data.some(d => d.checkedIn || d.ac > 0 || d.pz > 0 || d.biz > 0 || d.acc > 0);
