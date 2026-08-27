@@ -496,6 +496,12 @@
     text-align: center;
     font-weight: 700;
     font-size: 14px;
+    cursor: pointer;                 /* tap to set an exact total */
+    border-radius: 4px;
+    -webkit-tap-highlight-color: rgba(10,132,255,0.25);
+  }
+  .cnt-val:active {
+    background: rgba(10,132,255,0.18);
   }
   .aggregate-val {
     font-size: 14px;
@@ -979,10 +985,100 @@
   </div>
 
 <script>
-  const STORAGE_KEY_LIVE = "gb_focus_follow_live_v13";
-  const STORAGE_KEY_HISTORY = "gb_focus_follow_history_v13";
-  const SYNC_TOPIC = "apple_retail_gb_focus_follow_sync_v13";
-  const CLIENT_ID = "client_" + Math.random().toString(36).substring(2, 10);
+  /* ============================================================
+     🌐 MQTT SYNC CONFIGURATION
+     Bumping APP_VERSION_TAG creates a brand-new topic namespace, which is how
+     we isolate this build from ANY stale retained message still sitting on an
+     older topic. We also never publish retained state ourselves (retain:false),
+     so retained snapshots can never resurrect old data again.
+     ============================================================ */
+  const APP_VERSION_TAG = "v14";
+  const STORAGE_KEY_LIVE    = `gb_focus_follow_live_${APP_VERSION_TAG}`;
+  const STORAGE_KEY_HISTORY = `gb_focus_follow_history_${APP_VERSION_TAG}`;
+  const STORAGE_KEY_CLIENT  = "gb_focus_follow_client_id";   // survives reloads
+  const STORAGE_KEY_VERSION = `gb_focus_follow_version_${APP_VERSION_TAG}`;
+  const STORAGE_KEY_PENDING = `gb_focus_follow_pending_${APP_VERSION_TAG}`;
+
+  // Legacy keys we migrate from once, so upgrading never looks like data loss.
+  const LEGACY_KEY_LIVE    = "gb_focus_follow_live_v13";
+  const LEGACY_KEY_HISTORY = "gb_focus_follow_history_v13";
+
+  // 4) TWO topics — state broadcasts and peer state requests. Both subscribed.
+  const TOPIC_BASE  = `apple_retail_gb_focus_follow/${APP_VERSION_TAG}`;
+  const TOPIC_STATE = `${TOPIC_BASE}/state`;
+  const TOPIC_REQ   = `${TOPIC_BASE}/req`;
+
+  /* 15) DEFENSIVE SYNC LOGGING — open the browser console to diagnose. */
+  const SYNC_DEBUG = true;
+  function syncLog()  { if (SYNC_DEBUG) console.log.apply(console, ['[GB-SYNC]'].concat([].slice.call(arguments))); }
+  function syncWarn() { if (SYNC_DEBUG) console.warn.apply(console, ['[GB-SYNC]'].concat([].slice.call(arguments))); }
+
+  /* 3) PERSISTENT DEVICE / CLIENT ID
+        A random id per page load would orphan that device's PN-Counter buckets
+        on every refresh (its prior contributions would look like a different
+        device forever). Each physical device now keeps one stable id. */
+  const CLIENT_ID = (function () {
+    let id = null;
+    try { id = localStorage.getItem(STORAGE_KEY_CLIENT); } catch (e) {}
+    if (!id) {
+      id = 'dev_' + Math.random().toString(36).slice(2, 10) + Date.now().toString(36).slice(-4);
+      try { localStorage.setItem(STORAGE_KEY_CLIENT, id); } catch (e) {}
+      syncLog('generated NEW persistent device id', id);
+    } else {
+      syncLog('reusing persistent device id', id);
+    }
+    return id;
+  })();
+
+  /* 7) MONOTONIC VERSION — strictly increasing even for two edits inside the
+        same millisecond, and persisted so it keeps climbing across reloads. */
+  let versionCounter = (function () {
+    try { return parseInt(localStorage.getItem(STORAGE_KEY_VERSION) || '0', 10) || 0; } catch (e) { return 0; }
+  })();
+  function nextVersion() {
+    const nowMs = Date.now();
+    versionCounter = (nowMs > versionCounter) ? nowMs : (versionCounter + 1);
+    try { localStorage.setItem(STORAGE_KEY_VERSION, String(versionCounter)); } catch (e) {}
+    return versionCounter;
+  }
+
+  /* 11) DUPLICATE-MESSAGE GUARD — QoS 1 is allowed to redeliver. */
+  const seenMsgIds = new Set();
+  const seenMsgOrder = [];
+  const SEEN_MSG_MAX = 500;
+  function alreadySeen(msgId) {
+    if (!msgId) return false;
+    if (seenMsgIds.has(msgId)) return true;
+    seenMsgIds.add(msgId);
+    seenMsgOrder.push(msgId);
+    if (seenMsgOrder.length > SEEN_MSG_MAX) seenMsgIds.delete(seenMsgOrder.shift());
+    return false;
+  }
+  let msgSeq = 0;
+  function newMsgId() { return CLIENT_ID + ':' + Date.now() + ':' + (++msgSeq); }
+
+  /* 8) OFFLINE EDIT TRACKING — edits made while disconnected are saved to
+        localStorage immediately and flagged pending, then merged (not blindly
+        published) once we reconnect and hear back from peers. */
+  let hasPendingChanges = (function () {
+    try { return localStorage.getItem(STORAGE_KEY_PENDING) === '1'; } catch (e) { return false; }
+  })();
+  function markPending(reason) {
+    if (!hasPendingChanges) syncLog('offline edit -> marked PENDING:', reason);
+    hasPendingChanges = true;
+    try { localStorage.setItem(STORAGE_KEY_PENDING, '1'); } catch (e) {}
+  }
+  function clearPending() {
+    hasPendingChanges = false;
+    try { localStorage.setItem(STORAGE_KEY_PENDING, '0'); } catch (e) {}
+  }
+
+  /* 4) CONNECT HANDSHAKE — after connecting we ask peers for state and WAIT.
+        We must not publish our own snapshot during this window, otherwise a
+        freshly-opened (empty) device could stomp a peer that's mid-shift. */
+  let handshakeActive = false;
+  let handshakeTimer = null;
+  const HANDSHAKE_WAIT_MS = 3500;
   
   const INITIAL_ROSTER = [
     {"name": "Benjamin Schneider-Haney", "role": "Genius"},
@@ -1075,18 +1171,79 @@
       });
     }
     ['ac', 'pz', 'biz', 'acc'].forEach(k => { if (!m._by[k]) m._by[k] = {}; });
+    // Option B scaffolding — safe to add to pre-existing records.
+    if (!m._ckpt    || typeof m._ckpt    !== 'object') m._ckpt = {};
+    if (!m._byTs    || typeof m._byTs    !== 'object') m._byTs = {};
+    if (!m._adopted || typeof m._adopted !== 'object') m._adopted = {};
+    ['ac', 'pz', 'biz', 'acc'].forEach(k => { if (!m._byTs[k]) m._byTs[k] = {}; });
+    // 6) Per-record conflict resolution marker.
+    if (typeof m.updatedAt !== 'number') {
+      m.updatedAt = Math.max(
+        m._ts.step || 0, m._ts.notes || 0, m._ts.checkedIn || 0
+      );
+    }
     return m;
   }
 
+  function touchMember(m, ts) {
+    ensureMemberTs(m);
+    m.updatedAt = Math.max(m.updatedAt || 0, ts || Date.now());
+    return m;
+  }
+
+  /* ============================================================
+     OPTION B — HYBRID COUNTER MODEL
+     • Normal +/- taps accumulate in per-device buckets (_by) and are SUMMED,
+       so two people tapping the same counter at once never lose a tap.
+     • An explicit "Set exact value" writes an authoritative CHECKPOINT
+       (_ckpt) which is last-write-wins across devices. The checkpoint
+       supersedes every tap that happened before it, but taps made AFTER it
+       still add on top — so nothing logged after a correction is lost.
+
+       effective(metric) = checkpoint.val + Σ(post-checkpoint device deltas)
+
+     _ckpt[metric]  = { val, ts, by }   authoritative override (LWW)
+     _by[metric]    = { clientId: n }   per-device delta since checkpoint
+     _byTs[metric]  = { clientId: ts }  when that device last changed its delta
+     _adopted[metric] = ts              newest checkpoint folded in locally
+     ============================================================ */
+  const METRIC_KEYS = ['ac', 'pz', 'biz', 'acc'];
+
+  /* Fold the newest known checkpoint into this member by discarding only the
+     deltas that PREDATE it. Post-checkpoint taps are preserved. Every device
+     performs this identically, so all devices converge on the same total. */
+  function adoptCheckpoints(m) {
+    if (!m._ckpt) return;
+    METRIC_KEYS.forEach(metric => {
+      const c = m._ckpt[metric];
+      if (!c) return;
+      const adopted = (m._adopted && m._adopted[metric]) || 0;
+      if (adopted >= c.ts) return;
+      const buckets = m._by[metric] || {};
+      const stamps  = (m._byTs && m._byTs[metric]) || {};
+      for (const cid in buckets) {
+        // Only drop contributions that happened at/before the checkpoint.
+        if ((stamps[cid] || 0) <= c.ts) {
+          delete buckets[cid];
+          delete stamps[cid];
+        }
+      }
+      m._adopted[metric] = c.ts;
+    });
+  }
+
   function counterTotal(m, metric) {
+    const c = m._ckpt && m._ckpt[metric];
+    const base = c ? (c.val || 0) : 0;
     const buckets = (m._by && m._by[metric]) || {};
     let sum = 0;
     for (const k in buckets) sum += (buckets[k] || 0);
-    return Math.max(0, sum);
+    return Math.max(0, base + sum);
   }
 
   function recomputeMemberTotals(m) {
-    ['ac', 'pz', 'biz', 'acc'].forEach(k => { m[k] = counterTotal(m, k); });
+    adoptCheckpoints(m);
+    METRIC_KEYS.forEach(k => { m[k] = counterTotal(m, k); });
   }
 
   function createFreshMember(item, idx) {
@@ -1101,8 +1258,12 @@
       acc: 0,
       step: "",
       notes: "",
+      updatedAt: 0,
       _ts: { step: 0, notes: 0, checkedIn: 0 },
-      _by: { ac: {}, pz: {}, biz: {}, acc: {} }
+      _by: { ac: {}, pz: {}, biz: {}, acc: {} },
+      _byTs: { ac: {}, pz: {}, biz: {}, acc: {} },
+      _ckpt: {},
+      _adopted: {}
     };
   }
 
@@ -1142,13 +1303,13 @@
     try {
       data = JSON.parse(previousSnapshot);
       data.forEach(ensureMemberTs);
-      lastVersion = Date.now();
+      lastVersion = nextVersion();
       syncCurrentDayToHistory();
       saveLocalState();
       renderTableStructure();
       updateTotals();
       reorderRows();
-      broadcastFullSync();
+      publishState('undo');
       updateUndoButton();
       flashAutoSaveBadge("↩️ Prior Action Undone");
     } catch(e) {}
@@ -1210,30 +1371,72 @@
     return date.toLocaleString('default', { month: 'long', year: 'numeric' });
   }
 
-  // 1. Restore local cache immediately
-  try {
-    const savedLive = localStorage.getItem(STORAGE_KEY_LIVE);
-    if (savedLive) {
-      const parsed = JSON.parse(savedLive);
+  /* ============================================================
+     13) LOCALSTORAGE RESTORE — offline safety copy.
+     This is the ONLY place live data is loaded at startup. It never clears
+     anything: if parsing fails or the payload is empty we keep whatever is
+     already in memory. Also performs a one-time migration from the previous
+     version's keys so bumping APP_VERSION_TAG never looks like data loss.
+     ============================================================ */
+  function normalizeHistoryRecord(r) {
+    if (!r || typeof r !== 'object') return null;
+    if (!r.date) return null;
+    // 6) Stable identifier + timestamp so duplicate messages can't duplicate history.
+    if (!r.id) r.id = 'hist_' + r.date;
+    if (typeof r.timestamp !== 'number') r.timestamp = 0;
+    if (Array.isArray(r.data)) r.data.forEach(ensureMemberTs);
+    return r;
+  }
+
+  (function restoreLiveFromCache() {
+    let raw = null;
+    let usedLegacy = false;
+    try { raw = localStorage.getItem(STORAGE_KEY_LIVE); } catch (e) {}
+    if (!raw) {
+      try {
+        raw = localStorage.getItem(LEGACY_KEY_LIVE);
+        if (raw) usedLegacy = true;
+      } catch (e) {}
+    }
+    if (!raw) { syncLog('no cached live state; starting fresh board'); return; }
+    try {
+      const parsed = JSON.parse(raw);
       if (parsed && Array.isArray(parsed.data) && parsed.data.length > 0) {
         lastVersion = parsed.version || 0;
         data = parsed.data.map(ensureMemberTs);
-        if (parsed.date) {
-          activeShiftDate = parsed.date;
-        }
+        if (parsed.date) activeShiftDate = parsed.date;
+        syncLog('restored live state' + (usedLegacy ? ' (migrated from v13)' : ''),
+                { date: activeShiftDate, members: data.length, version: lastVersion });
+      } else {
+        syncWarn('cached live state was empty/invalid — keeping in-memory board');
       }
+    } catch (e) {
+      syncWarn('failed to parse cached live state — keeping in-memory board', e);
     }
-  } catch(e) {}
+  })();
 
-  try {
-    const savedHist = localStorage.getItem(STORAGE_KEY_HISTORY);
-    if (savedHist) {
-      const parsed = JSON.parse(savedHist);
-      if (Array.isArray(parsed)) {
-        historyRecords = parsed;
-      }
+  (function restoreHistoryFromCache() {
+    let raw = null;
+    let usedLegacy = false;
+    try { raw = localStorage.getItem(STORAGE_KEY_HISTORY); } catch (e) {}
+    if (!raw) {
+      try {
+        raw = localStorage.getItem(LEGACY_KEY_HISTORY);
+        if (raw) usedLegacy = true;
+      } catch (e) {}
     }
-  } catch(e) {}
+    if (!raw) { syncLog('no cached history'); return; }
+    try {
+      const parsed = JSON.parse(raw);
+      if (Array.isArray(parsed)) {
+        historyRecords = parsed.map(normalizeHistoryRecord).filter(Boolean);
+        syncLog('restored history' + (usedLegacy ? ' (migrated from v13)' : ''),
+                { records: historyRecords.length });
+      }
+    } catch (e) {
+      syncWarn('failed to parse cached history — keeping in-memory history', e);
+    }
+  })();
 
   function syncCurrentDayToHistory() {
     const hasAnyActivity = data.some(d => d.checkedIn || d.ac > 0 || d.pz > 0 || d.biz > 0 || d.acc > 0 || d.notes || d.step);
@@ -1244,6 +1447,7 @@
     const wasFinalized = existingIdx >= 0 ? !!historyRecords[existingIdx].finalized : false;
 
     const snapshot = {
+      id: 'hist_' + today,          // 6) stable identifier
       date: today,
       timestamp: Date.now(),
       finalized: wasFinalized,
@@ -1266,43 +1470,53 @@
         version: lastVersion 
       }));
       localStorage.setItem(STORAGE_KEY_HISTORY, JSON.stringify(historyRecords));
-    } catch(e) {}
+    } catch(e) {
+      syncWarn('saveLocalState failed', e);
+    }
   }
 
+  /* ============================================================
+     14) DAILY ROLLOVER — DATE-DRIVEN ONLY.
+     This is the ONLY function permitted to clear the live board, and it does so
+     strictly because the calendar date changed. It is never called from any MQTT
+     handler, so an MQTT reconnect at 2 PM can never reset the daily board.
+     ============================================================ */
   function checkDayRollover() {
     const today = getTodayString();
-    if (activeShiftDate && activeShiftDate !== today) {
-      // Finalize the closing day permanently into Prior Day + Weekly/Monthly/Quarterly
-      const closingDate = activeShiftDate;
-      const hasActiveData = data.some(d => d.checkedIn || d.ac > 0 || d.pz > 0 || d.biz > 0 || d.acc > 0 || d.notes || d.step);
+    if (!activeShiftDate) { activeShiftDate = today; return; }
+    if (activeShiftDate === today) return;               // same day: do nothing
 
-      if (hasActiveData) {
-        const existingIdx = historyRecords.findIndex(r => r.date === closingDate);
-        const finalSnapshot = {
-          date: closingDate,
-          timestamp: Date.now(),
-          finalized: true,
-          data: JSON.parse(JSON.stringify(data))
-        };
-        if (existingIdx >= 0) {
-          historyRecords[existingIdx] = finalSnapshot;
-        } else {
-          historyRecords.unshift(finalSnapshot);
-        }
-        historyRecords.sort((a, b) => (b.date > a.date ? 1 : (b.date < a.date ? -1 : 0)));
+    const closingDate = activeShiftDate;
+    const hasActiveData = data.some(d => d.checkedIn || d.ac > 0 || d.pz > 0 || d.biz > 0 || d.acc > 0 || d.notes || d.step);
+    syncLog('DATE CHANGED — rolling over', { from: closingDate, to: today, hadData: hasActiveData });
+
+    if (hasActiveData) {
+      const existingIdx = historyRecords.findIndex(r => r.date === closingDate);
+      const finalSnapshot = {
+        id: 'hist_' + closingDate,
+        date: closingDate,
+        timestamp: Date.now(),
+        finalized: true,
+        data: JSON.parse(JSON.stringify(data))
+      };
+      if (existingIdx >= 0) {
+        historyRecords[existingIdx] = finalSnapshot;
+      } else {
+        historyRecords.unshift(finalSnapshot);
       }
-
-      // Start a fresh live shift for today
-      data = INITIAL_ROSTER.map(createFreshMember);
-      activeShiftDate = today;
-      lastVersion = Date.now();
-      saveLocalState();
-      renderTableStructure();
-      updateTotals();
-      reorderRows();
-      flashAutoSaveBadge(`📅 ${closingDate} Archived → New Shift (${today})`);
-      broadcastFullSync();
+      historyRecords.sort((a, b) => (b.date > a.date ? 1 : (b.date < a.date ? -1 : 0)));
     }
+
+    // Start a fresh live shift for today
+    data = INITIAL_ROSTER.map(createFreshMember);
+    activeShiftDate = today;
+    lastVersion = nextVersion();
+    saveLocalState();
+    renderTableStructure();
+    updateTotals();
+    reorderRows();
+    flashAutoSaveBadge(`📅 ${closingDate} Archived → New Shift (${today})`);
+    publishState('day-rollover');
   }
 
   function scheduleReorder() {
@@ -1607,28 +1821,28 @@
         <td style="text-align:center;">
           <div class="counter-box">
             <button type="button" class="cnt-btn minus" onclick="event.stopPropagation(); updateCounts(${p.id}, 'ac', -1)">−</button>
-            <span class="cnt-val" id="val-ac-${p.id}">${p.ac}</span>
+            <span class="cnt-val" id="val-ac-${p.id}" title="Tap to set exact total" onclick="event.stopPropagation(); setExactValue(${p.id}, 'ac')">${p.ac}</span>
             <button type="button" class="cnt-btn plus" onclick="event.stopPropagation(); updateCounts(${p.id}, 'ac', 1)">+</button>
           </div>
         </td>
         <td style="text-align:center;">
           <div class="counter-box">
             <button type="button" class="cnt-btn minus" onclick="event.stopPropagation(); updateCounts(${p.id}, 'pz', -1)">−</button>
-            <span class="cnt-val" id="val-pz-${p.id}">${p.pz}</span>
+            <span class="cnt-val" id="val-pz-${p.id}" title="Tap to set exact total" onclick="event.stopPropagation(); setExactValue(${p.id}, 'pz')">${p.pz}</span>
             <button type="button" class="cnt-btn plus" onclick="event.stopPropagation(); updateCounts(${p.id}, 'pz', 1)">+</button>
           </div>
         </td>
         <td style="text-align:center;">
           <div class="counter-box">
             <button type="button" class="cnt-btn minus" onclick="event.stopPropagation(); updateCounts(${p.id}, 'biz', -1)">−</button>
-            <span class="cnt-val" id="val-biz-${p.id}">${p.biz}</span>
+            <span class="cnt-val" id="val-biz-${p.id}" title="Tap to set exact total" onclick="event.stopPropagation(); setExactValue(${p.id}, 'biz')">${p.biz}</span>
             <button type="button" class="cnt-btn plus" onclick="event.stopPropagation(); updateCounts(${p.id}, 'biz', 1)">+</button>
           </div>
         </td>
         <td style="text-align:center;">
           <div class="counter-box">
             <button type="button" class="cnt-btn minus" onclick="event.stopPropagation(); updateCounts(${p.id}, 'acc', -1)">−</button>
-            <span class="cnt-val" id="val-acc-${p.id}">${p.acc}</span>
+            <span class="cnt-val" id="val-acc-${p.id}" title="Tap to set exact total" onclick="event.stopPropagation(); setExactValue(${p.id}, 'acc')">${p.acc}</span>
             <button type="button" class="cnt-btn plus" onclick="event.stopPropagation(); updateCounts(${p.id}, 'acc', 1)">+</button>
           </div>
         </td>
@@ -1724,6 +1938,7 @@
     const now = Date.now();
     member.checkedIn = !member.checkedIn;
     member._ts.checkedIn = now;
+    touchMember(member, now);
     renderCheckInVisual(index);
     updateTotals();
     syncCurrentDayToHistory();
@@ -1762,6 +1977,7 @@
       ensureMemberTs(d);
       d.checkedIn = status;
       d._ts.checkedIn = now;
+      touchMember(d, now);
       renderCheckInVisual(d.id);
     });
     updateTotals();
@@ -1842,9 +2058,21 @@
     // clobber each other before. The visible total is always the sum of all
     // devices' buckets, so two people tapping +1 on the same counter at the
     // same time both count, no matter what order the network delivers them.
+    // The bucket is a delta measured SINCE the newest checkpoint (Option B).
+    adoptCheckpoints(member);
     const myBucket = (member._by[metric][CLIENT_ID] || 0);
-    member._by[metric][CLIENT_ID] = Math.max(0, myBucket + delta);
+    let nextBucket = myBucket + delta;
+    // Don't let a decrement push the visible total below zero.
+    const ckptBase = (member._ckpt[metric] && member._ckpt[metric].val) || 0;
+    let othersSum = 0;
+    for (const cid in member._by[metric]) {
+      if (cid !== CLIENT_ID) othersSum += (member._by[metric][cid] || 0);
+    }
+    if (ckptBase + othersSum + nextBucket < 0) nextBucket = -(ckptBase + othersSum);
+    member._by[metric][CLIENT_ID] = nextBucket;
+    member._byTs[metric][CLIENT_ID] = now;
     recomputeMemberTotals(member);
+    touchMember(member, now);
 
     if (member[metric] > 0 && !member.checkedIn) {
       member.checkedIn = true;
@@ -1867,9 +2095,69 @@
       id: member.id,
       metric: metric,
       myBucketVal: member._by[metric][CLIENT_ID],
+      myBucketTs: now,
       date: activeShiftDate,
       ts: now
     });
+  }
+
+  /* ============================================================
+     OPTION B — AUTHORITATIVE "SET EXACT VALUE" OVERRIDE
+     Writes a last-write-wins checkpoint. Use this when a lead needs the number
+     to read exactly N regardless of how the taps accumulated. Taps made AFTER
+     the checkpoint still add on top, so nothing logged later is lost.
+     ============================================================ */
+  function setExactValue(index, metric) {
+    if (currentTab !== 'daily') {
+      alert("Exact values can only be set on the Live Daily tab.");
+      return;
+    }
+    const member = data.find(d => d.id === index);
+    if (!member) return;
+    ensureMemberTs(member);
+
+    const label = { ac: 'AppleCare+', pz: 'PZ Conversion', biz: 'Business', acc: 'Accessories' }[metric] || metric;
+    const raw = prompt(`Set exact ${label} total for ${member.name}:`, String(member[metric] || 0));
+    if (raw === null) return;
+    const val = parseInt(String(raw).trim(), 10);
+    if (isNaN(val) || val < 0) {
+      alert("Please enter a whole number of 0 or greater.");
+      return;
+    }
+
+    pushUndoState();
+    const now = Date.now();
+    // Authoritative checkpoint. Clearing buckets/stamps for this metric means
+    // the new value stands alone; later taps accumulate on top of it.
+    member._ckpt[metric] = { val: val, ts: now, by: CLIENT_ID };
+    member._by[metric] = {};
+    member._byTs[metric] = {};
+    member._adopted[metric] = now;
+    recomputeMemberTotals(member);
+    touchMember(member, now);
+
+    if (member[metric] > 0 && !member.checkedIn) {
+      member.checkedIn = true;
+      member._ts.checkedIn = now;
+      renderCheckInVisual(index);
+    }
+    renderRow(index);
+    updateTotals();
+    syncCurrentDayToHistory();
+    saveLocalState();
+    scheduleReorder();
+
+    syncLog('set exact value', { member: member.name, metric: metric, val: val });
+    broadcastDelta({
+      type: 'delta_set_exact',
+      name: member.name,
+      id: member.id,
+      metric: metric,
+      val: val,
+      date: activeShiftDate,
+      ts: now
+    });
+    flashSyncBadge(`✏️ ${member.name} ${label} set to ${val}`);
   }
 
   function saveStep(index, val) {
@@ -1882,6 +2170,7 @@
       const now = Date.now();
       member.step = val;
       member._ts.step = now;
+      touchMember(member, now);
       syncCurrentDayToHistory();
       saveLocalState();
       broadcastDelta({
@@ -1908,6 +2197,7 @@
       const now = Date.now();
       member.notes = val;
       member._ts.notes = now;
+      touchMember(member, now);
       syncCurrentDayToHistory();
       saveLocalState();
       broadcastDelta({
@@ -2215,33 +2505,13 @@
     }
 
     // Propagate finalized day snapshot to all devices
-    broadcastFullSync();
+    publishState('archive-day');
   }
 
-  /* 🌙 CLOSE THE DAY: Finalize shift → Prior Day + Roll into Weekly/Monthly/Quarterly */
-  function closeOutDay(silentAuto = true) {
-    const closingDate = activeShiftDate || getTodayString();
-    const hasActiveData = data.some(d => d.checkedIn || d.ac > 0 || d.pz > 0 || d.biz > 0 || d.acc > 0 || d.notes || d.step);
-
-    if (hasActiveData) {
-      // 1. Permanently finalize the whole day into history archive
-      archiveCurrentDay(true, closingDate);
-    }
-
-    // 2. Start a clean live shift for the next day
-    const nextDay = getTodayString();
-    if (closingDate !== nextDay || !silentAuto) {
-      data = INITIAL_ROSTER.map(createFreshMember);
-      activeShiftDate = nextDay;
-      lastVersion = Date.now();
-      saveLocalState();
-      renderTableStructure();
-      updateTotals();
-      scheduleReorder();
-      broadcastFullSync();
-      flashAutoSaveBadge(`📅 New Shift Started (${nextDay})`);
-    }
-  }
+  /* NOTE: A previous `closeOutDay()` helper was removed here. It was unreachable
+     (zero callers) and contained a board-clearing branch, so deleting it removes
+     any chance of a future code path resetting the live day outside of the
+     date-driven checkDayRollover() above. (Requirements 13 & 14) */
 
   function flashAutoSaveBadge(txt) {
     const badge = document.getElementById('autoSaveBadge');
@@ -2319,10 +2589,10 @@
       data = JSON.parse(JSON.stringify(rec.data));
       data.forEach(ensureMemberTs);
       activeShiftDate = rec.date;
-      lastVersion = Date.now();
+      lastVersion = nextVersion();
       saveLocalState();
       switchTab('daily');
-      broadcastFullSync();
+      publishState('restore-history-to-live');
     }
   }
 
@@ -2331,7 +2601,7 @@
       historyRecords.splice(idx, 1);
       saveLocalState();
       renderHistoryList();
-      broadcastFullSync();
+      publishState('delete-history-record');
     }
   }
 
@@ -2350,13 +2620,23 @@
         d.notes = "";
         d._ts = { step: now, notes: now, checkedIn: now };
         d._by = { ac: {}, pz: {}, biz: {}, acc: {} };
+        d._byTs = { ac: {}, pz: {}, biz: {}, acc: {} };
+        // Record the reset as an authoritative zero checkpoint so a late
+        // pre-reset tap from another device cannot resurrect an old total.
+        d._ckpt = {};
+        d._adopted = {};
+        METRIC_KEYS.forEach(k => {
+          d._ckpt[k] = { val: 0, ts: now, by: CLIENT_ID };
+          d._adopted[k] = now;
+        });
+        d.updatedAt = now;
         const noteInput = document.getElementById(`notes-${d.id}`);
         if (noteInput) noteInput.value = "";
         const stepSelect = document.getElementById(`step-${d.id}`);
         if (stepSelect) stepSelect.value = "";
         renderCheckInVisual(d.id);
       });
-      lastVersion = now;
+      lastVersion = nextVersion();
 
       // Remove today's snapshot from history so aggregates reset cleanly
       const today = activeShiftDate || getTodayString();
@@ -2369,7 +2649,6 @@
         date: today,
         ts: now
       });
-      broadcastFullSync();
       scheduleReorder();
     }
   }
@@ -2426,101 +2705,186 @@
     a.click();
   }
 
-  /* 🌐 REAL-TIME CONFLICT-FREE MULTI-DEVICE CLOUD SYNC ENGINE */
+  /* ============================================================
+     🌐 MQTT SYNC ENGINE
+     Requirements implemented here:
+      2)  retain:false on every publish — no retained snapshots at all.
+      4)  connect → subscribe both topics → request peer state → WAIT → merge
+          → only then publish (and only if something actually changed).
+      5)  A new/empty device can never erase peers: merges are per-record and
+          strictly newer-wins; an empty device simply has nothing newer.
+      6)  Per-record `updatedAt` + per-field `_ts` conflict resolution; history
+          merged by stable id/date, never blindly replaced.
+      9)  Loop prevention: we only publish when local state actually changed.
+      10) QoS 1 everywhere.
+      11) Duplicate/older messages ignored via msgId de-dupe + record-level ts.
+      12) Auto-reconnect configured for Wi-Fi drops.
+     ============================================================ */
+
+  const PUB_OPTS = { qos: 1, retain: false };   // 2) + 10)
+
+  function mqttReady() {
+    return !!(mqttClient && mqttClient.connected);
+  }
+
+  /* 8) Every outbound edit goes through here. If we're offline the change is
+        already in localStorage (callers save first) and simply gets flagged
+        pending for merge-on-reconnect. */
   function broadcastDelta(payload) {
-    if (mqttClient && mqttClient.connected) {
-      try {
-        payload.clientId = CLIENT_ID;
-        mqttClient.publish(SYNC_TOPIC, JSON.stringify(payload), { qos: 1 });
-      } catch(e) {}
+    payload.clientId = CLIENT_ID;
+    payload.msgId = newMsgId();
+    payload.v = nextVersion();
+    if (!mqttReady()) {
+      markPending(payload.type);
+      return;
+    }
+    // 4) Don't shout over peers while we're still waiting for their state.
+    if (handshakeActive) {
+      markPending(payload.type + ' (during handshake)');
+      return;
+    }
+    try {
+      mqttClient.publish(TOPIC_STATE, JSON.stringify(payload), PUB_OPTS);
+    } catch (e) {
+      syncWarn('publish delta failed; marking pending', e);
+      markPending(payload.type);
     }
   }
 
-  function broadcastFullSync() {
-    lastVersion = Date.now();
+  /* Publishes the full merged state. Called ONLY when local state genuinely
+     changed (local edit, post-handshake merge, or date rollover) — never in a
+     blind loop on receipt of a peer message. (9) */
+  function publishState(reason) {
     syncCurrentDayToHistory();
     saveLocalState();
-    if (mqttClient && mqttClient.connected) {
-      try {
-        mqttClient.publish(SYNC_TOPIC, JSON.stringify({
-          type: 'sync_full',
-          clientId: CLIENT_ID,
-          version: lastVersion,
-          date: activeShiftDate,
-          data: data,
-          historyRecords: historyRecords,
-          ts: Date.now()
-        }), { qos: 1 });
-      } catch(e) {}
+    if (!mqttReady()) {
+      markPending('publishState:' + reason);
+      syncLog('publishState skipped (offline) —', reason);
+      return;
+    }
+    if (handshakeActive) {
+      markPending('publishState:' + reason);
+      syncLog('publishState deferred (handshake in progress) —', reason);
+      return;
+    }
+    lastVersion = nextVersion();
+    try {
+      mqttClient.publish(TOPIC_STATE, JSON.stringify({
+        type: 'sync_full',
+        clientId: CLIENT_ID,
+        msgId: newMsgId(),
+        version: lastVersion,
+        date: activeShiftDate,
+        data: data,
+        historyRecords: historyRecords,
+        ts: Date.now()
+      }), PUB_OPTS);
+      syncLog('published full state —', reason, { version: lastVersion, date: activeShiftDate });
+      clearPending();
+    } catch (e) {
+      syncWarn('publishState failed; marking pending', e);
+      markPending('publishState:' + reason);
     }
   }
 
+  /* 5) + 6) + 11) Per-record merge. Returns true only if OUR state changed.
+     An empty/new device contributes nothing here, so it can never wipe peers. */
   function mergeFullState(msg) {
     let hasChanges = false;
 
-    /* 1) LIVE SHEET MERGE — only valid when both devices are on the same shift date.
-          Guarded so a device that already rolled past midnight can never wipe
-          another device's still-in-progress day. */
+    // ---- LIVE BOARD (same shift date only) ----
+    // 14) Never touches activeShiftDate and never resets the board; a peer on a
+    // different date is simply ignored for the live merge.
     if (msg.date === activeShiftDate && Array.isArray(msg.data)) {
       msg.data.forEach(remote => {
         const local = data.find(d => d.id === remote.id);
-        if (local) {
-          ensureMemberTs(local);
-          const remoteBy = remote._by || {};
+        if (!local) return;
+        ensureMemberTs(local);
+        const remoteBy = remote._by || {};
 
-          // PN-Counter merge: union every device's bucket for every metric.
-          // Never overwrite a whole counter — only adopt individual per-device
-          // buckets we don't have yet or that changed, then recompute the sum.
-          // This guarantees concurrent taps on the same counter from different
-          // devices always add up, regardless of arrival order or timing.
-          ['ac', 'pz', 'biz', 'acc'].forEach(m => {
-            const remoteBuckets = remoteBy[m] || {};
-            for (const clientId in remoteBuckets) {
-              const rVal = remoteBuckets[clientId] || 0;
-              if ((local._by[m][clientId] || 0) !== rVal) {
-                local._by[m][clientId] = rVal;
+        // PN-Counter union — each device owns its own bucket, so concurrent
+        // taps from different devices always sum instead of overwriting.
+        // Option B: also merge the authoritative checkpoint (last-write-wins)
+        // and the per-bucket timestamps that decide which deltas a checkpoint
+        // supersedes. This is a per-field union — never an array replacement.
+        METRIC_KEYS.forEach(m => {
+          // (a) checkpoint: strictly newer wins
+          const rc = (remote._ckpt || {})[m];
+          if (rc && typeof rc.ts === 'number') {
+            const lc = local._ckpt[m];
+            if (!lc || rc.ts > lc.ts) {
+              local._ckpt[m] = { val: rc.val || 0, ts: rc.ts, by: rc.by };
+              hasChanges = true;
+            }
+          }
+          // (b) per-device deltas: adopt each peer's own bucket + its stamp
+          const remoteBuckets = (remoteBy[m] || {});
+          const remoteStamps  = ((remote._byTs || {})[m] || {});
+          for (const cid in remoteBuckets) {
+            const rVal = remoteBuckets[cid] || 0;
+            // Never let a peer rewrite OUR OWN bucket — we are the authority
+            // for our own contributions. This is what stops a stale/duplicate
+            // message from clawing back taps we just made.
+            if (cid === CLIENT_ID) continue;
+            const rStamp = remoteStamps[cid] || 0;
+            const lStamp = local._byTs[m][cid] || 0;
+            // A device is AUTHORITATIVE for its own bucket, so when the sender
+            // reports its own contribution we accept an equal timestamp too
+            // (two taps can land in the same millisecond, and a frozen/coarse
+            // clock would otherwise deadlock the merge and desync devices).
+            // For buckets the sender is merely relaying about a third device,
+            // require a strictly newer stamp so stale relays can't regress us.
+            const isOwnerReport = (cid === msg.clientId);
+            const takeIt = !(cid in local._by[m]) ||
+                           (isOwnerReport ? rStamp >= lStamp : rStamp > lStamp);
+            if (takeIt) {
+              if ((local._by[m][cid] || 0) !== rVal || rStamp !== lStamp) {
+                local._by[m][cid] = rVal;
+                local._byTs[m][cid] = rStamp;
                 hasChanges = true;
               }
             }
-          });
-          recomputeMemberTotals(local);
+          }
+        });
+        recomputeMemberTotals(local);
 
-          const rTs = remote._ts || {};
-          ['checkedIn', 'step', 'notes'].forEach(f => {
-            const lT = local._ts[f] || 0;
-            const rT = rTs[f] || 0;
-            if (rT > lT) {
-              local[f] = remote[f];
-              local._ts[f] = rT;
-              hasChanges = true;
-            }
-          });
+        // 11) Record-level timestamps stay authoritative for LWW fields.
+        const rTs = remote._ts || {};
+        ['checkedIn', 'step', 'notes'].forEach(f => {
+          const lT = local._ts[f] || 0;
+          const rT = rTs[f] || 0;
+          if (rT > lT) {
+            local[f] = remote[f];
+            local._ts[f] = rT;
+            hasChanges = true;
+          }
+        });
+        if ((remote.updatedAt || 0) > (local.updatedAt || 0)) {
+          local.updatedAt = remote.updatedAt;
         }
       });
+    } else if (msg.date && msg.date !== activeShiftDate) {
+      syncLog('ignoring live board from different date', { peerDate: msg.date, myDate: activeShiftDate });
     }
 
-    /* 2) HISTORY MERGE — always runs, regardless of shift-date match.
-          Archived days are date-stamped and immutable per-date, so they merge
-          safely even when devices straddle midnight or one wakes days later.
-          A finalized record always wins over a non-finalized one for the same date. */
+    // ---- HISTORY (always merged; keyed by stable date/id) ----
     if (Array.isArray(msg.historyRecords) && msg.historyRecords.length > 0) {
-      const dateMap = {};
-      historyRecords.forEach(r => { dateMap[r.date] = r; });
-      msg.historyRecords.forEach(r => {
-        const existing = dateMap[r.date];
+      const byDate = {};
+      historyRecords.forEach(r => { byDate[r.date] = r; });
+      msg.historyRecords.forEach(raw => {
+        const r = normalizeHistoryRecord(raw);
+        if (!r) return;
+        const existing = byDate[r.date];
         if (!existing) {
-          dateMap[r.date] = r;
-          hasChanges = true;
+          byDate[r.date] = r; hasChanges = true;
         } else if (r.finalized && !existing.finalized) {
-          dateMap[r.date] = r;                       // finalized beats in-progress
-          hasChanges = true;
+          byDate[r.date] = r; hasChanges = true;              // finalized wins
         } else if (!(existing.finalized && !r.finalized) &&
-                   (r.timestamp || 0) >= (existing.timestamp || 0)) {
-          dateMap[r.date] = r;                       // otherwise newest wins
-          hasChanges = true;
+                   (r.timestamp || 0) > (existing.timestamp || 0)) {
+          byDate[r.date] = r; hasChanges = true;              // strictly newer wins
         }
       });
-      historyRecords = Object.values(dateMap).sort((a, b) => (b.date > a.date ? 1 : -1));
+      historyRecords = Object.values(byDate).sort((a, b) => (b.date > a.date ? 1 : -1));
     }
 
     if (hasChanges) {
@@ -2530,7 +2894,11 @@
       updateTotals();
       scheduleReorder();
       flashSyncBadge('🟢 Multi-Device Synchronized');
+      syncLog('merged peer state — local state CHANGED', { from: msg.clientId });
+    } else {
+      syncLog('merged peer state — no change (ignored duplicate/older)', { from: msg.clientId });
     }
+    return hasChanges;   // 9) caller decides whether a rebroadcast is warranted
   }
 
   function flashSyncBadge(txt) {
@@ -2547,179 +2915,290 @@
     }
   }
 
+  /* 4) Ask peers for state, then wait before publishing anything of our own. */
+  function beginHandshake(reason) {
+    handshakeActive = true;
+    if (handshakeTimer) clearTimeout(handshakeTimer);
+    syncLog('handshake START (' + reason + ') — requesting peer state, holding our own publishes');
+
+    try {
+      mqttClient.publish(TOPIC_REQ, JSON.stringify({
+        type: 'sync_req',
+        clientId: CLIENT_ID,
+        msgId: newMsgId(),
+        date: activeShiftDate,
+        ts: Date.now()
+      }), PUB_OPTS);
+    } catch (e) {
+      syncWarn('sync_req publish failed', e);
+    }
+
+    handshakeTimer = setTimeout(() => {
+      handshakeActive = false;
+      syncLog('handshake END — safe to publish now', { hadPending: hasPendingChanges });
+      // 8) Only now do we push our merged result, and only if we actually have
+      // offline/pending edits worth sharing. Otherwise stay quiet (9).
+      if (hasPendingChanges) {
+        publishState('post-handshake pending merge');
+      }
+    }, HANDSHAKE_WAIT_MS);
+  }
+
   function initCloudSync() {
     try {
       const brokerUrl = "wss://broker.emqx.io:8084/mqtt";
+      // 3) Stable clientId. 12) Auto-reconnect tuned for Wi-Fi drops.
       mqttClient = mqtt.connect(brokerUrl, {
         clientId: CLIENT_ID,
         clean: true,
-        connectTimeout: 4000,
-        reconnectPeriod: 2500,
-        keepalive: 45
+        connectTimeout: 8000,
+        reconnectPeriod: 2000,
+        keepalive: 30,
+        resubscribe: true
       });
 
       mqttClient.on('connect', () => {
         setSyncBadge('🟢 Live Cloud Multi-Device Sync Active');
-        mqttClient.subscribe(SYNC_TOPIC, { qos: 1 });
-        // Request sync from existing peers
-        mqttClient.publish(SYNC_TOPIC, JSON.stringify({ 
-          type: 'sync_req',
-          clientId: CLIENT_ID, 
-          date: activeShiftDate,
-          ts: Date.now()
-        }), { qos: 1 });
+        syncLog('MQTT connected as', CLIENT_ID, '→ topics', TOPIC_STATE, TOPIC_REQ);
+        // 4) Subscribe to BOTH topics before requesting state.
+        mqttClient.subscribe([TOPIC_STATE, TOPIC_REQ], { qos: 1 }, (err) => {
+          if (err) { syncWarn('subscribe failed', err); return; }
+          beginHandshake('connect');
+        });
+      });
+
+      mqttClient.on('reconnect', () => {
+        syncLog('MQTT reconnecting…');
+        setSyncBadge('🔄 Reconnecting Cloud Sync…');
       });
 
       mqttClient.on('message', (topic, payload) => {
-        try {
-          const msg = JSON.parse(payload.toString());
-          if (!msg || msg.clientId === CLIENT_ID) return;
+        let msg;
+        try { msg = JSON.parse(payload.toString()); }
+        catch (e) { syncWarn('unparseable message ignored'); return; }
+        if (!msg || msg.clientId === CLIENT_ID) return;   // ignore our own echo
+        if (alreadySeen(msg.msgId)) {                     // 11) duplicate guard
+          syncLog('duplicate message ignored', msg.type, msg.msgId);
+          return;
+        }
 
+        try {
           if (msg.type === 'delta_count') {
-            if (msg.date === activeShiftDate) {
-              const target = data.find(d => d.id === msg.id);
-              if (target) {
-                ensureMemberTs(target);
-                // Merge as a PN-Counter: adopt the sender's own bucket value for
-                // their clientId. This never touches OUR bucket or any other
-                // device's bucket, so concurrent taps from different devices
-                // always sum correctly instead of one overwriting the other.
-                const senderBucketVal = msg.myBucketVal !== undefined ? msg.myBucketVal : 0;
-                if (senderBucketVal !== (target._by[msg.metric][msg.clientId] || 0)) {
-                  target._by[msg.metric][msg.clientId] = senderBucketVal;
-                  recomputeMemberTotals(target);
-                  if (target[msg.metric] > 0 && !target.checkedIn) {
-                    target.checkedIn = true;
-                    target._ts.checkedIn = msg.ts;
-                    renderCheckInVisual(target.id);
-                  }
-                  renderRow(target.id);
-                  updateTotals();
-                  syncCurrentDayToHistory();
-                  saveLocalState();
-                  scheduleReorder();
-                  flashSyncBadge(`🟢 Live Update: ${target.name} (${msg.metric.toUpperCase()})`);
-                }
-              }
+            if (msg.date !== activeShiftDate) return;
+            const target = data.find(d => d.id === msg.id);
+            if (!target) return;
+            ensureMemberTs(target);
+            // Sender is the sole authority for its own bucket.
+            if (msg.clientId === CLIENT_ID) return;
+            const senderBucketVal = msg.myBucketVal !== undefined ? msg.myBucketVal : 0;
+            const senderStamp = msg.myBucketTs || msg.ts || 0;
+            const knownStamp = target._byTs[msg.metric][msg.clientId] || 0;
+            // 11) Ignore a stale/replayed report for that device's bucket.
+            if (senderStamp < knownStamp) {
+              syncLog('ignoring stale delta_count', { member: target.name, metric: msg.metric, from: msg.clientId });
+              return;
             }
+            if (senderBucketVal !== (target._by[msg.metric][msg.clientId] || 0) || senderStamp !== knownStamp) {
+              target._by[msg.metric][msg.clientId] = senderBucketVal;
+              target._byTs[msg.metric][msg.clientId] = senderStamp;
+              recomputeMemberTotals(target);
+              touchMember(target, msg.ts);
+              if (target[msg.metric] > 0 && !target.checkedIn) {
+                target.checkedIn = true;
+                target._ts.checkedIn = msg.ts;
+                renderCheckInVisual(target.id);
+              }
+              renderRow(target.id);
+              updateTotals();
+              syncCurrentDayToHistory();
+              saveLocalState();
+              scheduleReorder();
+              flashSyncBadge(`🟢 Live Update: ${target.name} (${msg.metric.toUpperCase()})`);
+              syncLog('applied delta_count', { member: target.name, metric: msg.metric, from: msg.clientId });
+            }
+
+          } else if (msg.type === 'delta_set_exact') {
+            // Option B authoritative override — last-write-wins by timestamp.
+            if (msg.date !== activeShiftDate) return;
+            const target = data.find(d => d.id === msg.id);
+            if (!target) return;
+            ensureMemberTs(target);
+            const existing = target._ckpt[msg.metric];
+            if (existing && (msg.ts || 0) <= existing.ts) {
+              syncLog('ignoring older set_exact', { member: target.name, metric: msg.metric, from: msg.clientId });
+              return;
+            }
+            target._ckpt[msg.metric] = { val: msg.val || 0, ts: msg.ts, by: msg.clientId };
+            recomputeMemberTotals(target);   // drops only pre-checkpoint deltas
+            touchMember(target, msg.ts);
+            if (target[msg.metric] > 0 && !target.checkedIn) {
+              target.checkedIn = true;
+              target._ts.checkedIn = msg.ts;
+              renderCheckInVisual(target.id);
+            }
+            renderRow(target.id);
+            updateTotals();
+            syncCurrentDayToHistory();
+            saveLocalState();
+            scheduleReorder();
+            flashSyncBadge(`✏️ ${target.name} ${msg.metric.toUpperCase()} set to ${msg.val}`);
+            syncLog('applied delta_set_exact', { member: target.name, metric: msg.metric, val: msg.val, from: msg.clientId });
+
           } else if (msg.type === 'delta_checkin') {
-            if (msg.date === activeShiftDate) {
-              const target = data.find(d => d.id === msg.id);
-              if (target) {
-                ensureMemberTs(target);
-                if (msg.ts >= (target._ts.checkedIn || 0)) {
-                  target.checkedIn = !!msg.checkedIn;
-                  target._ts.checkedIn = msg.ts;
-                  renderCheckInVisual(target.id);
-                  updateTotals();
-                  syncCurrentDayToHistory();
-                  saveLocalState();
-                  scheduleReorder();
-                  flashSyncBadge(`🟢 Live Update: ${target.name} Check-in`);
-                }
-              }
+            if (msg.date !== activeShiftDate) return;
+            const target = data.find(d => d.id === msg.id);
+            if (!target) return;
+            ensureMemberTs(target);
+            if (msg.ts > (target._ts.checkedIn || 0)) {   // 11) strictly newer only
+              target.checkedIn = !!msg.checkedIn;
+              target._ts.checkedIn = msg.ts;
+              touchMember(target, msg.ts);
+              renderCheckInVisual(target.id);
+              updateTotals();
+              syncCurrentDayToHistory();
+              saveLocalState();
+              scheduleReorder();
+              flashSyncBadge(`🟢 Live Update: ${target.name} Check-in`);
             }
+
           } else if (msg.type === 'delta_step') {
-            if (msg.date === activeShiftDate) {
-              const target = data.find(d => d.id === msg.id);
-              if (target) {
-                ensureMemberTs(target);
-                if (msg.ts >= (target._ts.step || 0)) {
-                  target.step = msg.step || "";
-                  target._ts.step = msg.ts;
-                  const stepSelect = document.getElementById(`step-${target.id}`);
-                  if (stepSelect && document.activeElement !== stepSelect) {
-                    stepSelect.value = target.step;
-                  }
-                  syncCurrentDayToHistory();
-                  saveLocalState();
-                }
-              }
+            if (msg.date !== activeShiftDate) return;
+            const target = data.find(d => d.id === msg.id);
+            if (!target) return;
+            ensureMemberTs(target);
+            if (msg.ts > (target._ts.step || 0)) {
+              target.step = msg.step || "";
+              target._ts.step = msg.ts;
+              touchMember(target, msg.ts);
+              const stepSelect = document.getElementById(`step-${target.id}`);
+              if (stepSelect && document.activeElement !== stepSelect) stepSelect.value = target.step;
+              syncCurrentDayToHistory();
+              saveLocalState();
             }
+
           } else if (msg.type === 'delta_note') {
-            if (msg.date === activeShiftDate) {
-              const target = data.find(d => d.id === msg.id);
-              if (target) {
-                ensureMemberTs(target);
-                if (msg.ts >= (target._ts.notes || 0)) {
-                  target.notes = msg.notes || "";
-                  target._ts.notes = msg.ts;
-                  const noteInput = document.getElementById(`notes-${target.id}`);
-                  if (noteInput && document.activeElement !== noteInput) {
-                    noteInput.value = target.notes;
-                  }
-                  syncCurrentDayToHistory();
-                  saveLocalState();
-                }
-              }
+            if (msg.date !== activeShiftDate) return;
+            const target = data.find(d => d.id === msg.id);
+            if (!target) return;
+            ensureMemberTs(target);
+            if (msg.ts > (target._ts.notes || 0)) {
+              target.notes = msg.notes || "";
+              target._ts.notes = msg.ts;
+              touchMember(target, msg.ts);
+              const noteInput = document.getElementById(`notes-${target.id}`);
+              if (noteInput && document.activeElement !== noteInput) noteInput.value = target.notes;
+              syncCurrentDayToHistory();
+              saveLocalState();
             }
+
           } else if (msg.type === 'delta_check_all') {
-            if (msg.date === activeShiftDate) {
-              data.forEach(d => {
-                ensureMemberTs(d);
+            if (msg.date !== activeShiftDate) return;
+            let changed = false;
+            data.forEach(d => {
+              ensureMemberTs(d);
+              if (msg.ts > (d._ts.checkedIn || 0)) {
                 d.checkedIn = !!msg.status;
                 d._ts.checkedIn = msg.ts;
+                touchMember(d, msg.ts);
                 renderCheckInVisual(d.id);
-              });
+                changed = true;
+              }
+            });
+            if (changed) {
               updateTotals();
               syncCurrentDayToHistory();
               saveLocalState();
               scheduleReorder();
             }
+
           } else if (msg.type === 'delta_reset_day') {
-            if (msg.date === activeShiftDate) {
-              data.forEach(d => {
-                ensureMemberTs(d);
-                d.checkedIn = false;
-                d.ac = 0;
-                d.pz = 0;
-                d.biz = 0;
-                d.acc = 0;
-                d.step = "";
-                d.notes = "";
-                d._ts = { step: msg.ts, notes: msg.ts, checkedIn: msg.ts };
-                d._by = { ac: {}, pz: {}, biz: {}, acc: {} };
-                renderCheckInVisual(d.id);
+            // An explicit operator-initiated reset for THIS date only.
+            if (msg.date !== activeShiftDate) return;
+            // ---- STALE-RESET GUARD (audit finding) ----------------------
+            // This is the only inbound message that intentionally destroys
+            // data, so it needs an age check like every other handler. A
+            // device that was offline since this morning can otherwise
+            // deliver a queued 9 AM reset at 3 PM and wipe the afternoon.
+            const newestLocalEdit = data.reduce((mx, d) => Math.max(mx, d.updatedAt || 0), 0);
+            if ((msg.ts || 0) < newestLocalEdit) {
+              syncWarn('IGNORING STALE delta_reset_day', {
+                resetTs: msg.ts, newestLocalEdit: newestLocalEdit, from: msg.clientId
               });
-              syncCurrentDayToHistory();
-              saveLocalState();
-              renderTableStructure();
-              updateTotals();
-              scheduleReorder();
+              return;
             }
+            syncLog('peer reset day', msg.date, 'from', msg.clientId);
+            data.forEach(d => {
+              ensureMemberTs(d);
+              d.checkedIn = false;
+              d.ac = 0; d.pz = 0; d.biz = 0; d.acc = 0;
+              d.step = ""; d.notes = "";
+              d._ts = { step: msg.ts, notes: msg.ts, checkedIn: msg.ts };
+              d._by = { ac: {}, pz: {}, biz: {}, acc: {} };
+              d._byTs = { ac: {}, pz: {}, biz: {}, acc: {} };
+              // A reset is itself an authoritative zero checkpoint, so a
+              // late-arriving pre-reset tap can't resurrect an old total.
+              d._ckpt = {};
+              d._adopted = {};
+              METRIC_KEYS.forEach(k => {
+                d._ckpt[k] = { val: 0, ts: msg.ts, by: msg.clientId };
+                d._adopted[k] = msg.ts;
+              });
+              d.updatedAt = msg.ts;
+              renderCheckInVisual(d.id);
+            });
+            historyRecords = historyRecords.filter(r => r.date !== msg.date);
+            saveLocalState();
+            renderTableStructure();
+            updateTotals();
+            scheduleReorder();
+
           } else if (msg.type === 'sync_req') {
-            // Respond to newcomer with full state whenever we have anything worth sharing —
-            // live activity OR archived history. Previously this only fired on live activity,
-            // so a device with no taps yet today (but full history) stayed silent and a
-            // freshly-opened device would appear to have "lost" all its data.
-            if (data.some(d => d.checkedIn || d.ac > 0 || d.pz > 0 || d.biz > 0 || d.acc > 0) ||
-                historyRecords.length > 0) {
-              mqttClient.publish(SYNC_TOPIC, JSON.stringify({
+            // 5) Answer newcomers with our state if we have anything at all.
+            const haveLive = data.some(d => d.checkedIn || d.ac > 0 || d.pz > 0 || d.biz > 0 || d.acc > 0);
+            if (haveLive || historyRecords.length > 0) {
+              syncLog('responding to sync_req from', msg.clientId);
+              mqttClient.publish(TOPIC_STATE, JSON.stringify({
                 type: 'sync_full',
                 clientId: CLIENT_ID,
+                msgId: newMsgId(),
                 targetClientId: msg.clientId,
+                version: lastVersion,
                 date: activeShiftDate,
                 data: data,
                 historyRecords: historyRecords,
                 ts: Date.now()
-              }), { qos: 1 });
+              }), PUB_OPTS);
+            } else {
+              syncLog('sync_req from', msg.clientId, '— nothing to share, staying quiet');
             }
+
           } else if (msg.type === 'sync_full') {
             if (!msg.targetClientId || msg.targetClientId === CLIENT_ID) {
+              // 9) merge only; do NOT auto-rebroadcast the same content.
               mergeFullState(msg);
             }
           }
-        } catch(err) {}
+        } catch (err) {
+          syncWarn('error handling message', msg && msg.type, err);
+        }
       });
 
-      mqttClient.on('error', () => {
+      mqttClient.on('error', (e) => {
+        // 13) A failed connection must never clear or reset live data.
+        syncWarn('MQTT error (data left intact)', e && e.message);
         setSyncBadge('💾 Saved to iPad (Offline)');
+      });
+
+      mqttClient.on('close', () => {
+        syncLog('MQTT connection closed (data left intact)');
       });
 
       mqttClient.on('offline', () => {
+        syncLog('MQTT offline — edits will be queued as pending');
         setSyncBadge('💾 Saved to iPad (Offline)');
       });
-    } catch(e) {
+    } catch (e) {
+      syncWarn('initCloudSync threw (data left intact)', e);
       setSyncBadge('💾 Saved to iPad (Offline)');
     }
   }
