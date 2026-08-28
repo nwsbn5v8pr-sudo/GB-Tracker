@@ -1292,7 +1292,8 @@
     }
     const previousSnapshot = undoStack.pop();
     try {
-      data = JSON.parse(previousSnapshot);
+      data = JSON.parse(previousSnapshot)
+        .filter(m => !isMemberTombstoned(m.id));
       data.forEach(ensureMemberTs);
       lastVersion = nextVersion();
       syncCurrentDayToHistory();
@@ -2757,6 +2758,11 @@
       syncWarn('TEAM MEMBER REMOVE PUBLISH FAILED', e);
     }
 
+    // Also publish a full roster snapshot containing the permanent tombstone.
+    // This closes the reconnect race where an iPad misses the one-shot remove
+    // packet and later receives an older roster.
+    publishState('permanent-team-member-remove');
+
     flashAutoSaveBadge('➖ Team Member Removed');
   }
 
@@ -2906,6 +2912,7 @@
         date: activeShiftDate,
         data: data,
         historyRecords: historyRecords,
+        removedMemberTombstones: removedMemberTombstones,
         ts: Date.now()
       }), PUB_OPTS);
       syncLog('published full state —', reason, { version: lastVersion, date: activeShiftDate });
