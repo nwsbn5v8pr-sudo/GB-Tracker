@@ -5,76 +5,8 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
 <title>🧰GB Focus & Follow 🆙</title>
 <!-- Lightweight MQTT over WebSockets for Instant Serverless Cloud Sync -->
-<script src="https://unpkg.com/mqtt/dist/mqtt.min.js"></script><script>
-(function () {
-  function toggle() {
-    var m=document.getElementById('moreMenu'), b=document.getElementById('moreMenuButton');
-    if (!m) return;
-    var open=!m.classList.contains('open');
-    m.classList.toggle('open',open);
-    if (b) b.setAttribute('aria-expanded',open?'true':'false');
-  }
-  window.toggleMoreMenu=toggle;
-  window.closeMoreMenu=function(){
-    var m=document.getElementById('moreMenu'), b=document.getElementById('moreMenuButton');
-    if(m)m.classList.remove('open');
-    if(b)b.setAttribute('aria-expanded','false');
-  };
-  document.addEventListener('click',function(e){
-    var b=e.target.closest&&e.target.closest('#moreMenuButton');
-    var m=e.target.closest&&e.target.closest('#moreMenu');
-    if(b){e.preventDefault();e.stopPropagation();toggle();}
-    else if(!m) window.closeMoreMenu();
-  },true);
-  document.addEventListener('touchend',function(e){
-    var b=e.target.closest&&e.target.closest('#moreMenuButton');
-    if(b){e.preventDefault();e.stopPropagation();toggle();}
-  },{passive:false});
-})();
-</script>
-<script>
-(function () {
-  function menu() { return document.getElementById('moreMenu'); }
-  function button() { return document.getElementById('moreMenuButton'); }
+<script src="https://unpkg.com/mqtt/dist/mqtt.min.js"></script>
 
-  window.toggleMoreMenu = function (e) {
-    if (e) { e.preventDefault(); e.stopPropagation(); }
-    var m = menu(), b = button();
-    if (!m) return false;
-    var open = !m.classList.contains('open');
-    m.classList.toggle('open', open);
-    if (b) b.setAttribute('aria-expanded', open ? 'true' : 'false');
-    return false;
-  };
-
-  window.closeMoreMenu = function () {
-    var m = menu(), b = button();
-    if (m) m.classList.remove('open');
-    if (b) b.setAttribute('aria-expanded', 'false');
-  };
-
-  document.addEventListener('click', function (e) {
-    var b = e.target.closest && e.target.closest('#moreMenuButton');
-    var m = e.target.closest && e.target.closest('#moreMenu');
-    if (b) {
-      e.preventDefault();
-      e.stopPropagation();
-      window.toggleMoreMenu(e);
-    } else if (!m) {
-      window.closeMoreMenu();
-    }
-  }, true);
-
-  document.addEventListener('touchend', function (e) {
-    var b = e.target.closest && e.target.closest('#moreMenuButton');
-    if (b) {
-      e.preventDefault();
-      e.stopPropagation();
-      window.toggleMoreMenu(e);
-    }
-  }, {passive:false});
-})();
-</script>
 
 <style>
   :root {
@@ -857,6 +789,46 @@
   }
 </style>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script>
+(function () {
+  window.toggleMoreMenu = function (event) {
+    if (event) { event.preventDefault(); event.stopPropagation(); }
+    var menu = document.getElementById('moreMenu');
+    var button = document.getElementById('moreMenuButton');
+    if (!menu) return false;
+    var open = !menu.classList.contains('open');
+    menu.classList.toggle('open', open);
+    if (button) button.setAttribute('aria-expanded', open ? 'true' : 'false');
+    return false;
+  };
+  window.closeMoreMenu = function () {
+    var menu = document.getElementById('moreMenu');
+    var button = document.getElementById('moreMenuButton');
+    if (menu) menu.classList.remove('open');
+    if (button) button.setAttribute('aria-expanded', 'false');
+  };
+
+  function bindMoreMenu() {
+    var button = document.getElementById('moreMenuButton');
+    if (!button || button.dataset.bound === '1') return;
+    button.dataset.bound = '1';
+    button.addEventListener('click', window.toggleMoreMenu);
+  }
+
+  document.addEventListener('click', function(e) {
+    var menu = e.target.closest ? e.target.closest('#moreMenu') : null;
+    var button = e.target.closest ? e.target.closest('#moreMenuButton') : null;
+    if (!button && !menu) window.closeMoreMenu();
+  });
+
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', bindMoreMenu);
+  } else {
+    bindMoreMenu();
+  }
+  setTimeout(bindMoreMenu, 500);
+})();
+</script>
 </head>
 <body>
 
@@ -1915,7 +1887,7 @@
     if (isLive) {
       tr.innerHTML = `
         <td class="col-sticky">
-          <div class="name-cell-wrap" onclick="toggleCheckIn(${JSON.stringify(p.id)})">
+          <div class="name-cell-wrap" onclick="toggleCheckIn('${String(p.id).replace(/'/g, "\\'")}')">
             <span class="chk-badge" id="chk-badge-${p.id}">${p.checkedIn ? '✅' : '◻️'}</span>
             <div class="name-cell">
               <span class="member-name" id="name-${p.id}">${escapeHtml(p.name)}</span>
@@ -1926,34 +1898,34 @@
         <td style="text-align:center;" id="val-slam-${p.id}"></td>
         <td style="text-align:center;">
           <div class="counter-box">
-            <button type="button" class="cnt-btn minus" onclick="event.stopPropagation(); updateCounts(${JSON.stringify(p.id)}, 'ac', -1)">−</button>
-            <span class="cnt-val" id="val-ac-${p.id}" title="Tap to set exact total" onclick="event.stopPropagation(); setExactValue(${JSON.stringify(p.id)}, 'ac')">${p.ac}</span>
-            <button type="button" class="cnt-btn plus" onclick="event.stopPropagation(); updateCounts(${JSON.stringify(p.id)}, 'ac', 1)">+</button>
+            <button type="button" class="cnt-btn minus" onclick="event.stopPropagation(); updateCounts('${String(p.id).replace(/'/g, "\\'")}', 'ac', -1)">−</button>
+            <span class="cnt-val" id="val-ac-${p.id}" title="Tap to set exact total" onclick="event.stopPropagation(); setExactValue('${String(p.id).replace(/'/g, "\\'")}', 'ac')">${p.ac}</span>
+            <button type="button" class="cnt-btn plus" onclick="event.stopPropagation(); updateCounts('${String(p.id).replace(/'/g, "\\'")}', 'ac', 1)">+</button>
           </div>
         </td>
         <td style="text-align:center;">
           <div class="counter-box">
-            <button type="button" class="cnt-btn minus" onclick="event.stopPropagation(); updateCounts(${JSON.stringify(p.id)}, 'pz', -1)">−</button>
-            <span class="cnt-val" id="val-pz-${p.id}" title="Tap to set exact total" onclick="event.stopPropagation(); setExactValue(${JSON.stringify(p.id)}, 'pz')">${p.pz}</span>
-            <button type="button" class="cnt-btn plus" onclick="event.stopPropagation(); updateCounts(${JSON.stringify(p.id)}, 'pz', 1)">+</button>
+            <button type="button" class="cnt-btn minus" onclick="event.stopPropagation(); updateCounts('${String(p.id).replace(/'/g, "\\'")}', 'pz', -1)">−</button>
+            <span class="cnt-val" id="val-pz-${p.id}" title="Tap to set exact total" onclick="event.stopPropagation(); setExactValue('${String(p.id).replace(/'/g, "\\'")}', 'pz')">${p.pz}</span>
+            <button type="button" class="cnt-btn plus" onclick="event.stopPropagation(); updateCounts('${String(p.id).replace(/'/g, "\\'")}', 'pz', 1)">+</button>
           </div>
         </td>
         <td style="text-align:center;">
           <div class="counter-box">
-            <button type="button" class="cnt-btn minus" onclick="event.stopPropagation(); updateCounts(${JSON.stringify(p.id)}, 'biz', -1)">−</button>
-            <span class="cnt-val" id="val-biz-${p.id}" title="Tap to set exact total" onclick="event.stopPropagation(); setExactValue(${JSON.stringify(p.id)}, 'biz')">${p.biz}</span>
-            <button type="button" class="cnt-btn plus" onclick="event.stopPropagation(); updateCounts(${JSON.stringify(p.id)}, 'biz', 1)">+</button>
+            <button type="button" class="cnt-btn minus" onclick="event.stopPropagation(); updateCounts('${String(p.id).replace(/'/g, "\\'")}', 'biz', -1)">−</button>
+            <span class="cnt-val" id="val-biz-${p.id}" title="Tap to set exact total" onclick="event.stopPropagation(); setExactValue('${String(p.id).replace(/'/g, "\\'")}', 'biz')">${p.biz}</span>
+            <button type="button" class="cnt-btn plus" onclick="event.stopPropagation(); updateCounts('${String(p.id).replace(/'/g, "\\'")}', 'biz', 1)">+</button>
           </div>
         </td>
         <td style="text-align:center;">
           <div class="counter-box">
-            <button type="button" class="cnt-btn minus" onclick="event.stopPropagation(); updateCounts(${JSON.stringify(p.id)}, 'acc', -1)">−</button>
-            <span class="cnt-val" id="val-acc-${p.id}" title="Tap to set exact total" onclick="event.stopPropagation(); setExactValue(${JSON.stringify(p.id)}, 'acc')">${p.acc}</span>
-            <button type="button" class="cnt-btn plus" onclick="event.stopPropagation(); updateCounts(${JSON.stringify(p.id)}, 'acc', 1)">+</button>
+            <button type="button" class="cnt-btn minus" onclick="event.stopPropagation(); updateCounts('${String(p.id).replace(/'/g, "\\'")}', 'acc', -1)">−</button>
+            <span class="cnt-val" id="val-acc-${p.id}" title="Tap to set exact total" onclick="event.stopPropagation(); setExactValue('${String(p.id).replace(/'/g, "\\'")}', 'acc')">${p.acc}</span>
+            <button type="button" class="cnt-btn plus" onclick="event.stopPropagation(); updateCounts('${String(p.id).replace(/'/g, "\\'")}', 'acc', 1)">+</button>
           </div>
         </td>
         <td style="text-align:center;">
-          <select class="step-select" id="step-${p.id}" onchange="saveStep(${JSON.stringify(p.id)}, this.value)">
+          <select class="step-select" id="step-${p.id}" onchange="saveStep('${String(p.id).replace(/'/g, "\\'")}', this.value)">
             <option value="">-- None --</option>
             <option value="Approach" ${p.step === 'Approach' ? 'selected' : ''}>Approach</option>
             <option value="Probe" ${p.step === 'Probe' ? 'selected' : ''}>Probe</option>
@@ -1963,7 +1935,7 @@
           </select>
         </td>
         <td>
-          <textarea class="notes-input" id="notes-${p.id}" rows="1" placeholder="Add note / focus..." onclick="event.stopPropagation()" onfocus="beginNoteEdit(this)" oninput="saveNote(${JSON.stringify(p.id)}, this.value)" onblur="endNoteEdit(this)">${escapeHtml(p.notes || '')}</textarea>
+          <textarea class="notes-input" id="notes-${p.id}" rows="1" placeholder="Add note / focus..." onclick="event.stopPropagation()" onfocus="beginNoteEdit(this)" oninput="saveNote('${String(p.id).replace(/'/g, "\\'")}', this.value)" onblur="endNoteEdit(this)">${escapeHtml(p.notes || '')}</textarea>
         </td>
       `;
     } else if (isPrior) {
