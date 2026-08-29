@@ -3069,7 +3069,7 @@
     m.role = r.role || '';
     m.checkedIn = !!r.checked_in;
     m.ac = Number(r.ac || 0);
-    m.pz = Number(r.upgrade || 0);
+    m.pz = Number(r.pz || 0);
     m.biz = Number(r.biz || 0);
     m.acc = Number(r.acc || 0);
     m.step = r.step || '';
@@ -3088,8 +3088,7 @@
       role: String(m.role || ''),
       checked_in: !!m.checkedIn,
       ac: Math.max(0, Number(m.ac || 0)),
-      upgrade: Math.max(0, Number(m.pz || 0)),
-      services: 0,
+      pz: Math.max(0, Number(m.pz || 0)),
       biz: Math.max(0, Number(m.biz || 0)),
       acc: Math.max(0, Number(m.acc || 0)),
       step: String(m.step || ''),
@@ -3207,7 +3206,7 @@
     (async () => {
       try {
         if (payload.type === 'delta_count') {
-          const metric = payload.metric === 'pz' ? 'upgrade' : payload.metric;
+          const metric = payload.metric;
           const delta = Number(payload.delta || payload.amount || 0);
           if (!delta) return;
           const row = await gbCentralRPC('gb_focus_follow_increment', {
@@ -3341,8 +3340,7 @@
           .update({
             checked_in: false,
             ac: 0,
-            upgrade: 0,
-            services: 0,
+            pz: 0,
             biz: 0,
             acc: 0,
             step: "",
@@ -3360,9 +3358,8 @@
             .update({
               checked_in: false,
               ac: 0,
-              upgrade: 0,
-              services: 0,
-              biz: 0,
+              pz: 0,
+                biz: 0,
               acc: 0,
               step: "",
               notes: ""
@@ -3389,7 +3386,6 @@
         !!r.checked_in ||
         Number(r.ac || 0) !== 0 ||
         Number(r.upgrade || 0) !== 0 ||
-        Number(r.services || 0) !== 0 ||
         Number(r.biz || 0) !== 0 ||
         Number(r.acc || 0) !== 0 ||
         String(r.step || '') !== '' ||
