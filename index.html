@@ -787,6 +787,25 @@
     margin-top: 14px;
     text-align: center;
   }
+  /* Clean iPad action bar: five top-level controls. */
+  .top-bar > .btn-group {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    flex-wrap: nowrap;
+  }
+  .top-bar > .btn-group > button,
+  .top-bar > .btn-group > .more-menu-wrap { flex: 0 0 auto; }
+  @media (max-width: 900px) {
+    .top-bar > .btn-group {
+      width: 100%;
+      overflow-x: auto;
+      -webkit-overflow-scrolling: touch;
+      scrollbar-width: none;
+      padding-bottom: 2px;
+    }
+    .top-bar > .btn-group::-webkit-scrollbar { display: none; }
+  }
 </style>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script>
@@ -839,9 +858,10 @@
       <span class="sync-badge" id="syncStatus">🔄 Connecting Cloud Sync...</span>
       <span class="sync-badge" id="autoSaveBadge">💾 Real-Time Sync</span>
     </div>
-    <div class="btn-group">      <button class="secondary" id="btnAddMember" onclick="promptAddTeamMember()" title="Add new team member">➕ Add Team Member</button>
-      <button class="danger" id="btnRemoveMember" onclick="openRemoveMemberModal()" title="Permanently remove team member">➖ Remove Team Member</button>
-      <button class="undo-btn" id="btnUndo" onclick="undoAction()" title="Undo prior action">↩️ Undo</button>
+    <div class="btn-group">
+      <button class="secondary" id="btnAddMember" onclick="addTeamMember()" title="Add new team member">➕ Add Team Member</button>
+      <button class="danger" id="btnRemoveMember" onclick="removeTeamMember()" title="Permanently remove team member">➖ Remove Team Member</button>
+      <button class="secondary" id="btnUndo" onclick="undoAction()" title="Undo prior action">↩️ Undo</button>
       <button class="secondary daily-live-btn" id="btnDailyLive" onclick="switchTab('daily')" title="Return to today's live tracker">📅 Daily (Live)</button>
       <div class="more-menu-wrap">
         <button class="secondary more-menu-btn" type="button" id="moreMenuButton" aria-haspopup="true" aria-expanded="false">⋯ More</button>
@@ -856,15 +876,9 @@
           <button type="button" onclick="exportCSV();closeMoreMenu()">📥 Export CSV</button>
           <button type="button" onclick="lockTrackerNow();closeMoreMenu()">🔒 Lock</button>
           <button type="button" class="menu-danger" onclick="resetCounts();closeMoreMenu()">🔄 Reset Day</button>
-          <div class="menu-divider"></div>
         </div>
-      </div></div>
-          <button type="button" onclick="checkAll(false);closeMoreMenu()">◻️ Clear Check-Ins</button>
-          <button type="button" onclick="exportCSV();closeMoreMenu()">📥 Export CSV</button>
-          <button type="button" onclick="lockTrackerNow();closeMoreMenu()">🔒 Lock</button>
-          <button type="button" class="menu-danger" onclick="resetCounts();closeMoreMenu()">🔄 Reset Day</button>
-        </div>
-      </div></div>
+      </div>
+    </div>
   </div>
 
   <!-- Timeframe Navigation Tabs -->
