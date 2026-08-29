@@ -6,16 +6,22 @@
 <title>🧰GB Focus & Follow 🆙</title>
 <!-- Lightweight MQTT over WebSockets for Instant Serverless Cloud Sync -->
 <script src="https://unpkg.com/mqtt/dist/mqtt.min.js">function toggleMoreMenu(event) {
-    if (event) event.stopPropagation();
+    if (event) {
+      event.preventDefault();
+      event.stopPropagation();
+    }
     const menu = document.getElementById('moreMenu');
-    const btn = document.querySelector('.more-menu-btn');
-    if (!menu) return;
-    const open = menu.classList.toggle('open');
-    if (btn) btn.setAttribute('aria-expanded', open ? 'true' : 'false');
+    const btn = document.getElementById('moreMenuButton');
+    if (!menu) return false;
+    const willOpen = !menu.classList.contains('open');
+    menu.classList.toggle('open', willOpen);
+    if (btn) btn.setAttribute('aria-expanded', willOpen ? 'true' : 'false');
+    return false;
   }
+
   function closeMoreMenu() {
     const menu = document.getElementById('moreMenu');
-    const btn = document.querySelector('.more-menu-btn');
+    const btn = document.getElementById('moreMenuButton');
     if (menu) menu.classList.remove('open');
     if (btn) btn.setAttribute('aria-expanded', 'false');
   }
@@ -23,7 +29,26 @@
     if (!e.target.closest('.more-menu-wrap')) closeMoreMenu();
   });
 
-  </script>
+  
+
+  document.addEventListener('click', function(e) {
+    const btn = e.target.closest ? e.target.closest('#moreMenuButton') : null;
+    const menu = e.target.closest ? e.target.closest('#moreMenu') : null;
+    if (btn) {
+      toggleMoreMenu(e);
+      return;
+    }
+    if (!menu) closeMoreMenu();
+  }, true);
+
+  document.addEventListener('touchend', function(e) {
+    const btn = e.target.closest ? e.target.closest('#moreMenuButton') : null;
+    if (btn) {
+      e.preventDefault();
+      toggleMoreMenu(e);
+    }
+  }, {passive:false});
+</script>
 <style>
   :root {
     --bg-primary: #f2f2f7;
@@ -113,9 +138,9 @@
   .more-menu-wrap { position: relative; }
   .more-menu {
     display: none;
-    position: absolute;
-    right: 0;
-    top: calc(100% + 6px);
+    position: fixed;
+    right: 12px;
+    top: 76px;
     min-width: 210px;
     max-height: 70vh;
     overflow-y: auto;
@@ -124,7 +149,7 @@
     border-radius: 12px;
     padding: 6px;
     box-shadow: 0 12px 30px rgba(0,0,0,.18);
-    z-index: 1000;
+    z-index: 999999;
   }
   .more-menu.open { display: flex; flex-direction: column; gap: 3px; }
   .more-menu button {
@@ -818,7 +843,7 @@
     <div class="btn-group">      <button class="secondary" id="btnUndo" onclick="undoAction()" title="Undo prior action">↩️ Undo</button>
       <button class="secondary daily-live-btn" id="btnDailyLive" onclick="switchTab('daily')" title="Return to today's live tracker">📅 Daily (Live)</button>
       <div class="more-menu-wrap">
-        <button class="secondary more-menu-btn" type="button" onclick="toggleMoreMenu(event)" aria-haspopup="true" aria-expanded="false">⋯ More</button>
+        <button class="secondary more-menu-btn" type="button" id="moreMenuButton" aria-haspopup="true" aria-expanded="false">⋯ More</button>
         <div class="more-menu" id="moreMenu">
           <button type="button" onclick="switchTab('prior');closeMoreMenu()">⏮️ Prior Day</button>
           <button type="button" onclick="switchTab('weekly');closeMoreMenu()">📊 Weekly</button>
