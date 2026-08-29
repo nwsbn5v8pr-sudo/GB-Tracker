@@ -752,6 +752,7 @@
     text-align: center;
   }
 </style>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 </head>
 <body>
 
@@ -1292,8 +1293,7 @@
     }
     const previousSnapshot = undoStack.pop();
     try {
-      data = JSON.parse(previousSnapshot)
-        .filter(m => !isMemberTombstoned(m.id));
+      data = JSON.parse(previousSnapshot);
       data.forEach(ensureMemberTs);
       lastVersion = nextVersion();
       syncCurrentDayToHistory();
@@ -2758,11 +2758,6 @@
       syncWarn('TEAM MEMBER REMOVE PUBLISH FAILED', e);
     }
 
-    // Also publish a full roster snapshot containing the permanent tombstone.
-    // This closes the reconnect race where an iPad misses the one-shot remove
-    // packet and later receives an older roster.
-    publishState('permanent-team-member-remove');
-
     flashAutoSaveBadge('➖ Team Member Removed');
   }
 
@@ -2912,7 +2907,6 @@
         date: activeShiftDate,
         data: data,
         historyRecords: historyRecords,
-        removedMemberTombstones: removedMemberTombstones,
         ts: Date.now()
       }), PUB_OPTS);
       syncLog('published full state —', reason, { version: lastVersion, date: activeShiftDate });
@@ -3094,258 +3088,386 @@
     }, HANDSHAKE_WAIT_MS);
   }
 
-  function initCloudSync() {
-    try {
-      const brokerUrl = "wss://broker.emqx.io:8084/mqtt";
-      // 3) Stable clientId. 12) Auto-reconnect tuned for Wi-Fi drops.
-      mqttClient = mqtt.connect(brokerUrl, {
-        clientId: CLIENT_ID,
-        clean: true,
-        connectTimeout: 8000,
-        reconnectPeriod: 2000,
-        keepalive: 30,
-        resubscribe: true
-      });
 
-      mqttClient.on('connect', () => {
-        setSyncBadge('🟢 Live Cloud Multi-Device Sync Active');
-        syncLog('MQTT connected as', CLIENT_ID, '→ topics', TOPIC_STATE, TOPIC_REQ);
-        // 4) Subscribe to BOTH topics before requesting state.
-        mqttClient.subscribe([TOPIC_STATE, TOPIC_REQ], { qos: 1 }, (err) => {
-          if (err) { syncWarn('subscribe failed', err); return; }
-          beginHandshake('connect');
-        });
-      });
+  // ============================================================
+  // CENTRAL SUPABASE SYNC
+  // Supabase is the ONLY source of truth for the live GB tracker.
+  // MQTT/full-state peer syncing is intentionally disabled.
+  // ============================================================
+  const GB_SUPABASE_URL = "https://bkmpqjoqcilicmfahemg.supabase.co";
+  const GB_SUPABASE_KEY = "sb_publishable_ss_a29uxD1FZWZ0at6uk_Q_a55sCjRg";
+  const GB_SUPABASE_TABLE = "gb_focus_follow_members";
+  let gbSupabase = null;
+  let gbSupabaseChannel = null;
+  let gbCentralReady = false;
+  let gbHydrating = false;
+  let gbBootstrapDone = false;
 
-      mqttClient.on('reconnect', () => {
-        syncLog('MQTT reconnecting…');
-        setSyncBadge('🔄 Reconnecting Cloud Sync…');
-      });
+  function gbDbToMember(r) {
+    const m = createFreshMember({ name: r.name || '', role: r.role || '' }, r.id);
+    m.id = r.id;
+    m.name = r.name || '';
+    m.role = r.role || '';
+    m.checkedIn = !!r.checked_in;
+    m.ac = Number(r.ac || 0);
+    m.pz = Number(r.upgrade || 0);
+    m.biz = Number(r.biz || 0);
+    m.acc = Number(r.acc || 0);
+    m.step = r.step || '';
+    m.notes = r.notes || '';
+    m.updatedAt = Date.parse(r.updated_at || '') || 0;
+    m.rev = Number(r.revision || 0);
+    m.revBy = r.updated_by || '';
+    ensureMemberTs(m);
+    return m;
+  }
 
-      mqttClient.on('message', (topic, payload) => {
-        let msg;
-        try { msg = JSON.parse(payload.toString()); }
-        catch (e) { syncWarn('unparseable message ignored'); return; }
-        if (!msg || msg.clientId === CLIENT_ID) return;   // ignore our own echo
-        if (alreadySeen(msg.msgId)) {                     // 11) duplicate guard
-          syncLog('duplicate message ignored', msg.type, msg.msgId);
-          return;
-        }
+  function gbMemberPayload(m) {
+    return {
+      id: String(m.id),
+      name: String(m.name || ''),
+      role: String(m.role || ''),
+      checked_in: !!m.checkedIn,
+      ac: Math.max(0, Number(m.ac || 0)),
+      upgrade: Math.max(0, Number(m.pz || 0)),
+      services: 0,
+      biz: Math.max(0, Number(m.biz || 0)),
+      acc: Math.max(0, Number(m.acc || 0)),
+      step: String(m.step || ''),
+      notes: String(m.notes || ''),
+      updated_by: CLIENT_ID
+    };
+  }
 
-        try {
-          if (msg.type === 'delta_count') {
-            if (msg.date !== activeShiftDate) return;
-            const target = data.find(d => d.id === msg.id);
-            if (!target) return;
-            ensureMemberTs(target);
-            // Sender is the sole authority for its own bucket.
-            if (msg.clientId === CLIENT_ID) return;
-            const senderBucketVal = msg.myBucketVal !== undefined ? msg.myBucketVal : 0;
-            const senderStamp = msg.myBucketTs || msg.ts || 0;
-            const knownStamp = target._byTs[msg.metric][msg.clientId] || 0;
-            // 11) Ignore a stale/replayed report for that device's bucket.
-            if (senderStamp < knownStamp) {
-              syncLog('ignoring stale delta_count', { member: target.name, metric: msg.metric, from: msg.clientId });
-              return;
-            }
-            if (senderBucketVal !== (target._by[msg.metric][msg.clientId] || 0) || senderStamp !== knownStamp) {
-              target._by[msg.metric][msg.clientId] = senderBucketVal;
-              target._byTs[msg.metric][msg.clientId] = senderStamp;
-              recomputeMemberTotals(target);
-              touchMember(target, msg.ts);
-              if (target[msg.metric] > 0 && !target.checkedIn) {
-                target.checkedIn = true;
-                target._ts.checkedIn = msg.ts;
-                renderCheckInVisual(target.id);
-              }
-              renderRow(target.id);
-              updateTotals();
-              syncCurrentDayToHistory();
-              saveLocalState();
-              scheduleReorder();
-              flashSyncBadge(`🟢 Live Update: ${target.name} (${msg.metric.toUpperCase()})`);
-              syncLog('applied delta_count', { member: target.name, metric: msg.metric, from: msg.clientId });
-            }
+  async function gbLoadCentralMembers() {
+    if (!gbSupabase) return false;
+    const { data: rows, error } = await gbSupabase
+      .from(GB_SUPABASE_TABLE)
+      .select('*')
+      .eq('removed', false)
+      .order('name', { ascending: true });
 
-          } else if (msg.type === 'delta_set_exact') {
-            // Option B authoritative override — last-write-wins by timestamp.
-            if (msg.date !== activeShiftDate) return;
-            const target = data.find(d => d.id === msg.id);
-            if (!target) return;
-            ensureMemberTs(target);
-            const existing = target._ckpt[msg.metric];
-            if (existing && (msg.ts || 0) <= existing.ts) {
-              syncLog('ignoring older set_exact', { member: target.name, metric: msg.metric, from: msg.clientId });
-              return;
-            }
-            target._ckpt[msg.metric] = { val: msg.val || 0, ts: msg.ts, by: msg.clientId };
-            recomputeMemberTotals(target);   // drops only pre-checkpoint deltas
-            touchMember(target, msg.ts);
-            if (target[msg.metric] > 0 && !target.checkedIn) {
-              target.checkedIn = true;
-              target._ts.checkedIn = msg.ts;
-              renderCheckInVisual(target.id);
-            }
-            renderRow(target.id);
-            updateTotals();
-            syncCurrentDayToHistory();
-            saveLocalState();
-            scheduleReorder();
-            flashSyncBadge(`✏️ ${target.name} ${msg.metric.toUpperCase()} set to ${msg.val}`);
-            syncLog('applied delta_set_exact', { member: target.name, metric: msg.metric, val: msg.val, from: msg.clientId });
+    if (error) throw error;
 
-          } else if (msg.type === 'delta_checkin') {
-            if (msg.date !== activeShiftDate) return;
-            const target = data.find(d => d.id === msg.id);
-            if (!target) return;
-            ensureMemberTs(target);
-            if (msg.ts > (target._ts.checkedIn || 0)) {   // 11) strictly newer only
-              target.checkedIn = !!msg.checkedIn;
-              target._ts.checkedIn = msg.ts;
-              touchMember(target, msg.ts);
-              renderCheckInVisual(target.id);
-              updateTotals();
-              syncCurrentDayToHistory();
-              saveLocalState();
-              scheduleReorder();
-              flashSyncBadge(`🟢 Live Update: ${target.name} Check-in`);
-            }
+    if (Array.isArray(rows) && rows.length > 0) {
+      gbHydrating = true;
+      data = rows.map(gbDbToMember).filter(m => !isMemberTombstoned(m.id));
+      activeShiftDate = getTodayString();
+      lastVersion = Math.max(0, ...rows.map(r => Number(r.revision || 0)));
+      saveLocalState();
+      renderTableStructure();
+      updateTotals();
+      scheduleReorder();
+      gbHydrating = false;
+      return true;
+    }
 
-          } else if (msg.type === 'delta_step') {
-            if (msg.date !== activeShiftDate) return;
-            const target = data.find(d => d.id === msg.id);
-            if (!target) return;
-            ensureMemberTs(target);
-            if (msg.ts > (target._ts.step || 0)) {
-              target.step = msg.step || "";
-              target._ts.step = msg.ts;
-              touchMember(target, msg.ts);
-              const stepSelect = document.getElementById(`step-${target.id}`);
-              if (stepSelect && document.activeElement !== stepSelect) stepSelect.value = target.step;
-              syncCurrentDayToHistory();
-              saveLocalState();
-            }
+    // Only bootstrap an empty GB central table from the current iPad.
+    // Once rows exist, NO iPad is allowed to replace the roster wholesale.
+    if (data.length > 0 && !gbBootstrapDone) {
+      const rowsToInsert = data
+        .filter(m => !isMemberTombstoned(m.id))
+        .map(gbMemberPayload);
+      if (rowsToInsert.length) {
+        const { error: insErr } = await gbSupabase
+          .from(GB_SUPABASE_TABLE)
+          .upsert(rowsToInsert, { onConflict: 'id' });
+        if (insErr) throw insErr;
+      }
+      gbBootstrapDone = true;
+      return true;
+    }
 
-          } else if (msg.type === 'delta_note') {
-            if (msg.date !== activeShiftDate) return;
-            const target = data.find(d => d.id === msg.id);
-            if (!target) return;
-            ensureMemberTs(target);
-            if (msg.ts > (target._ts.notes || 0)) {
-              target.notes = msg.notes || "";
-              target._ts.notes = msg.ts;
-              touchMember(target, msg.ts);
-              const noteInput = document.getElementById(`notes-${target.id}`);
-              if (noteInput && document.activeElement !== noteInput) noteInput.value = target.notes;
-              syncCurrentDayToHistory();
-              saveLocalState();
-            }
+    return false;
+  }
 
-          } else if (msg.type === 'delta_check_all') {
-            if (msg.date !== activeShiftDate) return;
-            let changed = false;
-            data.forEach(d => {
-              ensureMemberTs(d);
-              if (msg.ts > (d._ts.checkedIn || 0)) {
-                d.checkedIn = !!msg.status;
-                d._ts.checkedIn = msg.ts;
-                touchMember(d, msg.ts);
-                renderCheckInVisual(d.id);
-                changed = true;
-              }
-            });
-            if (changed) {
-              updateTotals();
-              syncCurrentDayToHistory();
-              saveLocalState();
-              scheduleReorder();
-            }
+  async function gbApplyRealtimeRow(row) {
+    if (!row) return;
+    const id = String(row.id);
+    if (row.removed) {
+      tombstoneMember(id, row.name || '', Number(row.revision || Date.now()), row.updated_by || 'remote');
+      const before = data.length;
+      data = data.filter(m => String(m.id) !== id);
+      if (data.length !== before) {
+        saveLocalState();
+        renderTableStructure();
+        updateTotals();
+        scheduleReorder();
+      }
+      return;
+    }
 
-          } else if (msg.type === 'team-member-remove') {
-            const memberId = msg.memberId;
-            if (memberId === undefined || memberId === null) return;
+    if (isMemberTombstoned(id)) return;
 
-            tombstoneMember(
-              memberId,
-              msg.memberName || '',
-              Number(msg.ts || Date.now()),
-              msg.clientId || 'remote'
-            );
+    const incoming = gbDbToMember(row);
+    const local = data.find(m => String(m.id) === id);
+    if (!local) {
+      data.push(incoming);
+    } else {
+      const localRev = Number(local.rev || 0);
+      const remoteRev = Number(incoming.rev || 0);
+      if (remoteRev < localRev && row.updated_by !== CLIENT_ID) return;
+      const ix = data.findIndex(m => String(m.id) === id);
+      data[ix] = incoming;
+    }
+    lastVersion = Math.max(Number(lastVersion || 0), Number(incoming.rev || 0));
+    saveLocalState();
+    renderTableStructure();
+    updateTotals();
+    scheduleReorder();
+  }
 
-            const idx = data.findIndex(m => String(m.id) === String(memberId));
-            if (idx >= 0) {
-              data.splice(idx, 1);
-              lastVersion = Math.max(lastVersion, Number(msg.ts || 0));
-              saveLocalState();
-              renderTableStructure();
-              updateTotals();
-              scheduleReorder();
-              flashSyncBadge('➖ Team Member Removed');
-              syncLog('TEAM MEMBER REMOVED', {
-                memberId,
-                name: msg.memberName,
-                from: msg.clientId
-              });
-            }
-            return;
-          } else if (msg.type === 'delta_reset_day') {
-            if (msg.date !== activeShiftDate) return;
-            const resetId=String(msg.roomResetId||msg.msgId||''), resetTs=Number(msg.ts||0);
-            if(!resetId)return;
-            if(applyRoomReset(resetId,resetTs,msg.date,msg.clientId||'remote')){
-              flashSyncBadge('🧹 Live Day Reset Across All iPads');
-            }
-          } else if (msg.type === 'sync_req') {
-            // 5) Answer newcomers with our state if we have anything at all.
-            const haveLive = data.some(d => d.checkedIn || d.ac > 0 || d.pz > 0 || d.biz > 0 || d.acc > 0);
-            if (haveLive || historyRecords.length > 0) {
-              syncLog('responding to sync_req from', msg.clientId);
-              mqttClient.publish(TOPIC_STATE, JSON.stringify({
-                type: 'sync_full',
-                clientId: CLIENT_ID,
-                msgId: newMsgId(),
-                targetClientId: msg.clientId,
-                version: lastVersion,
-                date: activeShiftDate,
-                data: data,
-                historyRecords: historyRecords,
-                removedMemberTombstones: removedMemberTombstones,
-                ts: Date.now()
-              }), PUB_OPTS);
-            } else {
-              syncLog('sync_req from', msg.clientId, '— nothing to share, staying quiet');
-            }
-
-          } else if (msg.type === 'sync_full') {
-            if (!msg.targetClientId || msg.targetClientId === CLIENT_ID) {
-              // 9) merge only; do NOT auto-rebroadcast the same content.
-              mergeFullState(msg);
-            }
-          }
-        } catch (err) {
-          syncWarn('error handling message', msg && msg.type, err);
-        }
-      });
-
-      mqttClient.on('error', (e) => {
-        // 13) A failed connection must never clear or reset live data.
-        syncWarn('MQTT error (data left intact)', e && e.message);
-        setSyncBadge('💾 Saved to iPad (Offline)');
-      });
-
-      mqttClient.on('close', () => {
-        syncLog('MQTT connection closed (data left intact)');
-      });
-
-      mqttClient.on('offline', () => {
-        syncLog('MQTT offline — edits will be queued as pending');
-        setSyncBadge('💾 Saved to iPad (Offline)');
-      });
-    } catch (e) {
-      syncWarn('initCloudSync threw (data left intact)', e);
-      setSyncBadge('💾 Saved to iPad (Offline)');
+  async function gbCentralPatch(id, patch) {
+    if (!gbSupabase || gbHydrating) return;
+    const { error } = await gbSupabase
+      .from(GB_SUPABASE_TABLE)
+      .update(patch)
+      .eq('id', String(id))
+      .eq('removed', false);
+    if (error) {
+      syncWarn('Supabase write failed', error);
+      setSyncBadge('⚠️ Cloud write failed — local data kept');
+      throw error;
     }
   }
+
+  async function gbCentralRPC(name, args) {
+    if (!gbSupabase || gbHydrating) return null;
+    const { data: result, error } = await gbSupabase.rpc(name, args);
+    if (error) {
+      syncWarn('Supabase RPC failed', name, error);
+      setSyncBadge('⚠️ Cloud write failed — local data kept');
+      throw error;
+    }
+    return result;
+  }
+
+  function broadcastDelta(payload) {
+    // Translate existing tracker delta events into atomic central writes.
+    if (!gbCentralReady || gbHydrating) return;
+    (async () => {
+      try {
+        if (payload.type === 'delta_count') {
+          const metric = payload.metric === 'pz' ? 'upgrade' : payload.metric;
+          const delta = Number(payload.delta || payload.amount || 0);
+          if (!delta) return;
+          const row = await gbCentralRPC('gb_focus_follow_increment', {
+            p_id: String(payload.id),
+            p_metric: metric,
+            p_delta: delta,
+            p_client_id: CLIENT_ID
+          });
+          if (row) await gbApplyRealtimeRow(row);
+        } else if (payload.type === 'delta_checkin') {
+          await gbCentralRPC('gb_focus_follow_patch', {
+            p_id: String(payload.id),
+            p_checked_in: !!payload.checkedIn,
+            p_step: null,
+            p_notes: null,
+            p_client_id: CLIENT_ID
+          });
+        } else if (payload.type === 'delta_step') {
+          await gbCentralRPC('gb_focus_follow_patch', {
+            p_id: String(payload.id),
+            p_checked_in: null,
+            p_step: payload.step || '',
+            p_notes: null,
+            p_client_id: CLIENT_ID
+          });
+        } else if (payload.type === 'delta_note') {
+          await gbCentralRPC('gb_focus_follow_patch', {
+            p_id: String(payload.id),
+            p_checked_in: null,
+            p_step: null,
+            p_notes: payload.notes || '',
+            p_client_id: CLIENT_ID
+          });
+        } else if (payload.type === 'delta_check_all') {
+          const rows = await gbSupabase.from(GB_SUPABASE_TABLE)
+            .select('id')
+            .eq('removed', false);
+          if (rows.error) throw rows.error;
+          for (const r of (rows.data || [])) {
+            await gbCentralRPC('gb_focus_follow_patch', {
+              p_id: String(r.id),
+              p_checked_in: !!payload.status,
+              p_step: null,
+              p_notes: null,
+              p_client_id: CLIENT_ID
+            });
+          }
+        } else if (payload.type === 'team-member-remove') {
+          await gbCentralRPC('gb_focus_follow_remove', {
+            p_id: String(payload.memberId),
+            p_client_id: CLIENT_ID
+          });
+          tombstoneMember(payload.memberId, payload.memberName || '', Date.now(), CLIENT_ID);
+        } else if (payload.type === 'team-member-add') {
+          await gbCentralRPC('gb_focus_follow_add', {
+            p_id: String(payload.member.id),
+            p_name: payload.member.name,
+            p_role: payload.member.role,
+            p_client_id: CLIENT_ID
+          });
+        }
+      } catch (e) {
+        syncWarn('Central sync operation failed', payload.type, e);
+      }
+    })();
+  }
+
+  function publishState(reason) {
+    // Deliberately NO-OP. Full-state peer publishing is the source of the
+    // erase/resurrection problem and is disabled in the central architecture.
+    syncCurrentDayToHistory();
+    saveLocalState();
+    if (gbCentralReady) setSyncBadge('🟢 Central Supabase Sync Active');
+    syncLog('full-state MQTT publish blocked:', reason);
+  }
+
+  async function resetCounts() {
+    if (!confirm("RESET TODAY'S LIVE TRACKER ON ALL IPADS?\n\nThis clears today's live check-ins, metrics, steps, and notes for everyone.\n\nHistorical / previous-day records will NOT be deleted.")) return;
+    if (!gbCentralReady || !gbSupabase) {
+      alert('Cloud Sync is not connected. The room-wide reset was not performed.');
+      return;
+    }
+    try {
+      // Archive the local current day first, then reset the CENTRAL table.
+      syncCurrentDayToHistory();
+      saveLocalState();
+      const count = await gbCentralRPC('gb_focus_follow_reset', { p_client_id: CLIENT_ID });
+      const rows = await gbSupabase.from(GB_SUPABASE_TABLE)
+        .select('*').eq('removed', false);
+      if (rows.error) throw rows.error;
+      data = (rows.data || []).map(gbDbToMember);
+      saveLocalState();
+      renderTableStructure();
+      updateTotals();
+      scheduleReorder();
+      setSyncBadge(`🧹 Cloud Reset — ${(rows.data || []).length} members cleared`);
+      flashSyncBadge('🧹 Live Day Reset Across All iPads');
+      syncLog('CENTRAL RESET SUCCESS', { membersReset: count });
+    } catch (e) {
+      syncWarn('CENTRAL RESET FAILED', e);
+      alert('Cloud Reset Day failed: ' + (e.message || 'database error'));
+    }
+  }
+
+  async function addTeamMember() {
+    const name = prompt("Enter the team member's name:");
+    if (!name || !name.trim()) return;
+    const role = prompt("Enter role:\n\nGenius\nGenius Admin\nTechnical Expert\nTechnical Specialist");
+    if (!role || !role.trim()) return;
+    const cleanName = name.trim(), cleanRole = role.trim();
+    if (data.some(m => m.name.toLowerCase() === cleanName.toLowerCase())) {
+      alert("That team member is already on the tracker."); return;
+    }
+    const newId = 'member_' + Date.now().toString(36) + '_' + Math.random().toString(36).slice(2,8);
+    const member = createFreshMember({name: cleanName, role: cleanRole}, newId);
+    member.id = newId;
+    try {
+      await gbCentralRPC('gb_focus_follow_add', {
+        p_id: newId, p_name: cleanName, p_role: cleanRole, p_client_id: CLIENT_ID
+      });
+      data.push(member);
+      saveLocalState(); renderTableStructure(); updateTotals(); scheduleReorder();
+      flashAutoSaveBadge('➕ Team Member Added');
+    } catch(e) {
+      alert('Could not add team member to the shared tracker.');
+    }
+  }
+
+  async function removeTeamMember() {
+    if (!data.length) { alert("There are no team members to remove."); return; }
+    const names = data.map((m,i) => `${i+1}. ${m.name} (${m.role})`).join('\n');
+    const choice = prompt("Enter the NUMBER of the team member to permanently remove:\n\n"+names);
+    if (choice === null) return;
+    const index = Number(choice)-1;
+    if (!Number.isInteger(index) || index < 0 || index >= data.length) {
+      alert("Please enter a valid team member number."); return;
+    }
+    const member = data[index];
+    if (!confirm(`PERMANENTLY DELETE ${member.name}?\n\nThey will be removed from the active shared roster on every iPad. Historical records are preserved.\n\nThis cannot be undone.`)) return;
+    try {
+      await gbCentralRPC('gb_focus_follow_remove', {
+        p_id: String(member.id), p_client_id: CLIENT_ID
+      });
+      tombstoneMember(member.id, member.name, Date.now(), CLIENT_ID);
+      data.splice(index,1);
+      saveLocalState(); renderTableStructure(); updateTotals(); scheduleReorder();
+      flashAutoSaveBadge('🗑️ Team Member Permanently Removed');
+    } catch(e) {
+      alert('Could not remove the team member from the shared tracker.');
+    }
+  }
+
+  function initCentralSupabaseSync() {
+    try {
+      if (!window.supabase || !window.supabase.createClient) {
+        setSyncBadge('⚠️ Supabase library failed to load');
+        return;
+      }
+      gbSupabase = window.supabase.createClient(GB_SUPABASE_URL, GB_SUPABASE_KEY, {
+        realtime: { params: { eventsPerSecond: 20 } }
+      });
+
+      setSyncBadge('🔄 Connecting Central Supabase…');
+
+      gbSupabase
+        .from(GB_SUPABASE_TABLE)
+        .select('*')
+        .eq('removed', false)
+        .order('name', {ascending:true})
+        .then(async ({data: rows, error}) => {
+          if (error) throw error;
+
+          // Central DB wins whenever it already has members.
+          if (rows && rows.length) {
+            gbHydrating = true;
+            data = rows.map(gbDbToMember).filter(m => !isMemberTombstoned(m.id));
+            lastVersion = Math.max(0, ...rows.map(r => Number(r.revision || 0)));
+            saveLocalState();
+            renderTableStructure(); updateTotals(); scheduleReorder();
+            gbHydrating = false;
+          } else if (data.length) {
+            // One-time bootstrap only when the dedicated GB table is empty.
+            const payload = data.filter(m => !isMemberTombstoned(m.id)).map(gbMemberPayload);
+            const {error: seedError} = await gbSupabase.from(GB_SUPABASE_TABLE).upsert(payload,{onConflict:'id'});
+            if (seedError) throw seedError;
+          }
+
+          gbSupabaseChannel = gbSupabase.channel('gb-focus-follow-central')
+            .on('postgres_changes',
+              {event:'INSERT', schema:'public', table:GB_SUPABASE_TABLE},
+              ({new: row}) => gbApplyRealtimeRow(row))
+            .on('postgres_changes',
+              {event:'UPDATE', schema:'public', table:GB_SUPABASE_TABLE},
+              ({new: row}) => gbApplyRealtimeRow(row))
+            .subscribe((status) => {
+              if (status === 'SUBSCRIBED') {
+                gbCentralReady = true;
+                setSyncBadge('🟢 Central Supabase Sync Active');
+                syncLog('CENTRAL SUPABASE CONNECTED');
+              } else if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT') {
+                gbCentralReady = false;
+                setSyncBadge('⚠️ Supabase realtime disconnected');
+              }
+            });
+        })
+        .catch(e => {
+          gbCentralReady = false;
+          syncWarn('CENTRAL SUPABASE INIT FAILED', e);
+          setSyncBadge('⚠️ Central Sync Failed');
+        });
+    } catch (e) {
+      gbCentralReady = false;
+      syncWarn('Central Supabase initialization failed', e);
+      setSyncBadge('⚠️ Central Sync Failed');
+    }
+  }
+
+  function initCloudSync() { /* central Supabase sync initialized below */ }
+
 
   function setSyncBadge(txt) {
     const el = document.getElementById('syncStatus');
@@ -3531,7 +3653,7 @@
   updateTotals();
   reorderRows();
   updateUndoButton();
-  initCloudSync();
+  initCentralSupabaseSync();
   setupPasscodeGate();
 </script>
 </body>
