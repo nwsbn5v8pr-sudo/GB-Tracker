@@ -6,73 +6,47 @@
 <title>🧰GB Focus & Follow 🆙</title>
 <!-- Lightweight MQTT over WebSockets for Instant Serverless Cloud Sync -->
 <script src="https://unpkg.com/mqtt/dist/mqtt.min.js"></script>
-
 <script>
 (function () {
-  function getMoreMenu() {
-    return document.getElementById('moreMenu');
-  }
-  function getMoreButton() {
-    return document.getElementById('moreMenuButton');
-  }
-  window.toggleMoreMenu = function (event) {
-    if (event) {
-      event.preventDefault();
-      event.stopPropagation();
-    }
-    var menu = getMoreMenu();
-    var button = getMoreButton();
-    if (!menu) return false;
-    var open = !menu.classList.contains('open');
-    menu.classList.toggle('open', open);
-    if (button) button.setAttribute('aria-expanded', open ? 'true' : 'false');
+  function menu() { return document.getElementById('moreMenu'); }
+  function button() { return document.getElementById('moreMenuButton'); }
+
+  window.toggleMoreMenu = function (e) {
+    if (e) { e.preventDefault(); e.stopPropagation(); }
+    var m = menu(), b = button();
+    if (!m) return false;
+    var open = !m.classList.contains('open');
+    m.classList.toggle('open', open);
+    if (b) b.setAttribute('aria-expanded', open ? 'true' : 'false');
     return false;
   };
+
   window.closeMoreMenu = function () {
-    var menu = getMoreMenu();
-    var button = getMoreButton();
-    if (menu) menu.classList.remove('open');
-    if (button) button.setAttribute('aria-expanded', 'false');
+    var m = menu(), b = button();
+    if (m) m.classList.remove('open');
+    if (b) b.setAttribute('aria-expanded', 'false');
   };
 
-  function bindMoreMenu() {
-    var button = getMoreButton();
-    if (!button || button.dataset.moreBound === '1') return;
-    button.dataset.moreBound = '1';
-
-    // Pointer events are reliable on iPad Safari and desktop.
-    button.addEventListener('pointerup', function (e) {
-      e.preventDefault();
-      e.stopPropagation();
-      window.toggleMoreMenu(e);
-    }, { passive: false });
-
-    // Fallback for older iPad WebKit.
-    button.addEventListener('touchend', function (e) {
-      e.preventDefault();
-      e.stopPropagation();
-      window.toggleMoreMenu(e);
-    }, { passive: false });
-  }
-
   document.addEventListener('click', function (e) {
-    var button = e.target.closest ? e.target.closest('#moreMenuButton') : null;
-    var menu = e.target.closest ? e.target.closest('#moreMenu') : null;
-    if (button) {
+    var b = e.target.closest && e.target.closest('#moreMenuButton');
+    var m = e.target.closest && e.target.closest('#moreMenu');
+    if (b) {
       e.preventDefault();
       e.stopPropagation();
       window.toggleMoreMenu(e);
-    } else if (!menu) {
+    } else if (!m) {
       window.closeMoreMenu();
     }
   }, true);
 
-  if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', bindMoreMenu);
-  } else {
-    bindMoreMenu();
-  }
-  setTimeout(bindMoreMenu, 500);
+  document.addEventListener('touchend', function (e) {
+    var b = e.target.closest && e.target.closest('#moreMenuButton');
+    if (b) {
+      e.preventDefault();
+      e.stopPropagation();
+      window.toggleMoreMenu(e);
+    }
+  }, {passive:false});
 })();
 </script>
 
@@ -167,8 +141,7 @@
     display: none;
     position: fixed;
     right: 12px;
-    top: max(70px, env(safe-area-inset-top));
-
+    top: 76px;
     min-width: 210px;
     max-height: 70vh;
     overflow-y: auto;
@@ -177,7 +150,7 @@
     border-radius: 12px;
     padding: 6px;
     box-shadow: 0 12px 30px rgba(0,0,0,.18);
-    z-index: 999999;
+    z-index: 2147483647;
   }
   .more-menu.open { display: flex; flex-direction: column; gap: 3px; }
   .more-menu button {
