@@ -5,7 +5,25 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
 <title>🧰GB Focus & Follow 🆙</title>
 <!-- Lightweight MQTT over WebSockets for Instant Serverless Cloud Sync -->
-<script src="https://unpkg.com/mqtt/dist/mqtt.min.js"></script>
+<script src="https://unpkg.com/mqtt/dist/mqtt.min.js">function toggleMoreMenu(event) {
+    if (event) event.stopPropagation();
+    const menu = document.getElementById('moreMenu');
+    const btn = document.querySelector('.more-menu-btn');
+    if (!menu) return;
+    const open = menu.classList.toggle('open');
+    if (btn) btn.setAttribute('aria-expanded', open ? 'true' : 'false');
+  }
+  function closeMoreMenu() {
+    const menu = document.getElementById('moreMenu');
+    const btn = document.querySelector('.more-menu-btn');
+    if (menu) menu.classList.remove('open');
+    if (btn) btn.setAttribute('aria-expanded', 'false');
+  }
+  document.addEventListener('click', function(e) {
+    if (!e.target.closest('.more-menu-wrap')) closeMoreMenu();
+  });
+
+  </script>
 <style>
   :root {
     --bg-primary: #f2f2f7;
@@ -90,6 +108,40 @@
     display: flex;
     gap: 8px;
     flex-wrap: wrap;
+  }
+
+  .more-menu-wrap { position: relative; }
+  .more-menu {
+    display: none;
+    position: absolute;
+    right: 0;
+    top: calc(100% + 6px);
+    min-width: 210px;
+    max-height: 70vh;
+    overflow-y: auto;
+    background: var(--bg-card);
+    border: 1px solid var(--border-strong);
+    border-radius: 12px;
+    padding: 6px;
+    box-shadow: 0 12px 30px rgba(0,0,0,.18);
+    z-index: 1000;
+  }
+  .more-menu.open { display: flex; flex-direction: column; gap: 3px; }
+  .more-menu button {
+    width: 100%;
+    justify-content: flex-start;
+    background: transparent;
+    color: var(--text-primary);
+    border: none;
+    min-height: 38px;
+    padding: 8px 10px;
+    border-radius: 8px;
+  }
+  .more-menu button:active { background: var(--bg-primary); }
+  .more-menu .menu-danger { color: #ff453a; }
+  .menu-divider { height: 1px; background: var(--border); margin: 4px 2px; }
+  @media (max-width: 800px) {
+    .top-bar .btn-group { width: 100%; gap: 6px; }
   }
 
   button {
@@ -763,35 +815,27 @@
       <span class="sync-badge" id="syncStatus">🔄 Connecting Cloud Sync...</span>
       <span class="sync-badge" id="autoSaveBadge">💾 Real-Time Sync</span>
     </div>
-    <div class="btn-group">
-      <button class="secondary" id="btnUndo" onclick="undoAction()" title="Undo prior action">↩️ Undo</button>
-      <button class="secondary" id="btnClearCheckins" onclick="checkAll(false)">◻️ Clear Check-Ins</button>
-      <button class="secondary" onclick="exportCSV()">📥 Export CSV</button>
-      <button class="secondary" onclick="lockTrackerNow()">🔒 Lock</button>
-      <button class="success" id="btnAddTeamMember" onclick="addTeamMember()">➕ Add Team Member</button>
-      <button class="danger" id="btnRemoveTeamMember" onclick="removeTeamMember()">➖ Remove Team Member</button>
-      <button class="danger" id="btnReset" onclick="resetCounts()">🔄 Reset Day</button>
-    </div>
+    <div class="btn-group">      <button class="secondary" id="btnUndo" onclick="undoAction()" title="Undo prior action">↩️ Undo</button>
+      <button class="secondary daily-live-btn" id="btnDailyLive" onclick="switchTab('daily')" title="Return to today's live tracker">📅 Daily (Live)</button>
+      <div class="more-menu-wrap">
+        <button class="secondary more-menu-btn" type="button" onclick="toggleMoreMenu(event)" aria-haspopup="true" aria-expanded="false">⋯ More</button>
+        <div class="more-menu" id="moreMenu">
+          <button type="button" onclick="switchTab('prior');closeMoreMenu()">⏮️ Prior Day</button>
+          <button type="button" onclick="switchTab('weekly');closeMoreMenu()">📊 Weekly</button>
+          <button type="button" onclick="switchTab('monthly');closeMoreMenu()">🗓️ Monthly</button>
+          <button type="button" onclick="switchTab('quarterly');closeMoreMenu()">📈 Quarterly</button>
+          <button type="button" onclick="switchTab('history');closeMoreMenu()">📜 History Logs</button>
+          <div class="menu-divider"></div>
+          <button type="button" onclick="checkAll(false);closeMoreMenu()">◻️ Clear Check-Ins</button>
+          <button type="button" onclick="exportCSV();closeMoreMenu()">📥 Export CSV</button>
+          <button type="button" onclick="lockTrackerNow();closeMoreMenu()">🔒 Lock</button>
+          <button type="button" class="menu-danger" onclick="resetCounts();closeMoreMenu()">🔄 Reset Day</button>
+        </div>
+      </div></div>
   </div>
 
   <!-- Timeframe Navigation Tabs -->
-  <div class="timeframe-nav">
-    <div class="segmented-control">
-      <button class="tab-btn active" id="tab-daily" onclick="switchTab('daily')">📅 Daily (Live)</button>
-      <button class="tab-btn" id="tab-prior" onclick="switchTab('prior')">⏮️ Prior Day</button>
-      <button class="tab-btn" id="tab-weekly" onclick="switchTab('weekly')">📊 Weekly</button>
-      <button class="tab-btn" id="tab-monthly" onclick="switchTab('monthly')">🗓️ Monthly</button>
-      <button class="tab-btn" id="tab-quarterly" onclick="switchTab('quarterly')">📈 Quarterly</button>
-      <button class="tab-btn" id="tab-history" onclick="switchTab('history')">📜 History Logs</button>
-    </div>
-    <div class="timeframe-controls">
-      <select id="periodSelector" class="period-selector" style="display: none;" onchange="onPeriodChange()">
-        <!-- Populated dynamically based on selected tab -->
-      </select>
-    </div>
-  </div>
-
-  <!-- 🌟 Top Performers Section -->
+<!-- 🌟 Top Performers Section -->
   <div class="top-performers-card" id="topPerformersCard">
     <div class="top-performers-header">
       <div class="top-performers-title">
@@ -1528,6 +1572,8 @@
   }
 
   function scheduleReorder() {
+    if (document.activeElement && document.activeElement.classList &&
+        document.activeElement.classList.contains("notes-input")) return;
     if (reorderTimer) clearTimeout(reorderTimer);
     reorderTimer = setTimeout(reorderRows, 80);
   }
@@ -1865,7 +1911,7 @@
           </select>
         </td>
         <td>
-          <input class="notes-input" id="notes-${p.id}" type="text" placeholder="Add note / focus..." value="${escapeHtml(p.notes || '')}" onclick="event.stopPropagation()" oninput="saveNote(${p.id}, this.value)">
+          <textarea class="notes-input" id="notes-${p.id}" rows="1" placeholder="Add note / focus..." onclick="event.stopPropagation()" onfocus="beginNoteEdit(this)" oninput="saveNote(${p.id}, this.value)" onblur="endNoteEdit(this)">${escapeHtml(p.notes || '')}</textarea>
         </td>
       `;
     } else if (isPrior) {
@@ -1923,6 +1969,8 @@
   }
 
   function renderTableStructure() {
+    if (document.activeElement && document.activeElement.classList &&
+        document.activeElement.classList.contains("notes-input")) return;
     const tbody = document.getElementById('tableBody');
     if (!tbody) return;
     tbody.innerHTML = '';
@@ -2001,6 +2049,8 @@
   }
 
   function reorderRows() {
+    if (document.activeElement && document.activeElement.classList &&
+        document.activeElement.classList.contains("notes-input")) return;
     const tbody = document.getElementById('tableBody');
     const list = getDisplayList();
     if (!tbody || list.length === 0) return;
@@ -2193,6 +2243,19 @@
         scheduleReorder();
       }
     }
+  }
+
+  function beginNoteEdit(el) {
+    if (!el) return;
+    el.classList.add('note-editing');
+    document.body.classList.add('note-keyboard-open');
+    setTimeout(function() {
+      try { el.scrollIntoView({behavior:'smooth', block:'center', inline:'nearest'}); } catch(e) {}
+    }, 120);
+  }
+  function endNoteEdit(el) {
+    if (el) el.classList.remove('note-editing');
+    document.body.classList.remove('note-keyboard-open');
   }
 
   function saveNote(index, val) {
@@ -3326,30 +3389,100 @@
   }
 
   async function resetCounts() {
-    if (!confirm("RESET TODAY'S LIVE TRACKER ON ALL IPADS?\n\nThis clears today's live check-ins, metrics, steps, and notes for everyone.\n\nHistorical / previous-day records will NOT be deleted.")) return;
+    if (!confirm(
+      "RESET TODAY'S LIVE TRACKER ON ALL IPADS?\n\n" +
+      "This will clear ALL live Daily data for EVERY team member on every iPad:\n" +
+      "• Check-ins\n• AppleCare+\n• Upgrades\n• Business\n• Accessories\n• Steps of Service\n• Notes / Focus\n\n" +
+      "Historical / previous-day records will NOT be deleted."
+    )) return;
+
     if (!gbCentralReady || !gbSupabase) {
-      alert('Cloud Sync is not connected. The room-wide reset was not performed.');
+      alert("Cloud Sync is not connected. The shared Daily tracker was NOT reset.");
+      setSyncBadge("⚠️ Cloud Sync offline — reset not performed");
       return;
     }
+
     try {
-      // Archive the local current day first, then reset the CENTRAL table.
-      syncCurrentDayToHistory();
-      saveLocalState();
-      const count = await gbCentralRPC('gb_focus_follow_reset', { p_client_id: CLIENT_ID });
-      const rows = await gbSupabase.from(GB_SUPABASE_TABLE)
-        .select('*').eq('removed', false);
-      if (rows.error) throw rows.error;
-      data = (rows.data || []).map(gbDbToMember);
+      // Preserve this device's current live day in local history before the
+      // central live rows are zeroed. The central table remains the single
+      // source of truth for the live Daily board.
+      try { syncCurrentDayToHistory(); } catch (e) { syncWarn("History snapshot before reset failed", e); }
+
+      const resetTs = new Date().toISOString();
+
+      // Prefer the server-side atomic reset function. This updates every active
+      // GB member in one database operation, so no iPad can "win" with an old
+      // full-state snapshot.
+      let rpcResult = null;
+      let rpcError = null;
+      try {
+        const result = await gbSupabase.rpc("gb_focus_follow_reset", {
+          p_client_id: CLIENT_ID
+        });
+        rpcResult = result.data;
+        rpcError = result.error;
+      } catch (e) {
+        rpcError = e;
+      }
+
+      // If the RPC is missing/not deployed, perform the same reset directly
+      // against the central table. This is still a single server-side update.
+      if (rpcError) {
+        syncWarn("Reset RPC unavailable; using direct central reset", rpcError);
+        const { data: rows, error: directError } = await gbSupabase
+          .from(GB_SUPABASE_TABLE)
+          .update({
+            checked_in: false,
+            ac: 0,
+            upgrade: 0,
+            services: 0,
+            biz: 0,
+            acc: 0,
+            step: "",
+            notes: "",
+            updated_at: resetTs,
+            updated_by: CLIENT_ID
+          })
+          .eq("removed", false)
+          .select("*");
+
+        if (directError) throw directError;
+        rpcResult = rows ? rows.length : 0;
+      }
+
+      // Read the authoritative post-reset state back from Supabase. Never
+      // rebuild the live board from this iPad's old local copy.
+      const { data: rows, error: readError } = await gbSupabase
+        .from(GB_SUPABASE_TABLE)
+        .select("*")
+        .eq("removed", false)
+        .order("name", { ascending: true });
+
+      if (readError) throw readError;
+
+      gbHydrating = true;
+      data = (rows || []).map(gbDbToMember).filter(m => !isMemberTombstoned(m.id));
+      lastVersion = Math.max(0, ...data.map(m => Number(m.rev || 0)));
       saveLocalState();
       renderTableStructure();
       updateTotals();
       scheduleReorder();
-      setSyncBadge(`🧹 Cloud Reset — ${(rows.data || []).length} members cleared`);
-      flashSyncBadge('🧹 Live Day Reset Across All iPads');
-      syncLog('CENTRAL RESET SUCCESS', { membersReset: count });
+      gbHydrating = false;
+
+      setSyncBadge(`🧹 Daily Reset Complete — ${data.length} members`);
+      flashSyncBadge("🧹 Daily Reset Across ALL iPads");
+      syncLog("CENTRAL DAILY RESET SUCCESS", {
+        membersReset: rpcResult,
+        historyPreserved: true
+      });
     } catch (e) {
-      syncWarn('CENTRAL RESET FAILED', e);
-      alert('Cloud Reset Day failed: ' + (e.message || 'database error'));
+      gbHydrating = false;
+      syncWarn("CENTRAL DAILY RESET FAILED", e);
+      setSyncBadge("⚠️ Daily Reset Failed");
+      alert(
+        "Daily Reset failed and NO shared reset was completed.\n\n" +
+        (e && e.message ? e.message : "Database error")
+      );
     }
   }
 
