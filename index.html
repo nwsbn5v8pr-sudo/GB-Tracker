@@ -5,7 +5,33 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
 <title>🧰GB Focus & Follow 🆙</title>
 <!-- Lightweight MQTT over WebSockets for Instant Serverless Cloud Sync -->
-<script src="https://unpkg.com/mqtt/dist/mqtt.min.js"></script>
+<script src="https://unpkg.com/mqtt/dist/mqtt.min.js"></script><script>
+(function () {
+  function toggle() {
+    var m=document.getElementById('moreMenu'), b=document.getElementById('moreMenuButton');
+    if (!m) return;
+    var open=!m.classList.contains('open');
+    m.classList.toggle('open',open);
+    if (b) b.setAttribute('aria-expanded',open?'true':'false');
+  }
+  window.toggleMoreMenu=toggle;
+  window.closeMoreMenu=function(){
+    var m=document.getElementById('moreMenu'), b=document.getElementById('moreMenuButton');
+    if(m)m.classList.remove('open');
+    if(b)b.setAttribute('aria-expanded','false');
+  };
+  document.addEventListener('click',function(e){
+    var b=e.target.closest&&e.target.closest('#moreMenuButton');
+    var m=e.target.closest&&e.target.closest('#moreMenu');
+    if(b){e.preventDefault();e.stopPropagation();toggle();}
+    else if(!m) window.closeMoreMenu();
+  },true);
+  document.addEventListener('touchend',function(e){
+    var b=e.target.closest&&e.target.closest('#moreMenuButton');
+    if(b){e.preventDefault();e.stopPropagation();toggle();}
+  },{passive:false});
+})();
+</script>
 <script>
 (function () {
   function menu() { return document.getElementById('moreMenu'); }
@@ -1889,7 +1915,7 @@
     if (isLive) {
       tr.innerHTML = `
         <td class="col-sticky">
-          <div class="name-cell-wrap" onclick="toggleCheckIn(${p.id})">
+          <div class="name-cell-wrap" onclick="toggleCheckIn(${JSON.stringify(p.id)})">
             <span class="chk-badge" id="chk-badge-${p.id}">${p.checkedIn ? '✅' : '◻️'}</span>
             <div class="name-cell">
               <span class="member-name" id="name-${p.id}">${escapeHtml(p.name)}</span>
@@ -1900,34 +1926,34 @@
         <td style="text-align:center;" id="val-slam-${p.id}"></td>
         <td style="text-align:center;">
           <div class="counter-box">
-            <button type="button" class="cnt-btn minus" onclick="event.stopPropagation(); updateCounts(${p.id}, 'ac', -1)">−</button>
-            <span class="cnt-val" id="val-ac-${p.id}" title="Tap to set exact total" onclick="event.stopPropagation(); setExactValue(${p.id}, 'ac')">${p.ac}</span>
-            <button type="button" class="cnt-btn plus" onclick="event.stopPropagation(); updateCounts(${p.id}, 'ac', 1)">+</button>
+            <button type="button" class="cnt-btn minus" onclick="event.stopPropagation(); updateCounts(${JSON.stringify(p.id)}, 'ac', -1)">−</button>
+            <span class="cnt-val" id="val-ac-${p.id}" title="Tap to set exact total" onclick="event.stopPropagation(); setExactValue(${JSON.stringify(p.id)}, 'ac')">${p.ac}</span>
+            <button type="button" class="cnt-btn plus" onclick="event.stopPropagation(); updateCounts(${JSON.stringify(p.id)}, 'ac', 1)">+</button>
           </div>
         </td>
         <td style="text-align:center;">
           <div class="counter-box">
-            <button type="button" class="cnt-btn minus" onclick="event.stopPropagation(); updateCounts(${p.id}, 'pz', -1)">−</button>
-            <span class="cnt-val" id="val-pz-${p.id}" title="Tap to set exact total" onclick="event.stopPropagation(); setExactValue(${p.id}, 'pz')">${p.pz}</span>
-            <button type="button" class="cnt-btn plus" onclick="event.stopPropagation(); updateCounts(${p.id}, 'pz', 1)">+</button>
+            <button type="button" class="cnt-btn minus" onclick="event.stopPropagation(); updateCounts(${JSON.stringify(p.id)}, 'pz', -1)">−</button>
+            <span class="cnt-val" id="val-pz-${p.id}" title="Tap to set exact total" onclick="event.stopPropagation(); setExactValue(${JSON.stringify(p.id)}, 'pz')">${p.pz}</span>
+            <button type="button" class="cnt-btn plus" onclick="event.stopPropagation(); updateCounts(${JSON.stringify(p.id)}, 'pz', 1)">+</button>
           </div>
         </td>
         <td style="text-align:center;">
           <div class="counter-box">
-            <button type="button" class="cnt-btn minus" onclick="event.stopPropagation(); updateCounts(${p.id}, 'biz', -1)">−</button>
-            <span class="cnt-val" id="val-biz-${p.id}" title="Tap to set exact total" onclick="event.stopPropagation(); setExactValue(${p.id}, 'biz')">${p.biz}</span>
-            <button type="button" class="cnt-btn plus" onclick="event.stopPropagation(); updateCounts(${p.id}, 'biz', 1)">+</button>
+            <button type="button" class="cnt-btn minus" onclick="event.stopPropagation(); updateCounts(${JSON.stringify(p.id)}, 'biz', -1)">−</button>
+            <span class="cnt-val" id="val-biz-${p.id}" title="Tap to set exact total" onclick="event.stopPropagation(); setExactValue(${JSON.stringify(p.id)}, 'biz')">${p.biz}</span>
+            <button type="button" class="cnt-btn plus" onclick="event.stopPropagation(); updateCounts(${JSON.stringify(p.id)}, 'biz', 1)">+</button>
           </div>
         </td>
         <td style="text-align:center;">
           <div class="counter-box">
-            <button type="button" class="cnt-btn minus" onclick="event.stopPropagation(); updateCounts(${p.id}, 'acc', -1)">−</button>
-            <span class="cnt-val" id="val-acc-${p.id}" title="Tap to set exact total" onclick="event.stopPropagation(); setExactValue(${p.id}, 'acc')">${p.acc}</span>
-            <button type="button" class="cnt-btn plus" onclick="event.stopPropagation(); updateCounts(${p.id}, 'acc', 1)">+</button>
+            <button type="button" class="cnt-btn minus" onclick="event.stopPropagation(); updateCounts(${JSON.stringify(p.id)}, 'acc', -1)">−</button>
+            <span class="cnt-val" id="val-acc-${p.id}" title="Tap to set exact total" onclick="event.stopPropagation(); setExactValue(${JSON.stringify(p.id)}, 'acc')">${p.acc}</span>
+            <button type="button" class="cnt-btn plus" onclick="event.stopPropagation(); updateCounts(${JSON.stringify(p.id)}, 'acc', 1)">+</button>
           </div>
         </td>
         <td style="text-align:center;">
-          <select class="step-select" id="step-${p.id}" onchange="saveStep(${p.id}, this.value)">
+          <select class="step-select" id="step-${p.id}" onchange="saveStep(${JSON.stringify(p.id)}, this.value)">
             <option value="">-- None --</option>
             <option value="Approach" ${p.step === 'Approach' ? 'selected' : ''}>Approach</option>
             <option value="Probe" ${p.step === 'Probe' ? 'selected' : ''}>Probe</option>
@@ -1937,7 +1963,7 @@
           </select>
         </td>
         <td>
-          <textarea class="notes-input" id="notes-${p.id}" rows="1" placeholder="Add note / focus..." onclick="event.stopPropagation()" onfocus="beginNoteEdit(this)" oninput="saveNote(${p.id}, this.value)" onblur="endNoteEdit(this)">${escapeHtml(p.notes || '')}</textarea>
+          <textarea class="notes-input" id="notes-${p.id}" rows="1" placeholder="Add note / focus..." onclick="event.stopPropagation()" onfocus="beginNoteEdit(this)" oninput="saveNote(${JSON.stringify(p.id)}, this.value)" onblur="endNoteEdit(this)">${escapeHtml(p.notes || '')}</textarea>
         </td>
       `;
     } else if (isPrior) {
@@ -2744,134 +2770,6 @@
   }
 
 
-  function addTeamMember() {
-    const name = prompt("Enter the team member's name:");
-    if (!name || !name.trim()) return;
-
-    const role = prompt(
-      "Enter role:\n\n" +
-      "Genius\nGenius Admin\nTechnical Expert\nTechnical Specialist"
-    );
-    if (!role || !role.trim()) return;
-
-    const cleanName = name.trim();
-    const cleanRole = role.trim();
-
-    if (data.some(m => m.name.toLowerCase() === cleanName.toLowerCase())) {
-      alert("That team member is already on the tracker.");
-      return;
-    }
-
-    pushUndoState();
-
-    // Use a stable unique id so additions synchronize safely between iPads.
-    const newId = 'member_' + Date.now().toString(36) + '_' +
-      Math.random().toString(36).slice(2, 8);
-
-    const member = createFreshMember({
-      name: cleanName,
-      role: cleanRole
-    }, newId);
-    member.id = newId;
-
-    data.push(member);
-    lastVersion = nextVersion();
-    saveLocalState();
-    renderTableStructure();
-    updateTotals();
-    scheduleReorder();
-    publishState('add-member');
-
-    flashAutoSaveBadge('➕ Team Member Added');
-  }
-
-  function removeTeamMember() {
-    if (!data.length) {
-      alert("There are no team members to remove.");
-      return;
-    }
-
-    const names = data.map((m, i) => `${i + 1}. ${m.name} (${m.role})`).join('\n');
-    const choice = prompt(
-      "Enter the NUMBER of the team member to remove:\n\n" + names
-    );
-
-    if (choice === null) return;
-
-    const index = Number(choice) - 1;
-    if (!Number.isInteger(index) || index < 0 || index >= data.length) {
-      alert("Please enter a valid team member number.");
-      return;
-    }
-
-    const member = data[index];
-
-    if (!confirm(
-      `Remove ${member.name} from the tracker?\n\n` +
-      "This removes the person from the active team roster on the synced tracker."
-    )) return;
-
-    pushUndoState();
-
-    // Broadcast the removal as an explicit roster operation. Other iPads
-    // remove the same member instead of rebuilding from an old full roster.
-    const removedId = member.id;
-    const removeTs = nextVersion();
-    tombstoneMember(removedId, member.name, removeTs, CLIENT_ID);
-    data.splice(index, 1);
-
-    lastVersion = removeTs;
-    saveLocalState();
-    renderTableStructure();
-    updateTotals();
-    scheduleReorder();
-
-    try {
-      if (mqttReady()) {
-        mqttClient.publish(TOPIC_STATE, JSON.stringify({
-          type: 'team-member-remove',
-          clientId: CLIENT_ID,
-          msgId: newMsgId(),
-          memberId: removedId,
-          memberName: member.name,
-          ts: removeTs,
-          tombstone: {
-            id: String(removedId),
-            name: member.name,
-            ts: removeTs,
-            by: CLIENT_ID
-          }
-        }), PUB_OPTS);
-      }
-    } catch (e) {
-      syncWarn('TEAM MEMBER REMOVE PUBLISH FAILED', e);
-    }
-
-    flashAutoSaveBadge('➖ Team Member Removed');
-  }
-
-  function resetCounts() {
-    if(!confirm("RESET TODAY'S LIVE TRACKER ON ALL IPADS?\n\nThis clears today's check-ins, metrics, steps, and notes across all connected/reconnecting iPads.\n\nHistorical / previous-day records will NOT be deleted.")) return;
-    if(!mqttReady()){
-      setSyncBadge('⚠️ MQTT offline — cannot reset all iPads');
-      alert('Cloud Sync is offline. The room-wide reset was not performed.');
-      return;
-    }
-    const resetTs=Date.now(), resetId=newMsgId(), resetDay=activeShiftDate||getTodayString();
-    applyRoomReset(resetId,resetTs,resetDay,CLIENT_ID);
-    try {
-      mqttClient.publish(TOPIC_STATE,JSON.stringify({
-        type:'delta_reset_day',clientId:CLIENT_ID,msgId:resetId,date:resetDay,
-        ts:resetTs,roomResetId:resetId,historyPreserved:true
-      }),PUB_OPTS);
-      setSyncBadge('🧹 Reset Sent to All iPads');
-      syncLog('ROOM RESET PUBLISHED',{resetId,resetDay,historyPreserved:true});
-    } catch(e) {
-      setSyncBadge('⚠️ Local reset applied; room reset send failed');
-      syncWarn('ROOM RESET PUBLISH FAILED',e);
-    }
-  }
-
   function exportCSV() {
     const list = getDisplayList();
     const isLive = (currentTab === 'daily');
@@ -3422,13 +3320,24 @@
       "Historical / previous-day records will NOT be deleted."
     )) return;
 
-    if (!gbCentralReady || !gbSupabase) {
-      alert("Cloud Sync is not connected. The shared Daily tracker was NOT reset.");
-      setSyncBadge("⚠️ Cloud Sync offline — reset not performed");
+    // The Supabase client can be initialized while Realtime is still
+    // negotiating its channel. Do not fail the reset just because the
+    // readiness flag has not flipped yet. A real database request below is
+    // still required to succeed before we report a reset.
+    if (!gbSupabase) {
+      alert("Cloud Sync is not available on this iPad. The shared Daily tracker was NOT reset.");
+      setSyncBadge("⚠️ Cloud Sync unavailable — reset not performed");
       return;
     }
 
     try {
+      if (!gbCentralReady) {
+        setSyncBadge("🔄 Connecting to Cloud before Reset…");
+        const deadline = Date.now() + 8000;
+        while (!gbCentralReady && Date.now() < deadline) {
+          await new Promise(resolve => setTimeout(resolve, 150));
+        }
+      }
       // Preserve this device's current live day in local history before the
       // central live rows are zeroed. The central table remains the single
       // source of truth for the live Daily board.
@@ -3455,7 +3364,7 @@
       // against the central table. This is still a single server-side update.
       if (rpcError) {
         syncWarn("Reset RPC unavailable; using direct central reset", rpcError);
-        const { data: rows, error: directError } = await gbSupabase
+        let direct = await gbSupabase
           .from(GB_SUPABASE_TABLE)
           .update({
             checked_in: false,
@@ -3472,8 +3381,26 @@
           .eq("removed", false)
           .select("*");
 
-        if (directError) throw directError;
-        rpcResult = rows ? rows.length : 0;
+        if (direct.error) {
+          syncWarn("Full direct reset update failed; retrying live fields only", direct.error);
+          direct = await gbSupabase
+            .from(GB_SUPABASE_TABLE)
+            .update({
+              checked_in: false,
+              ac: 0,
+              upgrade: 0,
+              services: 0,
+              biz: 0,
+              acc: 0,
+              step: "",
+              notes: ""
+            })
+            .eq("removed", false)
+            .select("*");
+        }
+
+        if (direct.error) throw direct.error;
+        rpcResult = direct.data ? direct.data.length : 0;
       }
 
       // Read the authoritative post-reset state back from Supabase. Never
@@ -3485,6 +3412,20 @@
         .order("name", { ascending: true });
 
       if (readError) throw readError;
+
+      const uncleared = (rows || []).filter(r =>
+        !!r.checked_in ||
+        Number(r.ac || 0) !== 0 ||
+        Number(r.upgrade || 0) !== 0 ||
+        Number(r.services || 0) !== 0 ||
+        Number(r.biz || 0) !== 0 ||
+        Number(r.acc || 0) !== 0 ||
+        String(r.step || '') !== '' ||
+        String(r.notes || '') !== ''
+      );
+      if (uncleared.length) {
+        throw new Error(`Cloud reset verification failed: ${uncleared.length} member(s) still have live data.`);
+      }
 
       gbHydrating = true;
       data = (rows || []).map(gbDbToMember).filter(m => !isMemberTombstoned(m.id));
@@ -3503,6 +3444,7 @@
       });
     } catch (e) {
       gbHydrating = false;
+      gbCentralReady = !!gbSupabase;
       syncWarn("CENTRAL DAILY RESET FAILED", e);
       setSyncBadge("⚠️ Daily Reset Failed");
       alert(
