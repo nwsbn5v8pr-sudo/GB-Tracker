@@ -5,50 +5,77 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
 <title>🧰GB Focus & Follow 🆙</title>
 <!-- Lightweight MQTT over WebSockets for Instant Serverless Cloud Sync -->
-<script src="https://unpkg.com/mqtt/dist/mqtt.min.js">function toggleMoreMenu(event) {
+<script src="https://unpkg.com/mqtt/dist/mqtt.min.js"></script>
+
+<script>
+(function () {
+  function getMoreMenu() {
+    return document.getElementById('moreMenu');
+  }
+  function getMoreButton() {
+    return document.getElementById('moreMenuButton');
+  }
+  window.toggleMoreMenu = function (event) {
     if (event) {
       event.preventDefault();
       event.stopPropagation();
     }
-    const menu = document.getElementById('moreMenu');
-    const btn = document.getElementById('moreMenuButton');
+    var menu = getMoreMenu();
+    var button = getMoreButton();
     if (!menu) return false;
-    const willOpen = !menu.classList.contains('open');
-    menu.classList.toggle('open', willOpen);
-    if (btn) btn.setAttribute('aria-expanded', willOpen ? 'true' : 'false');
+    var open = !menu.classList.contains('open');
+    menu.classList.toggle('open', open);
+    if (button) button.setAttribute('aria-expanded', open ? 'true' : 'false');
     return false;
-  }
-
-  function closeMoreMenu() {
-    const menu = document.getElementById('moreMenu');
-    const btn = document.getElementById('moreMenuButton');
+  };
+  window.closeMoreMenu = function () {
+    var menu = getMoreMenu();
+    var button = getMoreButton();
     if (menu) menu.classList.remove('open');
-    if (btn) btn.setAttribute('aria-expanded', 'false');
+    if (button) button.setAttribute('aria-expanded', 'false');
+  };
+
+  function bindMoreMenu() {
+    var button = getMoreButton();
+    if (!button || button.dataset.moreBound === '1') return;
+    button.dataset.moreBound = '1';
+
+    // Pointer events are reliable on iPad Safari and desktop.
+    button.addEventListener('pointerup', function (e) {
+      e.preventDefault();
+      e.stopPropagation();
+      window.toggleMoreMenu(e);
+    }, { passive: false });
+
+    // Fallback for older iPad WebKit.
+    button.addEventListener('touchend', function (e) {
+      e.preventDefault();
+      e.stopPropagation();
+      window.toggleMoreMenu(e);
+    }, { passive: false });
   }
-  document.addEventListener('click', function(e) {
-    if (!e.target.closest('.more-menu-wrap')) closeMoreMenu();
-  });
 
-  
-
-  document.addEventListener('click', function(e) {
-    const btn = e.target.closest ? e.target.closest('#moreMenuButton') : null;
-    const menu = e.target.closest ? e.target.closest('#moreMenu') : null;
-    if (btn) {
-      toggleMoreMenu(e);
-      return;
+  document.addEventListener('click', function (e) {
+    var button = e.target.closest ? e.target.closest('#moreMenuButton') : null;
+    var menu = e.target.closest ? e.target.closest('#moreMenu') : null;
+    if (button) {
+      e.preventDefault();
+      e.stopPropagation();
+      window.toggleMoreMenu(e);
+    } else if (!menu) {
+      window.closeMoreMenu();
     }
-    if (!menu) closeMoreMenu();
   }, true);
 
-  document.addEventListener('touchend', function(e) {
-    const btn = e.target.closest ? e.target.closest('#moreMenuButton') : null;
-    if (btn) {
-      e.preventDefault();
-      toggleMoreMenu(e);
-    }
-  }, {passive:false});
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', bindMoreMenu);
+  } else {
+    bindMoreMenu();
+  }
+  setTimeout(bindMoreMenu, 500);
+})();
 </script>
+
 <style>
   :root {
     --bg-primary: #f2f2f7;
@@ -140,7 +167,8 @@
     display: none;
     position: fixed;
     right: 12px;
-    top: 76px;
+    top: max(70px, env(safe-area-inset-top));
+
     min-width: 210px;
     max-height: 70vh;
     overflow-y: auto;
