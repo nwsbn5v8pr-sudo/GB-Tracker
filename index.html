@@ -1068,7 +1068,7 @@
      older topic. We also never publish retained state ourselves (retain:false),
      so retained snapshots can never resurrect old data again.
      ============================================================ */
-  const APP_VERSION_TAG = "v21";
+  const APP_VERSION_TAG = "v22";
   const STORAGE_KEY_LIVE    = `gb_focus_follow_live_${APP_VERSION_TAG}`;
   const STORAGE_KEY_HISTORY = `gb_focus_follow_history_${APP_VERSION_TAG}`;
   const STORAGE_KEY_CLIENT  = "gb_focus_follow_client_id";   // survives reloads
@@ -3561,6 +3561,20 @@ const INITIAL_ROSTER = [
             p_delta: delta,
             p_client_id: CLIENT_ID
           });
+          // A positive metric means the team member worked and must be checked in.
+          // If the central RPC returns an older checked_in=false row, immediately
+          // persist the check-in as a separate patch so the realtime state cannot
+          // undo the user's + tap.
+          if (delta > 0 && row && !row.checked_in) {
+            const checkedRow = await gbCentralRPC('gb_focus_follow_patch', {
+              p_id: String(payload.id),
+              p_checked_in: true,
+              p_step: null,
+              p_notes: null,
+              p_client_id: CLIENT_ID
+            });
+            if (checkedRow) await gbApplyRealtimeRow(checkedRow);
+          }
           if (row) await gbApplyRealtimeRow(row);
         } else if (payload.type === 'delta_set_exact') {
           const metric = payload.metric === 'pz' ? 'upgrade' : payload.metric;
@@ -3571,7 +3585,19 @@ const INITIAL_ROSTER = [
             p_value: exactValue,
             p_client_id: CLIENT_ID
           });
-          if (row) await gbApplyRealtimeRow(row);
+          if (row) {
+            await gbApplyRealtimeRow(row);
+            if (exactValue > 0 && !row.checked_in) {
+              const checkedRow = await gbCentralRPC('gb_focus_follow_patch', {
+                p_id: String(payload.id),
+                p_checked_in: true,
+                p_step: null,
+                p_notes: null,
+                p_client_id: CLIENT_ID
+              });
+              if (checkedRow) await gbApplyRealtimeRow(checkedRow);
+            }
+          }
         } else if (payload.type === 'delta_checkin') {
           await gbCentralRPC('gb_focus_follow_patch', {
             p_id: String(payload.id),
