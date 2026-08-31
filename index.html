@@ -6,7 +6,49 @@
 <title>🧰GB Focus & Follow 🆙</title>
 <!-- Lightweight MQTT over WebSockets for Instant Serverless Cloud Sync -->
 <script src="https://unpkg.com/mqtt/dist/mqtt.min.js"></script>
+<script>
+(function () {
+  function menu() { return document.getElementById('moreMenu'); }
+  function button() { return document.getElementById('moreMenuButton'); }
 
+  window.toggleMoreMenu = function (e) {
+    if (e) { e.preventDefault(); e.stopPropagation(); }
+    var m = menu(), b = button();
+    if (!m) return false;
+    var open = !m.classList.contains('open');
+    m.classList.toggle('open', open);
+    if (b) b.setAttribute('aria-expanded', open ? 'true' : 'false');
+    return false;
+  };
+
+  window.closeMoreMenu = function () {
+    var m = menu(), b = button();
+    if (m) m.classList.remove('open');
+    if (b) b.setAttribute('aria-expanded', 'false');
+  };
+
+  document.addEventListener('click', function (e) {
+    var b = e.target.closest && e.target.closest('#moreMenuButton');
+    var m = e.target.closest && e.target.closest('#moreMenu');
+    if (b) {
+      e.preventDefault();
+      e.stopPropagation();
+      window.toggleMoreMenu(e);
+    } else if (!m) {
+      window.closeMoreMenu();
+    }
+  }, true);
+
+  document.addEventListener('touchend', function (e) {
+    var b = e.target.closest && e.target.closest('#moreMenuButton');
+    if (b) {
+      e.preventDefault();
+      e.stopPropagation();
+      window.toggleMoreMenu(e);
+    }
+  }, {passive:false});
+})();
+</script>
 
 <style>
   :root {
@@ -787,67 +829,8 @@
     margin-top: 14px;
     text-align: center;
   }
-  /* Clean iPad action bar: five top-level controls. */
-  .top-bar > .btn-group {
-    display: flex;
-    align-items: center;
-    gap: 6px;
-    flex-wrap: nowrap;
-  }
-  .top-bar > .btn-group > button,
-  .top-bar > .btn-group > .more-menu-wrap { flex: 0 0 auto; }
-  @media (max-width: 900px) {
-    .top-bar > .btn-group {
-      width: 100%;
-      overflow-x: auto;
-      -webkit-overflow-scrolling: touch;
-      scrollbar-width: none;
-      padding-bottom: 2px;
-    }
-    .top-bar > .btn-group::-webkit-scrollbar { display: none; }
-  }
 </style>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-<script>
-(function () {
-  window.toggleMoreMenu = function (event) {
-    if (event) { event.preventDefault(); event.stopPropagation(); }
-    var menu = document.getElementById('moreMenu');
-    var button = document.getElementById('moreMenuButton');
-    if (!menu) return false;
-    var open = !menu.classList.contains('open');
-    menu.classList.toggle('open', open);
-    if (button) button.setAttribute('aria-expanded', open ? 'true' : 'false');
-    return false;
-  };
-  window.closeMoreMenu = function () {
-    var menu = document.getElementById('moreMenu');
-    var button = document.getElementById('moreMenuButton');
-    if (menu) menu.classList.remove('open');
-    if (button) button.setAttribute('aria-expanded', 'false');
-  };
-
-  function bindMoreMenu() {
-    var button = document.getElementById('moreMenuButton');
-    if (!button || button.dataset.bound === '1') return;
-    button.dataset.bound = '1';
-    button.addEventListener('click', window.toggleMoreMenu);
-  }
-
-  document.addEventListener('click', function(e) {
-    var menu = e.target.closest ? e.target.closest('#moreMenu') : null;
-    var button = e.target.closest ? e.target.closest('#moreMenuButton') : null;
-    if (!button && !menu) window.closeMoreMenu();
-  });
-
-  if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', bindMoreMenu);
-  } else {
-    bindMoreMenu();
-  }
-  setTimeout(bindMoreMenu, 500);
-})();
-</script>
 </head>
 <body>
 
@@ -858,10 +841,7 @@
       <span class="sync-badge" id="syncStatus">🔄 Connecting Cloud Sync...</span>
       <span class="sync-badge" id="autoSaveBadge">💾 Real-Time Sync</span>
     </div>
-    <div class="btn-group">
-      <button class="secondary" id="btnAddMember" onclick="addTeamMember()" title="Add new team member">➕ Add Team Member</button>
-      <button class="danger" id="btnRemoveMember" onclick="removeTeamMember()" title="Permanently remove team member">➖ Remove Team Member</button>
-      <button class="secondary" id="btnUndo" onclick="undoAction()" title="Undo prior action">↩️ Undo</button>
+    <div class="btn-group">      <button class="secondary" id="btnUndo" onclick="undoAction()" title="Undo prior action">↩️ Undo</button>
       <button class="secondary daily-live-btn" id="btnDailyLive" onclick="switchTab('daily')" title="Return to today's live tracker">📅 Daily (Live)</button>
       <div class="more-menu-wrap">
         <button class="secondary more-menu-btn" type="button" id="moreMenuButton" aria-haspopup="true" aria-expanded="false">⋯ More</button>
@@ -877,8 +857,7 @@
           <button type="button" onclick="lockTrackerNow();closeMoreMenu()">🔒 Lock</button>
           <button type="button" class="menu-danger" onclick="resetCounts();closeMoreMenu()">🔄 Reset Day</button>
         </div>
-      </div>
-    </div>
+      </div></div>
   </div>
 
   <!-- Timeframe Navigation Tabs -->
@@ -1089,7 +1068,7 @@
      older topic. We also never publish retained state ourselves (retain:false),
      so retained snapshots can never resurrect old data again.
      ============================================================ */
-  const APP_VERSION_TAG = "v15";
+  const APP_VERSION_TAG = "v14";
   const STORAGE_KEY_LIVE    = `gb_focus_follow_live_${APP_VERSION_TAG}`;
   const STORAGE_KEY_HISTORY = `gb_focus_follow_history_${APP_VERSION_TAG}`;
   const STORAGE_KEY_CLIENT  = "gb_focus_follow_client_id";   // survives reloads
@@ -1427,26 +1406,6 @@
     }
   }
 
-  // Privacy-safe team-member display name.
-  // Examples: "Cesar Lopez B" -> "Cesar LB."
-  //           "Dennise Juarez A" -> "Dennise JA."
-  //           "Robert Bravo"   -> "Robert B."
-  function formatMemberName(fullName) {
-    const raw = String(fullName || '').trim();
-    if (!raw) return '';
-    const parts = raw.split(/\s+/).filter(Boolean);
-    if (parts.length === 1) return parts[0];
-    if (parts.length === 2) {
-      const initial = parts[1].replace(/[^A-Za-zÀ-ÖØ-öø-ÿ'-]/g, '').charAt(0).toUpperCase();
-      return initial ? `${parts[0]} ${initial}.` : parts[0];
-    }
-    const lastTwo = parts.slice(-2)
-      .map(part => part.replace(/[^A-Za-zÀ-ÖØ-öø-ÿ'-]/g, '').charAt(0).toUpperCase())
-      .filter(Boolean)
-      .join('');
-    return lastTwo ? `${parts[0]} ${lastTwo}.` : parts[0];
-  }
-
   function escapeHtml(str) {
     if (!str) return '';
     return String(str)
@@ -1583,11 +1542,13 @@
 
   function saveLocalState() {
     try {
+      const liveDay = activeShiftDate || getTodayString();
       localStorage.setItem(STORAGE_KEY_LIVE, JSON.stringify({ 
-        date: activeShiftDate || getTodayString(), 
+        date: liveDay,
         data: data, 
         version: lastVersion 
       }));
+      localStorage.setItem(STORAGE_KEY_LIVE_DAY, liveDay);
       localStorage.setItem(STORAGE_KEY_HISTORY, JSON.stringify(historyRecords));
     } catch(e) {
       syncWarn('saveLocalState failed', e);
@@ -1601,41 +1562,10 @@
      handler, so an MQTT reconnect at 2 PM can never reset the daily board.
      ============================================================ */
   function checkDayRollover() {
-    const today = getTodayString();
-    if (!activeShiftDate) { activeShiftDate = today; return; }
-    if (activeShiftDate === today) return;               // same day: do nothing
-
-    const closingDate = activeShiftDate;
-    const hasActiveData = data.some(d => d.checkedIn || d.ac > 0 || d.pz > 0 || d.biz > 0 || d.acc > 0 || d.notes || d.step);
-    syncLog('DATE CHANGED — rolling over', { from: closingDate, to: today, hadData: hasActiveData });
-
-    if (hasActiveData) {
-      const existingIdx = historyRecords.findIndex(r => r.date === closingDate);
-      const finalSnapshot = {
-        id: 'hist_' + closingDate,
-        date: closingDate,
-        timestamp: Date.now(),
-        finalized: true,
-        data: JSON.parse(JSON.stringify(data))
-      };
-      if (existingIdx >= 0) {
-        historyRecords[existingIdx] = finalSnapshot;
-      } else {
-        historyRecords.unshift(finalSnapshot);
-      }
-      historyRecords.sort((a, b) => (b.date > a.date ? 1 : (b.date < a.date ? -1 : 0)));
-    }
-
-    // Start a fresh live shift for today
-    data = []; // Start empty; users add the current team members.
-    activeShiftDate = today;
-    lastVersion = nextVersion();
-    saveLocalState();
-    renderTableStructure();
-    updateTotals();
-    reorderRows();
-    flashAutoSaveBadge(`📅 ${closingDate} Archived → New Shift (${today})`);
-    publishState('day-rollover');
+    // Daily rollover is now handled by the cloud-backed 9:01 PM archive engine
+    // below. This legacy hook intentionally NEVER clears the live board on a
+    // calendar change; midnight/date changes must not erase an unarchived shift.
+    return;
   }
 
   function scheduleReorder() {
@@ -1886,22 +1816,22 @@
 
     // Top AppleCare+
     const topAc = getTopSpecialist('ac');
-    document.getElementById('lead-ac-name').textContent = topAc ? formatMemberName(topAc.name) : '—';
+    document.getElementById('lead-ac-name').textContent = topAc ? topAc.name : '—';
     document.getElementById('lead-ac-val').textContent = topAc ? `${topAc.ac} AppleCare+` : '0 attaches';
 
     // Top PZ Conversion
     const topPz = getTopSpecialist('pz');
-    document.getElementById('lead-pz-name').textContent = topPz ? formatMemberName(topPz.name) : '—';
+    document.getElementById('lead-pz-name').textContent = topPz ? topPz.name : '—';
     document.getElementById('lead-pz-val').textContent = topPz ? `${topPz.pz} PZ Converted` : '0 conversions';
 
     // Top Business
     const topBiz = getTopSpecialist('biz');
-    document.getElementById('lead-biz-name').textContent = topBiz ? formatMemberName(topBiz.name) : '—';
+    document.getElementById('lead-biz-name').textContent = topBiz ? topBiz.name : '—';
     document.getElementById('lead-biz-val').textContent = topBiz ? `${topBiz.biz} Leads` : '0 leads';
 
     // Top Accessories
     const topAcc = getTopSpecialist('acc');
-    document.getElementById('lead-acc-name').textContent = topAcc ? formatMemberName(topAcc.name) : '—';
+    document.getElementById('lead-acc-name').textContent = topAcc ? topAcc.name : '—';
     document.getElementById('lead-acc-val').textContent = topAcc ? `${topAcc.acc} Accessories` : '0 units';
 
     // Top Grand Slam Leader
@@ -1909,12 +1839,12 @@
     if (currentTab === 'daily' || currentTab === 'prior') {
       const slamSorted = [...list].map(p => ({ ...p, hits: getHitCount(p) })).filter(p => p.hits > 0).sort((a, b) => b.hits - a.hits || b.ac - a.ac);
       topSlam = slamSorted[0] || null;
-      document.getElementById('lead-slam-name').textContent = topSlam ? formatMemberName(topSlam.name) : '—';
+      document.getElementById('lead-slam-name').textContent = topSlam ? topSlam.name : '—';
       document.getElementById('lead-slam-val').textContent = topSlam ? (topSlam.hits === 4 ? '🏆 4/4 GRAND SLAM' : `${topSlam.hits}/4 Categories`) : '0 categories hit';
     } else {
       const slamSorted = [...list].filter(p => (p.slamsAchieved || 0) > 0).sort((a, b) => b.slamsAchieved - a.slamsAchieved || b.ac - a.ac);
       topSlam = slamSorted[0] || null;
-      document.getElementById('lead-slam-name').textContent = topSlam ? formatMemberName(topSlam.name) : '—';
+      document.getElementById('lead-slam-name').textContent = topSlam ? topSlam.name : '—';
       document.getElementById('lead-slam-val').textContent = topSlam ? `🏆 ${topSlam.slamsAchieved} Grand Slam${topSlam.slamsAchieved > 1 ? 's' : ''}` : '0 Grand Slams';
     }
   }
@@ -1930,10 +1860,10 @@
     if (isLive) {
       tr.innerHTML = `
         <td class="col-sticky">
-          <div class="name-cell-wrap" onclick="toggleCheckIn('${String(p.id).replace(/'/g, "\\'")}')">
+          <div class="name-cell-wrap" onclick="toggleCheckIn(${p.id})">
             <span class="chk-badge" id="chk-badge-${p.id}">${p.checkedIn ? '✅' : '◻️'}</span>
             <div class="name-cell">
-              <span class="member-name" id="name-${p.id}">${escapeHtml(formatMemberName(p.name))}</span>
+              <span class="member-name" id="name-${p.id}">${escapeHtml(p.name)}</span>
               <span class="role-tag">${escapeHtml(p.role)}</span>
             </div>
           </div>
@@ -1941,34 +1871,34 @@
         <td style="text-align:center;" id="val-slam-${p.id}"></td>
         <td style="text-align:center;">
           <div class="counter-box">
-            <button type="button" class="cnt-btn minus" onclick="event.stopPropagation(); updateCounts('${String(p.id).replace(/'/g, "\\'")}', 'ac', -1)">−</button>
-            <span class="cnt-val" id="val-ac-${p.id}" title="Tap to set exact total" onclick="event.stopPropagation(); setExactValue('${String(p.id).replace(/'/g, "\\'")}', 'ac')">${p.ac}</span>
-            <button type="button" class="cnt-btn plus" onclick="event.stopPropagation(); updateCounts('${String(p.id).replace(/'/g, "\\'")}', 'ac', 1)">+</button>
+            <button type="button" class="cnt-btn minus" onclick="event.stopPropagation(); updateCounts(${p.id}, 'ac', -1)">−</button>
+            <span class="cnt-val" id="val-ac-${p.id}" title="Tap to set exact total" onclick="event.stopPropagation(); setExactValue(${p.id}, 'ac')">${p.ac}</span>
+            <button type="button" class="cnt-btn plus" onclick="event.stopPropagation(); updateCounts(${p.id}, 'ac', 1)">+</button>
           </div>
         </td>
         <td style="text-align:center;">
           <div class="counter-box">
-            <button type="button" class="cnt-btn minus" onclick="event.stopPropagation(); updateCounts('${String(p.id).replace(/'/g, "\\'")}', 'pz', -1)">−</button>
-            <span class="cnt-val" id="val-pz-${p.id}" title="Tap to set exact total" onclick="event.stopPropagation(); setExactValue('${String(p.id).replace(/'/g, "\\'")}', 'pz')">${p.pz}</span>
-            <button type="button" class="cnt-btn plus" onclick="event.stopPropagation(); updateCounts('${String(p.id).replace(/'/g, "\\'")}', 'pz', 1)">+</button>
+            <button type="button" class="cnt-btn minus" onclick="event.stopPropagation(); updateCounts(${p.id}, 'pz', -1)">−</button>
+            <span class="cnt-val" id="val-pz-${p.id}" title="Tap to set exact total" onclick="event.stopPropagation(); setExactValue(${p.id}, 'pz')">${p.pz}</span>
+            <button type="button" class="cnt-btn plus" onclick="event.stopPropagation(); updateCounts(${p.id}, 'pz', 1)">+</button>
           </div>
         </td>
         <td style="text-align:center;">
           <div class="counter-box">
-            <button type="button" class="cnt-btn minus" onclick="event.stopPropagation(); updateCounts('${String(p.id).replace(/'/g, "\\'")}', 'biz', -1)">−</button>
-            <span class="cnt-val" id="val-biz-${p.id}" title="Tap to set exact total" onclick="event.stopPropagation(); setExactValue('${String(p.id).replace(/'/g, "\\'")}', 'biz')">${p.biz}</span>
-            <button type="button" class="cnt-btn plus" onclick="event.stopPropagation(); updateCounts('${String(p.id).replace(/'/g, "\\'")}', 'biz', 1)">+</button>
+            <button type="button" class="cnt-btn minus" onclick="event.stopPropagation(); updateCounts(${p.id}, 'biz', -1)">−</button>
+            <span class="cnt-val" id="val-biz-${p.id}" title="Tap to set exact total" onclick="event.stopPropagation(); setExactValue(${p.id}, 'biz')">${p.biz}</span>
+            <button type="button" class="cnt-btn plus" onclick="event.stopPropagation(); updateCounts(${p.id}, 'biz', 1)">+</button>
           </div>
         </td>
         <td style="text-align:center;">
           <div class="counter-box">
-            <button type="button" class="cnt-btn minus" onclick="event.stopPropagation(); updateCounts('${String(p.id).replace(/'/g, "\\'")}', 'acc', -1)">−</button>
-            <span class="cnt-val" id="val-acc-${p.id}" title="Tap to set exact total" onclick="event.stopPropagation(); setExactValue('${String(p.id).replace(/'/g, "\\'")}', 'acc')">${p.acc}</span>
-            <button type="button" class="cnt-btn plus" onclick="event.stopPropagation(); updateCounts('${String(p.id).replace(/'/g, "\\'")}', 'acc', 1)">+</button>
+            <button type="button" class="cnt-btn minus" onclick="event.stopPropagation(); updateCounts(${p.id}, 'acc', -1)">−</button>
+            <span class="cnt-val" id="val-acc-${p.id}" title="Tap to set exact total" onclick="event.stopPropagation(); setExactValue(${p.id}, 'acc')">${p.acc}</span>
+            <button type="button" class="cnt-btn plus" onclick="event.stopPropagation(); updateCounts(${p.id}, 'acc', 1)">+</button>
           </div>
         </td>
         <td style="text-align:center;">
-          <select class="step-select" id="step-${p.id}" onchange="saveStep('${String(p.id).replace(/'/g, "\\'")}', this.value)">
+          <select class="step-select" id="step-${p.id}" onchange="saveStep(${p.id}, this.value)">
             <option value="">-- None --</option>
             <option value="Approach" ${p.step === 'Approach' ? 'selected' : ''}>Approach</option>
             <option value="Probe" ${p.step === 'Probe' ? 'selected' : ''}>Probe</option>
@@ -1978,7 +1908,7 @@
           </select>
         </td>
         <td>
-          <textarea class="notes-input" id="notes-${p.id}" rows="1" placeholder="Add note / focus..." onclick="event.stopPropagation()" onfocus="beginNoteEdit(this)" oninput="saveNote('${String(p.id).replace(/'/g, "\\'")}', this.value)" onblur="endNoteEdit(this)">${escapeHtml(p.notes || '')}</textarea>
+          <textarea class="notes-input" id="notes-${p.id}" rows="1" placeholder="Add note / focus..." onclick="event.stopPropagation()" onfocus="beginNoteEdit(this)" oninput="saveNote(${p.id}, this.value)" onblur="endNoteEdit(this)">${escapeHtml(p.notes || '')}</textarea>
         </td>
       `;
     } else if (isPrior) {
@@ -1993,7 +1923,7 @@
           <div class="name-cell-wrap" style="cursor: default;">
             <span class="chk-badge">${p.checkedIn ? '✅' : '◻️'}</span>
             <div class="name-cell">
-              <span class="member-name">${escapeHtml(formatMemberName(p.name))}</span>
+              <span class="member-name">${escapeHtml(p.name)}</span>
               <span class="role-tag">${escapeHtml(p.role)}</span>
             </div>
           </div>
@@ -2017,7 +1947,7 @@
           <div class="name-cell-wrap" style="cursor: default;">
             <span class="chk-badge" style="font-size: 13px; font-weight: 700;">${p.shiftsWorked}d</span>
             <div class="name-cell">
-              <span class="member-name">${escapeHtml(formatMemberName(p.name))}</span>
+              <span class="member-name">${escapeHtml(p.name)}</span>
               <span class="role-tag">${escapeHtml(p.role)} • ${p.shiftsWorked} Shifts</span>
             </div>
           </div>
@@ -2282,7 +2212,7 @@
       date: activeShiftDate,
       ts: now
     });
-    flashSyncBadge(`✏️ ${formatMemberName(member.name)} ${label} set to ${val}`);
+    flashSyncBadge(`✏️ ${member.name} ${label} set to ${val}`);
   }
 
   function saveStep(index, val) {
@@ -2785,6 +2715,134 @@
   }
 
 
+  function addTeamMember() {
+    const name = prompt("Enter the team member's name:");
+    if (!name || !name.trim()) return;
+
+    const role = prompt(
+      "Enter role:\n\n" +
+      "Genius\nGenius Admin\nTechnical Expert\nTechnical Specialist"
+    );
+    if (!role || !role.trim()) return;
+
+    const cleanName = name.trim();
+    const cleanRole = role.trim();
+
+    if (data.some(m => m.name.toLowerCase() === cleanName.toLowerCase())) {
+      alert("That team member is already on the tracker.");
+      return;
+    }
+
+    pushUndoState();
+
+    // Use a stable unique id so additions synchronize safely between iPads.
+    const newId = 'member_' + Date.now().toString(36) + '_' +
+      Math.random().toString(36).slice(2, 8);
+
+    const member = createFreshMember({
+      name: cleanName,
+      role: cleanRole
+    }, newId);
+    member.id = newId;
+
+    data.push(member);
+    lastVersion = nextVersion();
+    saveLocalState();
+    renderTableStructure();
+    updateTotals();
+    scheduleReorder();
+    publishState('add-member');
+
+    flashAutoSaveBadge('➕ Team Member Added');
+  }
+
+  function removeTeamMember() {
+    if (!data.length) {
+      alert("There are no team members to remove.");
+      return;
+    }
+
+    const names = data.map((m, i) => `${i + 1}. ${m.name} (${m.role})`).join('\n');
+    const choice = prompt(
+      "Enter the NUMBER of the team member to remove:\n\n" + names
+    );
+
+    if (choice === null) return;
+
+    const index = Number(choice) - 1;
+    if (!Number.isInteger(index) || index < 0 || index >= data.length) {
+      alert("Please enter a valid team member number.");
+      return;
+    }
+
+    const member = data[index];
+
+    if (!confirm(
+      `Remove ${member.name} from the tracker?\n\n` +
+      "This removes the person from the active team roster on the synced tracker."
+    )) return;
+
+    pushUndoState();
+
+    // Broadcast the removal as an explicit roster operation. Other iPads
+    // remove the same member instead of rebuilding from an old full roster.
+    const removedId = member.id;
+    const removeTs = nextVersion();
+    tombstoneMember(removedId, member.name, removeTs, CLIENT_ID);
+    data.splice(index, 1);
+
+    lastVersion = removeTs;
+    saveLocalState();
+    renderTableStructure();
+    updateTotals();
+    scheduleReorder();
+
+    try {
+      if (mqttReady()) {
+        mqttClient.publish(TOPIC_STATE, JSON.stringify({
+          type: 'team-member-remove',
+          clientId: CLIENT_ID,
+          msgId: newMsgId(),
+          memberId: removedId,
+          memberName: member.name,
+          ts: removeTs,
+          tombstone: {
+            id: String(removedId),
+            name: member.name,
+            ts: removeTs,
+            by: CLIENT_ID
+          }
+        }), PUB_OPTS);
+      }
+    } catch (e) {
+      syncWarn('TEAM MEMBER REMOVE PUBLISH FAILED', e);
+    }
+
+    flashAutoSaveBadge('➖ Team Member Removed');
+  }
+
+  function resetCounts() {
+    if(!confirm("RESET TODAY'S LIVE TRACKER ON ALL IPADS?\n\nThis clears today's check-ins, metrics, steps, and notes across all connected/reconnecting iPads.\n\nHistorical / previous-day records will NOT be deleted.")) return;
+    if(!mqttReady()){
+      setSyncBadge('⚠️ MQTT offline — cannot reset all iPads');
+      alert('Cloud Sync is offline. The room-wide reset was not performed.');
+      return;
+    }
+    const resetTs=Date.now(), resetId=newMsgId(), resetDay=activeShiftDate||getTodayString();
+    applyRoomReset(resetId,resetTs,resetDay,CLIENT_ID);
+    try {
+      mqttClient.publish(TOPIC_STATE,JSON.stringify({
+        type:'delta_reset_day',clientId:CLIENT_ID,msgId:resetId,date:resetDay,
+        ts:resetTs,roomResetId:resetId,historyPreserved:true
+      }),PUB_OPTS);
+      setSyncBadge('🧹 Reset Sent to All iPads');
+      syncLog('ROOM RESET PUBLISHED',{resetId,resetDay,historyPreserved:true});
+    } catch(e) {
+      setSyncBadge('⚠️ Local reset applied; room reset send failed');
+      syncWarn('ROOM RESET PUBLISH FAILED',e);
+    }
+  }
+
   function exportCSV() {
     const list = getDisplayList();
     const isLive = (currentTab === 'daily');
@@ -2799,13 +2857,13 @@
         const hits = getHitCount(p);
         const slamLabel = hits === 4 ? "GRAND SLAM (4/4) 🏆" : `${hits}/4`;
         const inStatus = p.checkedIn ? "Yes" : "No";
-        csv += `"${inStatus}","${formatMemberName(p.name)}","${p.role}","${slamLabel}",${p.ac || 0},${p.pz || 0},${p.biz || 0},${p.acc || 0},"${p.step || ''}","${p.notes || ''}"\n`;
+        csv += `"${inStatus}","${p.name}","${p.role}","${slamLabel}",${p.ac || 0},${p.pz || 0},${p.biz || 0},${p.acc || 0},"${p.step || ''}","${p.notes || ''}"\n`;
       });
     } else {
       csv = "Name,Job Title,Shifts Worked,Grand Slams (🏆),Total AppleCare+ (🍎),Total PZ Conversion (🔄),Total Business (💼),Total Accessories (🎧)\n";
       const exportData = [...list].sort((a, b) => b.ac - a.ac);
       exportData.forEach(p => {
-        csv += `"${formatMemberName(p.name)}","${p.role}",${p.shiftsWorked},${p.slamsAchieved || 0},${p.ac},${p.pz},${p.biz},${p.acc}\n`;
+        csv += `"${p.name}","${p.role}",${p.shiftsWorked},${p.slamsAchieved || 0},${p.ac},${p.pz},${p.biz},${p.acc}\n`;
       });
     }
 
@@ -2826,7 +2884,7 @@
         const hits = getHitCount(p);
         const slamLabel = hits === 4 ? "GRAND SLAM (4/4) 🏆" : `${hits}/4`;
         const inStatus = p.checkedIn ? "Yes" : "No";
-        csv += `"${inStatus}","${formatMemberName(p.name)}","${p.role}","${slamLabel}",${p.ac || 0},${p.pz || 0},${p.biz || 0},${p.acc || 0},"${p.step || ''}","${p.notes || ''}"\n`;
+        csv += `"${inStatus}","${p.name}","${p.role}","${slamLabel}",${p.ac || 0},${p.pz || 0},${p.biz || 0},${p.acc || 0},"${p.step || ''}","${p.notes || ''}"\n`;
       });
     }
     const blob = new Blob([csv], { type: "text/csv" });
@@ -3092,6 +3150,158 @@
 
 
   // ============================================================
+  // GB DAILY CLOUD ARCHIVE / 9:01 PM ROLLOVER
+  // The archive+reset RPC is atomic: today's complete shared cloud snapshot
+  // is written to history first, then the live rows are reset while the roster
+  // itself is preserved. If the RPC fails, the live day is untouched.
+  // ============================================================
+  async function loadGBCloudHistory() {
+    if (!gbSupabase) return false;
+    try {
+      const { data: rows, error } = await gbSupabase
+        .from(GB_HISTORY_TABLE)
+        .select('history_date,snapshot,created_at,updated_at')
+        .order('history_date', { ascending: false });
+      if (error) throw error;
+
+      const byDate = new Map();
+      (historyRecords || []).forEach(r => byDate.set(String(r.date), r));
+      (rows || []).forEach(r => {
+        let snap = r.snapshot;
+        if (typeof snap === 'string') {
+          try { snap = JSON.parse(snap); } catch (e) { snap = []; }
+        }
+        byDate.set(String(r.history_date), {
+          id: 'hist_' + String(r.history_date),
+          date: String(r.history_date),
+          timestamp: new Date(r.updated_at || r.created_at || Date.now()).getTime(),
+          finalized: true,
+          data: Array.isArray(snap) ? snap.map(gbDbToMember) : []
+        });
+      });
+      historyRecords = Array.from(byDate.values())
+        .sort((a, b) => (b.date > a.date ? 1 : (b.date < a.date ? -1 : 0)));
+      saveLocalState();
+      return true;
+    } catch (e) {
+      syncWarn('GB CLOUD HISTORY LOAD FAILED', e);
+      return false;
+    }
+  }
+
+  async function archiveAndClearGBDay(targetDate, reason) {
+    if (!gbSupabase || !gbCentralReady) return false;
+
+    const today = getTodayString();
+    const archiveDate = String(targetDate || today);
+    if (archiveDate > today) return false;
+
+    try {
+      setSyncBadge('💾 Saving GB day…');
+
+      // The database function reads the authoritative shared live rows, archives
+      // them into gb_focus_follow_history, and only then clears today's metrics.
+      // This prevents a stale iPad from archiving an old local snapshot.
+      const { data: result, error } = await gbSupabase.rpc(
+        'gb_focus_follow_archive_and_reset',
+        { p_client_id: CLIENT_ID, p_archive_date: archiveDate }
+      );
+      if (error) throw error;
+
+      // Read back the authoritative post-reset roster. The roster is preserved;
+      // only today's performance fields are cleared.
+      const { data: rows, error: readError } = await gbSupabase
+        .from(GB_SUPABASE_TABLE)
+        .select('*')
+        .eq('removed', false)
+        .order('name', { ascending: true });
+      if (readError) throw readError;
+
+      gbHydrating = true;
+      data = (rows || []).map(gbDbToMember).filter(m => !isMemberTombstoned(m.id));
+      activeShiftDate = today;
+      lastVersion = Math.max(0, ...data.map(m => Number(m.rev || 0)));
+      gbHydrating = false;
+
+      await loadGBCloudHistory();
+      saveLocalState();
+      renderTableStructure();
+      updateTotals();
+      scheduleReorder();
+
+      try { localStorage.setItem(STORAGE_KEY_LAST_DAILY_ARCHIVE, archiveDate); } catch (e) {}
+      try { localStorage.setItem(STORAGE_KEY_LIVE_DAY, today); } catch (e) {}
+
+      setSyncBadge(`🟢 GB Cloud Sync Active — ${data.length} members`);
+      flashAutoSaveBadge(`✅ ${archiveDate} Saved • New Day Started`);
+      syncLog('GB DAILY ARCHIVE + CLEAR COMPLETE', {
+        archiveDate, reason: reason || 'scheduled-9:01pm',
+        members: data.length, result
+      });
+      return true;
+    } catch (e) {
+      gbHydrating = false;
+      syncWarn('GB DAILY ARCHIVE FAILED', e);
+      setSyncBadge('🔴 GB Daily Save Failed — Live data NOT cleared');
+      return false;
+    }
+  }
+
+  async function scheduledGBDailyArchive() {
+    if (!gbCentralReady || !gbSupabase) return;
+
+    const now = new Date();
+    const today = getTodayString();
+    const hh = now.getHours();
+    const mm = now.getMinutes();
+
+    // Ask Supabase which calendar day the shared live rows actually belong to.
+    // This makes catch-up work even when every iPad was asleep/closed overnight.
+    const { data: dayRows, error: dayError } = await gbSupabase
+      .from(GB_SUPABASE_TABLE)
+      .select('shift_date')
+      .eq('removed', false)
+      .order('shift_date', { ascending: true })
+      .limit(1);
+    if (dayError) {
+      syncWarn('GB SHIFT-DATE CHECK FAILED', dayError);
+      return;
+    }
+    const liveDay = dayRows && dayRows[0] && dayRows[0].shift_date
+      ? String(dayRows[0].shift_date) : null;
+
+    let lastArchived = null;
+    try { lastArchived = localStorage.getItem(STORAGE_KEY_LAST_DAILY_ARCHIVE); } catch (e) {}
+
+    // Exact requested daily rollover: 9:01 PM local Pacific time.
+    if (hh === 21 && mm === 1 && lastArchived !== today) {
+      await archiveAndClearGBDay(today, 'scheduled-9:01pm');
+      return;
+    }
+
+    // Catch-up protection: if all iPads missed 9:01 PM, archive the actual
+    // stale shift date as soon as an iPad reconnects.
+    if (liveDay && liveDay < today && lastArchived !== liveDay) {
+      await archiveAndClearGBDay(liveDay, 'catch-up-after-9:01pm');
+    }
+  }
+  function setupGBAutoArchive() {
+    if (gbAutoArchiveStarted) return;
+    gbAutoArchiveStarted = true;
+    let running = false;
+    async function run() {
+      if (running) return;
+      running = true;
+      try { await scheduledGBDailyArchive(); }
+      finally { running = false; }
+    }
+    // 15-second polling makes the 9:01 PM rollover reliable without requiring
+    // the browser to hit one exact second. The cloud RPC is the safety gate.
+    setInterval(run, 15000);
+    run();
+  }
+
+  // ============================================================
   // CENTRAL SUPABASE SYNC
   // Supabase is the ONLY source of truth for the live GB tracker.
   // MQTT/full-state peer syncing is intentionally disabled.
@@ -3099,11 +3309,15 @@
   const GB_SUPABASE_URL = "https://bkmpqjoqcilicmfahemg.supabase.co";
   const GB_SUPABASE_KEY = "sb_publishable_ss_a29uxD1FZWZ0at6uk_Q_a55sCjRg";
   const GB_SUPABASE_TABLE = "gb_focus_follow_members";
+  const GB_HISTORY_TABLE = "gb_focus_follow_history";
+  const STORAGE_KEY_LIVE_DAY = `${STORAGE_KEY_LIVE}_day`;
+  const STORAGE_KEY_LAST_DAILY_ARCHIVE = "gb_last_daily_archive_date";
   let gbSupabase = null;
   let gbSupabaseChannel = null;
   let gbCentralReady = false;
   let gbHydrating = false;
   let gbBootstrapDone = false;
+  let gbAutoArchiveStarted = false;
 
   function gbDbToMember(r) {
     const m = createFreshMember({ name: r.name || '', role: r.role || '' }, r.id);
@@ -3112,7 +3326,7 @@
     m.role = r.role || '';
     m.checkedIn = !!r.checked_in;
     m.ac = Number(r.ac || 0);
-    m.pz = Number(r.pz || 0);
+    m.pz = Number(r.pz || r.upgrade || 0);
     m.biz = Number(r.biz || 0);
     m.acc = Number(r.acc || 0);
     m.step = r.step || '';
@@ -3132,6 +3346,7 @@
       checked_in: !!m.checkedIn,
       ac: Math.max(0, Number(m.ac || 0)),
       pz: Math.max(0, Number(m.pz || 0)),
+      services: 0,
       biz: Math.max(0, Number(m.biz || 0)),
       acc: Math.max(0, Number(m.acc || 0)),
       step: String(m.step || ''),
@@ -3249,7 +3464,7 @@
     (async () => {
       try {
         if (payload.type === 'delta_count') {
-          const metric = payload.metric;
+          const metric = payload.metric === 'pz' ? 'upgrade' : payload.metric;
           const delta = Number(payload.delta || payload.amount || 0);
           if (!delta) return;
           const row = await gbCentralRPC('gb_focus_follow_increment', {
@@ -3334,24 +3549,13 @@
       "Historical / previous-day records will NOT be deleted."
     )) return;
 
-    // The Supabase client can be initialized while Realtime is still
-    // negotiating its channel. Do not fail the reset just because the
-    // readiness flag has not flipped yet. A real database request below is
-    // still required to succeed before we report a reset.
-    if (!gbSupabase) {
-      alert("Cloud Sync is not available on this iPad. The shared Daily tracker was NOT reset.");
-      setSyncBadge("⚠️ Cloud Sync unavailable — reset not performed");
+    if (!gbCentralReady || !gbSupabase) {
+      alert("Cloud Sync is not connected. The shared Daily tracker was NOT reset.");
+      setSyncBadge("⚠️ Cloud Sync offline — reset not performed");
       return;
     }
 
     try {
-      if (!gbCentralReady) {
-        setSyncBadge("🔄 Connecting to Cloud before Reset…");
-        const deadline = Date.now() + 8000;
-        while (!gbCentralReady && Date.now() < deadline) {
-          await new Promise(resolve => setTimeout(resolve, 150));
-        }
-      }
       // Preserve this device's current live day in local history before the
       // central live rows are zeroed. The central table remains the single
       // source of truth for the live Daily board.
@@ -3378,12 +3582,13 @@
       // against the central table. This is still a single server-side update.
       if (rpcError) {
         syncWarn("Reset RPC unavailable; using direct central reset", rpcError);
-        let direct = await gbSupabase
+        const { data: rows, error: directError } = await gbSupabase
           .from(GB_SUPABASE_TABLE)
           .update({
             checked_in: false,
             ac: 0,
-            pz: 0,
+            upgrade: 0,
+            services: 0,
             biz: 0,
             acc: 0,
             step: "",
@@ -3394,25 +3599,8 @@
           .eq("removed", false)
           .select("*");
 
-        if (direct.error) {
-          syncWarn("Full direct reset update failed; retrying live fields only", direct.error);
-          direct = await gbSupabase
-            .from(GB_SUPABASE_TABLE)
-            .update({
-              checked_in: false,
-              ac: 0,
-              pz: 0,
-                biz: 0,
-              acc: 0,
-              step: "",
-              notes: ""
-            })
-            .eq("removed", false)
-            .select("*");
-        }
-
-        if (direct.error) throw direct.error;
-        rpcResult = direct.data ? direct.data.length : 0;
+        if (directError) throw directError;
+        rpcResult = rows ? rows.length : 0;
       }
 
       // Read the authoritative post-reset state back from Supabase. Never
@@ -3424,19 +3612,6 @@
         .order("name", { ascending: true });
 
       if (readError) throw readError;
-
-      const uncleared = (rows || []).filter(r =>
-        !!r.checked_in ||
-        Number(r.ac || 0) !== 0 ||
-        Number(r.upgrade || 0) !== 0 ||
-        Number(r.biz || 0) !== 0 ||
-        Number(r.acc || 0) !== 0 ||
-        String(r.step || '') !== '' ||
-        String(r.notes || '') !== ''
-      );
-      if (uncleared.length) {
-        throw new Error(`Cloud reset verification failed: ${uncleared.length} member(s) still have live data.`);
-      }
 
       gbHydrating = true;
       data = (rows || []).map(gbDbToMember).filter(m => !isMemberTombstoned(m.id));
@@ -3455,7 +3630,6 @@
       });
     } catch (e) {
       gbHydrating = false;
-      gbCentralReady = !!gbSupabase;
       syncWarn("CENTRAL DAILY RESET FAILED", e);
       setSyncBadge("⚠️ Daily Reset Failed");
       alert(
@@ -3491,7 +3665,7 @@
 
   async function removeTeamMember() {
     if (!data.length) { alert("There are no team members to remove."); return; }
-    const names = data.map((m,i) => `${i+1}. ${formatMemberName(m.name)} (${m.role})`).join('\n');
+    const names = data.map((m,i) => `${i+1}. ${m.name} (${m.role})`).join('\n');
     const choice = prompt("Enter the NUMBER of the team member to permanently remove:\n\n"+names);
     if (choice === null) return;
     const index = Number(choice)-1;
@@ -3499,7 +3673,7 @@
       alert("Please enter a valid team member number."); return;
     }
     const member = data[index];
-    if (!confirm(`PERMANENTLY DELETE ${formatMemberName(member.name)}?\n\nThey will be removed from the active shared roster on every iPad. Historical records are preserved.\n\nThis cannot be undone.`)) return;
+    if (!confirm(`PERMANENTLY DELETE ${member.name}?\n\nThey will be removed from the active shared roster on every iPad. Historical records are preserved.\n\nThis cannot be undone.`)) return;
     try {
       await gbCentralRPC('gb_focus_follow_remove', {
         p_id: String(member.id), p_client_id: CLIENT_ID
@@ -3537,6 +3711,8 @@
           if (rows && rows.length) {
             gbHydrating = true;
             data = rows.map(gbDbToMember).filter(m => !isMemberTombstoned(m.id));
+            const cloudShiftDates = rows.map(r => String(r.shift_date || '')).filter(Boolean).sort();
+            activeShiftDate = cloudShiftDates[0] || getTodayString();
             lastVersion = Math.max(0, ...rows.map(r => Number(r.revision || 0)));
             saveLocalState();
             renderTableStructure(); updateTotals(); scheduleReorder();
@@ -3548,6 +3724,16 @@
             if (seedError) throw seedError;
           }
 
+          // History is a separate cloud source of truth and survives device
+          // changes/reloads. It feeds Prior Day, Weekly, Monthly and Quarterly.
+          await loadGBCloudHistory();
+
+          // REST is the authoritative cloud-sync health check. Realtime is optional.
+          gbCentralReady = true;
+          setSyncBadge('🟢 Central Supabase Sync Active');
+          syncLog('CENTRAL SUPABASE REST CONNECTED');
+          setupGBAutoArchive();
+
           gbSupabaseChannel = gbSupabase.channel('gb-focus-follow-central')
             .on('postgres_changes',
               {event:'INSERT', schema:'public', table:GB_SUPABASE_TABLE},
@@ -3557,12 +3743,14 @@
               ({new: row}) => gbApplyRealtimeRow(row))
             .subscribe((status) => {
               if (status === 'SUBSCRIBED') {
-                gbCentralReady = true;
                 setSyncBadge('🟢 Central Supabase Sync Active');
-                syncLog('CENTRAL SUPABASE CONNECTED');
-              } else if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT') {
-                gbCentralReady = false;
-                setSyncBadge('⚠️ Supabase realtime disconnected');
+                syncLog('CENTRAL SUPABASE REALTIME CONNECTED');
+              } else if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT' || status === 'CLOSED') {
+                // Realtime is optional. REST is the cloud source of truth, so
+                // losing the websocket must NOT make the tracker report that
+                // cloud sync is unavailable.
+                setSyncBadge('🟢 Central Supabase Sync Active • Realtime unavailable');
+                syncLog('CENTRAL SUPABASE REALTIME UNAVAILABLE; REST SYNC ACTIVE');
               }
             });
         })
