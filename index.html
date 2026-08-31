@@ -1089,7 +1089,7 @@
      older topic. We also never publish retained state ourselves (retain:false),
      so retained snapshots can never resurrect old data again.
      ============================================================ */
-  const APP_VERSION_TAG = "v14";
+  const APP_VERSION_TAG = "v15";
   const STORAGE_KEY_LIVE    = `gb_focus_follow_live_${APP_VERSION_TAG}`;
   const STORAGE_KEY_HISTORY = `gb_focus_follow_history_${APP_VERSION_TAG}`;
   const STORAGE_KEY_CLIENT  = "gb_focus_follow_client_id";   // survives reloads
@@ -1425,6 +1425,26 @@
         btn.title = "No prior actions to undo";
       }
     }
+  }
+
+  // Privacy-safe team-member display name.
+  // Examples: "Cesar Lopez B" -> "Cesar LB."
+  //           "Dennise Juarez A" -> "Dennise JA."
+  //           "Robert Bravo"   -> "Robert B."
+  function formatMemberName(fullName) {
+    const raw = String(fullName || '').trim();
+    if (!raw) return '';
+    const parts = raw.split(/\s+/).filter(Boolean);
+    if (parts.length === 1) return parts[0];
+    if (parts.length === 2) {
+      const initial = parts[1].replace(/[^A-Za-zÀ-ÖØ-öø-ÿ'-]/g, '').charAt(0).toUpperCase();
+      return initial ? `${parts[0]} ${initial}.` : parts[0];
+    }
+    const lastTwo = parts.slice(-2)
+      .map(part => part.replace(/[^A-Za-zÀ-ÖØ-öø-ÿ'-]/g, '').charAt(0).toUpperCase())
+      .filter(Boolean)
+      .join('');
+    return lastTwo ? `${parts[0]} ${lastTwo}.` : parts[0];
   }
 
   function escapeHtml(str) {
@@ -1866,22 +1886,22 @@
 
     // Top AppleCare+
     const topAc = getTopSpecialist('ac');
-    document.getElementById('lead-ac-name').textContent = topAc ? topAc.name : '—';
+    document.getElementById('lead-ac-name').textContent = topAc ? formatMemberName(topAc.name) : '—';
     document.getElementById('lead-ac-val').textContent = topAc ? `${topAc.ac} AppleCare+` : '0 attaches';
 
     // Top PZ Conversion
     const topPz = getTopSpecialist('pz');
-    document.getElementById('lead-pz-name').textContent = topPz ? topPz.name : '—';
+    document.getElementById('lead-pz-name').textContent = topPz ? formatMemberName(topPz.name) : '—';
     document.getElementById('lead-pz-val').textContent = topPz ? `${topPz.pz} PZ Converted` : '0 conversions';
 
     // Top Business
     const topBiz = getTopSpecialist('biz');
-    document.getElementById('lead-biz-name').textContent = topBiz ? topBiz.name : '—';
+    document.getElementById('lead-biz-name').textContent = topBiz ? formatMemberName(topBiz.name) : '—';
     document.getElementById('lead-biz-val').textContent = topBiz ? `${topBiz.biz} Leads` : '0 leads';
 
     // Top Accessories
     const topAcc = getTopSpecialist('acc');
-    document.getElementById('lead-acc-name').textContent = topAcc ? topAcc.name : '—';
+    document.getElementById('lead-acc-name').textContent = topAcc ? formatMemberName(topAcc.name) : '—';
     document.getElementById('lead-acc-val').textContent = topAcc ? `${topAcc.acc} Accessories` : '0 units';
 
     // Top Grand Slam Leader
@@ -1889,12 +1909,12 @@
     if (currentTab === 'daily' || currentTab === 'prior') {
       const slamSorted = [...list].map(p => ({ ...p, hits: getHitCount(p) })).filter(p => p.hits > 0).sort((a, b) => b.hits - a.hits || b.ac - a.ac);
       topSlam = slamSorted[0] || null;
-      document.getElementById('lead-slam-name').textContent = topSlam ? topSlam.name : '—';
+      document.getElementById('lead-slam-name').textContent = topSlam ? formatMemberName(topSlam.name) : '—';
       document.getElementById('lead-slam-val').textContent = topSlam ? (topSlam.hits === 4 ? '🏆 4/4 GRAND SLAM' : `${topSlam.hits}/4 Categories`) : '0 categories hit';
     } else {
       const slamSorted = [...list].filter(p => (p.slamsAchieved || 0) > 0).sort((a, b) => b.slamsAchieved - a.slamsAchieved || b.ac - a.ac);
       topSlam = slamSorted[0] || null;
-      document.getElementById('lead-slam-name').textContent = topSlam ? topSlam.name : '—';
+      document.getElementById('lead-slam-name').textContent = topSlam ? formatMemberName(topSlam.name) : '—';
       document.getElementById('lead-slam-val').textContent = topSlam ? `🏆 ${topSlam.slamsAchieved} Grand Slam${topSlam.slamsAchieved > 1 ? 's' : ''}` : '0 Grand Slams';
     }
   }
@@ -1913,7 +1933,7 @@
           <div class="name-cell-wrap" onclick="toggleCheckIn('${String(p.id).replace(/'/g, "\\'")}')">
             <span class="chk-badge" id="chk-badge-${p.id}">${p.checkedIn ? '✅' : '◻️'}</span>
             <div class="name-cell">
-              <span class="member-name" id="name-${p.id}">${escapeHtml(p.name)}</span>
+              <span class="member-name" id="name-${p.id}">${escapeHtml(formatMemberName(p.name))}</span>
               <span class="role-tag">${escapeHtml(p.role)}</span>
             </div>
           </div>
@@ -1973,7 +1993,7 @@
           <div class="name-cell-wrap" style="cursor: default;">
             <span class="chk-badge">${p.checkedIn ? '✅' : '◻️'}</span>
             <div class="name-cell">
-              <span class="member-name">${escapeHtml(p.name)}</span>
+              <span class="member-name">${escapeHtml(formatMemberName(p.name))}</span>
               <span class="role-tag">${escapeHtml(p.role)}</span>
             </div>
           </div>
@@ -1997,7 +2017,7 @@
           <div class="name-cell-wrap" style="cursor: default;">
             <span class="chk-badge" style="font-size: 13px; font-weight: 700;">${p.shiftsWorked}d</span>
             <div class="name-cell">
-              <span class="member-name">${escapeHtml(p.name)}</span>
+              <span class="member-name">${escapeHtml(formatMemberName(p.name))}</span>
               <span class="role-tag">${escapeHtml(p.role)} • ${p.shiftsWorked} Shifts</span>
             </div>
           </div>
@@ -2262,7 +2282,7 @@
       date: activeShiftDate,
       ts: now
     });
-    flashSyncBadge(`✏️ ${member.name} ${label} set to ${val}`);
+    flashSyncBadge(`✏️ ${formatMemberName(member.name)} ${label} set to ${val}`);
   }
 
   function saveStep(index, val) {
@@ -2779,13 +2799,13 @@
         const hits = getHitCount(p);
         const slamLabel = hits === 4 ? "GRAND SLAM (4/4) 🏆" : `${hits}/4`;
         const inStatus = p.checkedIn ? "Yes" : "No";
-        csv += `"${inStatus}","${p.name}","${p.role}","${slamLabel}",${p.ac || 0},${p.pz || 0},${p.biz || 0},${p.acc || 0},"${p.step || ''}","${p.notes || ''}"\n`;
+        csv += `"${inStatus}","${formatMemberName(p.name)}","${p.role}","${slamLabel}",${p.ac || 0},${p.pz || 0},${p.biz || 0},${p.acc || 0},"${p.step || ''}","${p.notes || ''}"\n`;
       });
     } else {
       csv = "Name,Job Title,Shifts Worked,Grand Slams (🏆),Total AppleCare+ (🍎),Total PZ Conversion (🔄),Total Business (💼),Total Accessories (🎧)\n";
       const exportData = [...list].sort((a, b) => b.ac - a.ac);
       exportData.forEach(p => {
-        csv += `"${p.name}","${p.role}",${p.shiftsWorked},${p.slamsAchieved || 0},${p.ac},${p.pz},${p.biz},${p.acc}\n`;
+        csv += `"${formatMemberName(p.name)}","${p.role}",${p.shiftsWorked},${p.slamsAchieved || 0},${p.ac},${p.pz},${p.biz},${p.acc}\n`;
       });
     }
 
@@ -2806,7 +2826,7 @@
         const hits = getHitCount(p);
         const slamLabel = hits === 4 ? "GRAND SLAM (4/4) 🏆" : `${hits}/4`;
         const inStatus = p.checkedIn ? "Yes" : "No";
-        csv += `"${inStatus}","${p.name}","${p.role}","${slamLabel}",${p.ac || 0},${p.pz || 0},${p.biz || 0},${p.acc || 0},"${p.step || ''}","${p.notes || ''}"\n`;
+        csv += `"${inStatus}","${formatMemberName(p.name)}","${p.role}","${slamLabel}",${p.ac || 0},${p.pz || 0},${p.biz || 0},${p.acc || 0},"${p.step || ''}","${p.notes || ''}"\n`;
       });
     }
     const blob = new Blob([csv], { type: "text/csv" });
@@ -3471,7 +3491,7 @@
 
   async function removeTeamMember() {
     if (!data.length) { alert("There are no team members to remove."); return; }
-    const names = data.map((m,i) => `${i+1}. ${m.name} (${m.role})`).join('\n');
+    const names = data.map((m,i) => `${i+1}. ${formatMemberName(m.name)} (${m.role})`).join('\n');
     const choice = prompt("Enter the NUMBER of the team member to permanently remove:\n\n"+names);
     if (choice === null) return;
     const index = Number(choice)-1;
@@ -3479,7 +3499,7 @@
       alert("Please enter a valid team member number."); return;
     }
     const member = data[index];
-    if (!confirm(`PERMANENTLY DELETE ${member.name}?\n\nThey will be removed from the active shared roster on every iPad. Historical records are preserved.\n\nThis cannot be undone.`)) return;
+    if (!confirm(`PERMANENTLY DELETE ${formatMemberName(member.name)}?\n\nThey will be removed from the active shared roster on every iPad. Historical records are preserved.\n\nThis cannot be undone.`)) return;
     try {
       await gbCentralRPC('gb_focus_follow_remove', {
         p_id: String(member.id), p_client_id: CLIENT_ID
