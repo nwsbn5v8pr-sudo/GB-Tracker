@@ -1068,7 +1068,7 @@
      older topic. We also never publish retained state ourselves (retain:false),
      so retained snapshots can never resurrect old data again.
      ============================================================ */
-  const APP_VERSION_TAG = "v15-cloud-roster";
+  const APP_VERSION_TAG = "v17";
   const STORAGE_KEY_LIVE    = `gb_focus_follow_live_${APP_VERSION_TAG}`;
   const STORAGE_KEY_HISTORY = `gb_focus_follow_history_${APP_VERSION_TAG}`;
   const STORAGE_KEY_CLIENT  = "gb_focus_follow_client_id";   // survives reloads
@@ -1156,21 +1156,31 @@
   let handshakeTimer = null;
   const HANDSHAKE_WAIT_MS = 3500;
   
-  const INITIAL_ROSTER = [
-    {"name": "Benjamin SH", "role": "Genius"},
+  
+  function gbPrivateName(value) {
+    const parts = String(value || "").trim().split(/\s+/).filter(Boolean);
+    if (parts.length <= 1) return parts[0] || "";
+    return parts[0] + " " + parts.slice(1).map(p => {
+      const letters = p.replace(/[^A-Za-z]/g, "");
+      return letters ? letters[0].toUpperCase() : "";
+    }).join("");
+  }
+
+const INITIAL_ROSTER = [
+    {"name": "Benjamin S", "role": "Genius"},
     {"name": "Christian W", "role": "Genius"},
     {"name": "Clarissa A", "role": "Genius"},
     {"name": "Clinton B", "role": "Genius"},
     {"name": "Corena N", "role": "Genius"},
     {"name": "Daniel K", "role": "Genius"},
     {"name": "Dina E", "role": "Genius"},
-    {"name": "Dominic DR", "role": "Genius"},
-    {"name": "Ed DF", "role": "Genius"},
+    {"name": "Dominic D", "role": "Genius"},
+    {"name": "Ed D", "role": "Genius"},
     {"name": "Fernando R", "role": "Genius"},
     {"name": "Jesse N", "role": "Genius"},
     {"name": "Juan S", "role": "Genius"},
     {"name": "Kacey N", "role": "Genius"},
-    {"name": "Lucky VT", "role": "Genius"},
+    {"name": "Lucky V", "role": "Genius"},
     {"name": "Mitchell D", "role": "Genius"},
     {"name": "Nafisa N", "role": "Genius"},
     {"name": "Sean W", "role": "Genius"},
@@ -1183,7 +1193,7 @@
     {"name": "Nicole V", "role": "Genius Admin"},
     {"name": "Alan G", "role": "Technical Expert"},
     {"name": "Brandon D", "role": "Technical Expert"},
-    {"name": "Carlos SF", "role": "Technical Expert"},
+    {"name": "Carlos S", "role": "Technical Expert"},
     {"name": "Casey J", "role": "Technical Expert"},
     {"name": "Christina P", "role": "Technical Expert"},
     {"name": "Diego M", "role": "Technical Expert"},
@@ -1205,7 +1215,7 @@
     {"name": "Andrea M", "role": "Technical Specialist"},
     {"name": "Besjana K", "role": "Technical Specialist"},
     {"name": "Blake R", "role": "Technical Specialist"},
-    {"name": "Diego LT", "role": "Technical Specialist"},
+    {"name": "Diego L", "role": "Technical Specialist"},
     {"name": "Diego L", "role": "Technical Specialist"},
     {"name": "Emiko R", "role": "Technical Specialist"},
     {"name": "Harold Q", "role": "Technical Specialist"},
@@ -1215,7 +1225,7 @@
     {"name": "Manny M", "role": "Technical Specialist"},
     {"name": "Mays M", "role": "Technical Specialist"},
     {"name": "Nate S", "role": "Technical Specialist"},
-    {"name": "Nes LJ", "role": "Technical Specialist"},
+    {"name": "Nes L", "role": "Technical Specialist"},
     {"name": "Odeh M", "role": "Technical Specialist"},
     {"name": "Taks T", "role": "Technical Specialist"}
   ];
@@ -1373,7 +1383,7 @@
   function createFreshMember(item, idx) {
     return {
       id: idx,
-      name: item.name,
+      name: gbPrivateName(item.name),
       role: item.role,
       checkedIn: false,
       ac: 0,
@@ -1734,7 +1744,7 @@
 
       return INITIAL_ROSTER.map((m, idx) => ({
         id: idx,
-        name: m.name,
+        name: gbPrivateName(m.name),
         role: m.role,
         checkedIn: false,
         ac: 0,
@@ -1804,7 +1814,7 @@
     INITIAL_ROSTER.forEach((m, idx) => {
       memberMap[idx] = {
         id: idx,
-        name: m.name,
+        name: gbPrivateName(m.name),
         role: m.role,
         checkedIn: false,
         shiftsWorked: 0,
@@ -2060,7 +2070,7 @@
     saveLocalState();
     broadcastDelta({
       type: 'delta_checkin',
-      name: member.name,
+      name: gbPrivateName(member.name),
       id: member.id,
       checkedIn: member.checkedIn,
       date: activeShiftDate,
@@ -2208,7 +2218,7 @@
 
     broadcastDelta({
       type: 'delta_count',
-      name: member.name,
+      name: gbPrivateName(member.name),
       id: member.id,
       metric: metric,
       myBucketVal: member._by[metric][CLIENT_ID],
@@ -2267,7 +2277,7 @@
     syncLog('set exact value', { member: member.name, metric: metric, val: val });
     broadcastDelta({
       type: 'delta_set_exact',
-      name: member.name,
+      name: gbPrivateName(member.name),
       id: member.id,
       metric: metric,
       val: val,
@@ -2292,7 +2302,7 @@
       saveLocalState();
       broadcastDelta({
         type: 'delta_step',
-        name: member.name,
+        name: gbPrivateName(member.name),
         id: member.id,
         step: val,
         date: activeShiftDate,
@@ -2332,7 +2342,7 @@
       saveLocalState();
       broadcastDelta({
         type: 'delta_note',
-        name: member.name,
+        name: gbPrivateName(member.name),
         id: member.id,
         notes: val,
         date: activeShiftDate,
@@ -2870,7 +2880,7 @@
           ts: removeTs,
           tombstone: {
             id: String(removedId),
-            name: member.name,
+            name: gbPrivateName(member.name),
             ts: removeTs,
             by: CLIENT_ID
           }
