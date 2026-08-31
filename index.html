@@ -1068,7 +1068,7 @@
      older topic. We also never publish retained state ourselves (retain:false),
      so retained snapshots can never resurrect old data again.
      ============================================================ */
-  const APP_VERSION_TAG = "v19";
+  const APP_VERSION_TAG = "v20";
   const STORAGE_KEY_LIVE    = `gb_focus_follow_live_${APP_VERSION_TAG}`;
   const STORAGE_KEY_HISTORY = `gb_focus_follow_history_${APP_VERSION_TAG}`;
   const STORAGE_KEY_CLIENT  = "gb_focus_follow_client_id";   // survives reloads
@@ -1932,7 +1932,7 @@ const INITIAL_ROSTER = [
     if (isLive) {
       tr.innerHTML = `
         <td class="col-sticky">
-          <div class="name-cell-wrap" onclick="toggleCheckIn(${p.id})">
+          <div class="name-cell-wrap" onclick="toggleCheckIn(${JSON.stringify(p.id)})">
             <span class="chk-badge" id="chk-badge-${p.id}">${p.checkedIn ? '✅' : '◻️'}</span>
             <div class="name-cell">
               <span class="member-name" id="name-${p.id}">${escapeHtml(maskMemberName(p.name))}</span>
@@ -1943,34 +1943,34 @@ const INITIAL_ROSTER = [
         <td style="text-align:center;" id="val-slam-${p.id}"></td>
         <td style="text-align:center;">
           <div class="counter-box">
-            <button type="button" class="cnt-btn minus" onclick="event.stopPropagation(); updateCounts(${p.id}, 'ac', -1)">−</button>
-            <span class="cnt-val" id="val-ac-${p.id}" title="Tap to set exact total" onclick="event.stopPropagation(); setExactValue(${p.id}, 'ac')">${p.ac}</span>
-            <button type="button" class="cnt-btn plus" onclick="event.stopPropagation(); updateCounts(${p.id}, 'ac', 1)">+</button>
+            <button type="button" class="cnt-btn minus" onclick="event.stopPropagation(); updateCounts(${JSON.stringify(p.id)}, 'ac', -1)">−</button>
+            <span class="cnt-val" id="val-ac-${p.id}" title="Tap to set exact total" onclick="event.stopPropagation(); setExactValue(${JSON.stringify(p.id)}, 'ac')">${p.ac}</span>
+            <button type="button" class="cnt-btn plus" onclick="event.stopPropagation(); updateCounts(${JSON.stringify(p.id)}, 'ac', 1)">+</button>
           </div>
         </td>
         <td style="text-align:center;">
           <div class="counter-box">
-            <button type="button" class="cnt-btn minus" onclick="event.stopPropagation(); updateCounts(${p.id}, 'pz', -1)">−</button>
-            <span class="cnt-val" id="val-pz-${p.id}" title="Tap to set exact total" onclick="event.stopPropagation(); setExactValue(${p.id}, 'pz')">${p.pz}</span>
-            <button type="button" class="cnt-btn plus" onclick="event.stopPropagation(); updateCounts(${p.id}, 'pz', 1)">+</button>
+            <button type="button" class="cnt-btn minus" onclick="event.stopPropagation(); updateCounts(${JSON.stringify(p.id)}, 'pz', -1)">−</button>
+            <span class="cnt-val" id="val-pz-${p.id}" title="Tap to set exact total" onclick="event.stopPropagation(); setExactValue(${JSON.stringify(p.id)}, 'pz')">${p.pz}</span>
+            <button type="button" class="cnt-btn plus" onclick="event.stopPropagation(); updateCounts(${JSON.stringify(p.id)}, 'pz', 1)">+</button>
           </div>
         </td>
         <td style="text-align:center;">
           <div class="counter-box">
-            <button type="button" class="cnt-btn minus" onclick="event.stopPropagation(); updateCounts(${p.id}, 'biz', -1)">−</button>
-            <span class="cnt-val" id="val-biz-${p.id}" title="Tap to set exact total" onclick="event.stopPropagation(); setExactValue(${p.id}, 'biz')">${p.biz}</span>
-            <button type="button" class="cnt-btn plus" onclick="event.stopPropagation(); updateCounts(${p.id}, 'biz', 1)">+</button>
+            <button type="button" class="cnt-btn minus" onclick="event.stopPropagation(); updateCounts(${JSON.stringify(p.id)}, 'biz', -1)">−</button>
+            <span class="cnt-val" id="val-biz-${p.id}" title="Tap to set exact total" onclick="event.stopPropagation(); setExactValue(${JSON.stringify(p.id)}, 'biz')">${p.biz}</span>
+            <button type="button" class="cnt-btn plus" onclick="event.stopPropagation(); updateCounts(${JSON.stringify(p.id)}, 'biz', 1)">+</button>
           </div>
         </td>
         <td style="text-align:center;">
           <div class="counter-box">
-            <button type="button" class="cnt-btn minus" onclick="event.stopPropagation(); updateCounts(${p.id}, 'acc', -1)">−</button>
-            <span class="cnt-val" id="val-acc-${p.id}" title="Tap to set exact total" onclick="event.stopPropagation(); setExactValue(${p.id}, 'acc')">${p.acc}</span>
-            <button type="button" class="cnt-btn plus" onclick="event.stopPropagation(); updateCounts(${p.id}, 'acc', 1)">+</button>
+            <button type="button" class="cnt-btn minus" onclick="event.stopPropagation(); updateCounts(${JSON.stringify(p.id)}, 'acc', -1)">−</button>
+            <span class="cnt-val" id="val-acc-${p.id}" title="Tap to set exact total" onclick="event.stopPropagation(); setExactValue(${JSON.stringify(p.id)}, 'acc')">${p.acc}</span>
+            <button type="button" class="cnt-btn plus" onclick="event.stopPropagation(); updateCounts(${JSON.stringify(p.id)}, 'acc', 1)">+</button>
           </div>
         </td>
         <td style="text-align:center;">
-          <select class="step-select" id="step-${p.id}" onchange="saveStep(${p.id}, this.value)">
+          <select class="step-select" id="step-${p.id}" onchange="saveStep(${JSON.stringify(p.id)}, this.value)">
             <option value="">-- None --</option>
             <option value="Approach" ${p.step === 'Approach' ? 'selected' : ''}>Approach</option>
             <option value="Probe" ${p.step === 'Probe' ? 'selected' : ''}>Probe</option>
@@ -1980,7 +1980,7 @@ const INITIAL_ROSTER = [
           </select>
         </td>
         <td>
-          <textarea class="notes-input" id="notes-${p.id}" rows="1" placeholder="Add note / focus..." onclick="event.stopPropagation()" onfocus="beginNoteEdit(this)" oninput="saveNote(${p.id}, this.value)" onblur="endNoteEdit(this)">${escapeHtml(p.notes || '')}</textarea>
+          <textarea class="notes-input" id="notes-${p.id}" rows="1" placeholder="Add note / focus..." onclick="event.stopPropagation()" onfocus="beginNoteEdit(this)" oninput="saveNote(${JSON.stringify(p.id)}, this.value)" onblur="endNoteEdit(this)">${escapeHtml(p.notes || '')}</textarea>
         </td>
       `;
     } else if (isPrior) {
