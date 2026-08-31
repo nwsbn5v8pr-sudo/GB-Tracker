@@ -1068,7 +1068,7 @@
      older topic. We also never publish retained state ourselves (retain:false),
      so retained snapshots can never resurrect old data again.
      ============================================================ */
-  const APP_VERSION_TAG = "v14";
+  const APP_VERSION_TAG = "v15-cloud-roster";
   const STORAGE_KEY_LIVE    = `gb_focus_follow_live_${APP_VERSION_TAG}`;
   const STORAGE_KEY_HISTORY = `gb_focus_follow_history_${APP_VERSION_TAG}`;
   const STORAGE_KEY_CLIENT  = "gb_focus_follow_client_id";   // survives reloads
@@ -1156,7 +1156,69 @@
   let handshakeTimer = null;
   const HANDSHAKE_WAIT_MS = 3500;
   
-  const INITIAL_ROSTER = [];
+  const INITIAL_ROSTER = [
+    {"name": "Benjamin Schneider-Haney", "role": "Genius"},
+    {"name": "Christian Whitney", "role": "Genius"},
+    {"name": "Clarissa Arechiga", "role": "Genius"},
+    {"name": "Clinton Bright", "role": "Genius"},
+    {"name": "Corena Nunez", "role": "Genius"},
+    {"name": "Daniel Kang", "role": "Genius"},
+    {"name": "Dina Estrada", "role": "Genius"},
+    {"name": "Dominic Delos Reyes", "role": "Genius"},
+    {"name": "Ed Del Fierro", "role": "Genius"},
+    {"name": "Fernando Romero", "role": "Genius"},
+    {"name": "Jesse Noriega", "role": "Genius"},
+    {"name": "Juan Solo", "role": "Genius"},
+    {"name": "Kacey Norris", "role": "Genius"},
+    {"name": "Lucky Vo-Tran", "role": "Genius"},
+    {"name": "Mitchell Dodge", "role": "Genius"},
+    {"name": "Nafisa Nur", "role": "Genius"},
+    {"name": "Sean Wells", "role": "Genius"},
+    {"name": "Taylor Campbell", "role": "Genius"},
+    {"name": "Alex Spatafore", "role": "Genius Admin"},
+    {"name": "Alex Gross", "role": "Genius Admin"},
+    {"name": "Callahan Roth", "role": "Genius Admin"},
+    {"name": "Katie Pedreira", "role": "Genius Admin"},
+    {"name": "Neftaly Perez", "role": "Genius Admin"},
+    {"name": "Nicole Vieau", "role": "Genius Admin"},
+    {"name": "Alan Garcia", "role": "Technical Expert"},
+    {"name": "Brandon Daugherty", "role": "Technical Expert"},
+    {"name": "Carlos Salinas Figueroa", "role": "Technical Expert"},
+    {"name": "Casey Jereza", "role": "Technical Expert"},
+    {"name": "Christina Piacenza", "role": "Technical Expert"},
+    {"name": "Diego Mendoza", "role": "Technical Expert"},
+    {"name": "Dusty Magallanes", "role": "Technical Expert"},
+    {"name": "Jacob Andrews", "role": "Technical Expert"},
+    {"name": "Max Crist", "role": "Technical Expert"},
+    {"name": "Nancy Rivera", "role": "Technical Expert"},
+    {"name": "Nicki Anderson", "role": "Technical Expert"},
+    {"name": "Raymond Silvera", "role": "Technical Expert"},
+    {"name": "Sean Ibhawat", "role": "Technical Expert"},
+    {"name": "Shane Jackson", "role": "Technical Expert"},
+    {"name": "Stacey McCray", "role": "Technical Expert"},
+    {"name": "Tanner Dominic", "role": "Technical Expert"},
+    {"name": "Ty Mullins", "role": "Technical Expert"},
+    {"name": "Wil Ruthenberg", "role": "Technical Expert"},
+    {"name": "Wissam Kazzazi", "role": "Technical Expert"},
+    {"name": "Alex Gross", "role": "Technical Specialist"},
+    {"name": "Alijah Gopez", "role": "Technical Specialist"},
+    {"name": "Andrea Maniti", "role": "Technical Specialist"},
+    {"name": "Besjana Kubick", "role": "Technical Specialist"},
+    {"name": "Blake Robertson", "role": "Technical Specialist"},
+    {"name": "Diego De La Toba", "role": "Technical Specialist"},
+    {"name": "Diego Lopez", "role": "Technical Specialist"},
+    {"name": "Emiko Ragan", "role": "Technical Specialist"},
+    {"name": "Harold Qin", "role": "Technical Specialist"},
+    {"name": "Jesse Hernandez", "role": "Technical Specialist"},
+    {"name": "Kyle Padua", "role": "Technical Specialist"},
+    {"name": "Laurynas Jasevicius", "role": "Technical Specialist"},
+    {"name": "Manny Maruri", "role": "Technical Specialist"},
+    {"name": "Mays Mansoor", "role": "Technical Specialist"},
+    {"name": "Nate Suzuki", "role": "Technical Specialist"},
+    {"name": "Nes Lacbain Jr.", "role": "Technical Specialist"},
+    {"name": "Odeh Musharbash", "role": "Technical Specialist"},
+    {"name": "Taks Takamori", "role": "Technical Specialist"}
+  ];
 
   // Permanent roster-removal tombstones. A removed member must stay removed
   // even if an iPad reconnects later and sends an older full snapshot.
@@ -1330,7 +1392,7 @@
   }
 
   // Live active shift data
-  let data = []; // Team members are added/removed by the user.
+  let data = INITIAL_ROSTER.map((item, idx) => createFreshMember(item, idx)); // Cloud is authoritative; roster is a safe offline fallback.
 
   // Historical archived daily shifts
   let historyRecords = [];
