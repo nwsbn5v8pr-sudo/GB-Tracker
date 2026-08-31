@@ -1068,7 +1068,7 @@
      older topic. We also never publish retained state ourselves (retain:false),
      so retained snapshots can never resurrect old data again.
      ============================================================ */
-  const APP_VERSION_TAG = "v20";
+  const APP_VERSION_TAG = "v21";
   const STORAGE_KEY_LIVE    = `gb_focus_follow_live_${APP_VERSION_TAG}`;
   const STORAGE_KEY_HISTORY = `gb_focus_follow_history_${APP_VERSION_TAG}`;
   const STORAGE_KEY_CLIENT  = "gb_focus_follow_client_id";   // survives reloads
@@ -1932,7 +1932,7 @@ const INITIAL_ROSTER = [
     if (isLive) {
       tr.innerHTML = `
         <td class="col-sticky">
-          <div class="name-cell-wrap" onclick="toggleCheckIn(${JSON.stringify(p.id)})">
+          <div class="name-cell-wrap" data-action="checkin" data-member-id="${escapeHtml(String(p.id))}">
             <span class="chk-badge" id="chk-badge-${p.id}">${p.checkedIn ? '✅' : '◻️'}</span>
             <div class="name-cell">
               <span class="member-name" id="name-${p.id}">${escapeHtml(maskMemberName(p.name))}</span>
@@ -1943,34 +1943,34 @@ const INITIAL_ROSTER = [
         <td style="text-align:center;" id="val-slam-${p.id}"></td>
         <td style="text-align:center;">
           <div class="counter-box">
-            <button type="button" class="cnt-btn minus" onclick="event.stopPropagation(); updateCounts(${JSON.stringify(p.id)}, 'ac', -1)">−</button>
-            <span class="cnt-val" id="val-ac-${p.id}" title="Tap to set exact total" onclick="event.stopPropagation(); setExactValue(${JSON.stringify(p.id)}, 'ac')">${p.ac}</span>
-            <button type="button" class="cnt-btn plus" onclick="event.stopPropagation(); updateCounts(${JSON.stringify(p.id)}, 'ac', 1)">+</button>
+            <button type="button" class="cnt-btn minus" data-action="count" data-member-id="${escapeHtml(String(p.id))}" data-metric="ac" data-delta="-1">−</button>
+            <span class="cnt-val" id="val-ac-${p.id}" title="Tap to set exact total" data-action="exact" data-member-id="${escapeHtml(String(p.id))}" data-metric="ac">${p.ac}</span>
+            <button type="button" class="cnt-btn plus" data-action="count" data-member-id="${escapeHtml(String(p.id))}" data-metric="ac" data-delta="1">+</button>
           </div>
         </td>
         <td style="text-align:center;">
           <div class="counter-box">
-            <button type="button" class="cnt-btn minus" onclick="event.stopPropagation(); updateCounts(${JSON.stringify(p.id)}, 'pz', -1)">−</button>
-            <span class="cnt-val" id="val-pz-${p.id}" title="Tap to set exact total" onclick="event.stopPropagation(); setExactValue(${JSON.stringify(p.id)}, 'pz')">${p.pz}</span>
-            <button type="button" class="cnt-btn plus" onclick="event.stopPropagation(); updateCounts(${JSON.stringify(p.id)}, 'pz', 1)">+</button>
+            <button type="button" class="cnt-btn minus" data-action="count" data-member-id="${escapeHtml(String(p.id))}" data-metric="pz" data-delta="-1">−</button>
+            <span class="cnt-val" id="val-pz-${p.id}" title="Tap to set exact total" data-action="exact" data-member-id="${escapeHtml(String(p.id))}" data-metric="pz">${p.pz}</span>
+            <button type="button" class="cnt-btn plus" data-action="count" data-member-id="${escapeHtml(String(p.id))}" data-metric="pz" data-delta="1">+</button>
           </div>
         </td>
         <td style="text-align:center;">
           <div class="counter-box">
-            <button type="button" class="cnt-btn minus" onclick="event.stopPropagation(); updateCounts(${JSON.stringify(p.id)}, 'biz', -1)">−</button>
-            <span class="cnt-val" id="val-biz-${p.id}" title="Tap to set exact total" onclick="event.stopPropagation(); setExactValue(${JSON.stringify(p.id)}, 'biz')">${p.biz}</span>
-            <button type="button" class="cnt-btn plus" onclick="event.stopPropagation(); updateCounts(${JSON.stringify(p.id)}, 'biz', 1)">+</button>
+            <button type="button" class="cnt-btn minus" data-action="count" data-member-id="${escapeHtml(String(p.id))}" data-metric="biz" data-delta="-1">−</button>
+            <span class="cnt-val" id="val-biz-${p.id}" title="Tap to set exact total" data-action="exact" data-member-id="${escapeHtml(String(p.id))}" data-metric="biz">${p.biz}</span>
+            <button type="button" class="cnt-btn plus" data-action="count" data-member-id="${escapeHtml(String(p.id))}" data-metric="biz" data-delta="1">+</button>
           </div>
         </td>
         <td style="text-align:center;">
           <div class="counter-box">
-            <button type="button" class="cnt-btn minus" onclick="event.stopPropagation(); updateCounts(${JSON.stringify(p.id)}, 'acc', -1)">−</button>
-            <span class="cnt-val" id="val-acc-${p.id}" title="Tap to set exact total" onclick="event.stopPropagation(); setExactValue(${JSON.stringify(p.id)}, 'acc')">${p.acc}</span>
-            <button type="button" class="cnt-btn plus" onclick="event.stopPropagation(); updateCounts(${JSON.stringify(p.id)}, 'acc', 1)">+</button>
+            <button type="button" class="cnt-btn minus" data-action="count" data-member-id="${escapeHtml(String(p.id))}" data-metric="acc" data-delta="-1">−</button>
+            <span class="cnt-val" id="val-acc-${p.id}" title="Tap to set exact total" data-action="exact" data-member-id="${escapeHtml(String(p.id))}" data-metric="acc">${p.acc}</span>
+            <button type="button" class="cnt-btn plus" data-action="count" data-member-id="${escapeHtml(String(p.id))}" data-metric="acc" data-delta="1">+</button>
           </div>
         </td>
         <td style="text-align:center;">
-          <select class="step-select" id="step-${p.id}" onchange="saveStep(${JSON.stringify(p.id)}, this.value)">
+          <select class="step-select" id="step-${p.id}" data-action="step" data-member-id="${escapeHtml(String(p.id))}">
             <option value="">-- None --</option>
             <option value="Approach" ${p.step === 'Approach' ? 'selected' : ''}>Approach</option>
             <option value="Probe" ${p.step === 'Probe' ? 'selected' : ''}>Probe</option>
@@ -2056,7 +2056,7 @@ const INITIAL_ROSTER = [
 
   function toggleCheckIn(index) {
     if (currentTab !== 'daily') return;
-    const member = data.find(d => d.id === index);
+    const member = data.find(d => String(d.id) === String(index));
     if (!member) return;
     pushUndoState();
     ensureMemberTs(member);
@@ -2081,7 +2081,7 @@ const INITIAL_ROSTER = [
 
   function renderCheckInVisual(index) {
     if (currentTab !== 'daily') return;
-    const member = data.find(d => d.id === index);
+    const member = data.find(d => String(d.id) === String(index));
     if (!member) return;
     const row = document.getElementById(`row-${index}`);
     const badge = document.getElementById(`chk-badge-${index}`);
@@ -2173,7 +2173,7 @@ const INITIAL_ROSTER = [
 
   function updateCounts(index, metric, delta) {
     if (currentTab !== 'daily') return;
-    const member = data.find(d => d.id === index);
+    const member = data.find(d => String(d.id) === String(index));
     if (!member) return;
 
     pushUndoState();
@@ -2240,7 +2240,7 @@ const INITIAL_ROSTER = [
       alert("Exact values can only be set on the Live Daily tab.");
       return;
     }
-    const member = data.find(d => d.id === index);
+    const member = data.find(d => String(d.id) === String(index));
     if (!member) return;
     ensureMemberTs(member);
 
@@ -2290,7 +2290,7 @@ const INITIAL_ROSTER = [
 
   function saveStep(index, val) {
     if (currentTab !== 'daily') return;
-    const member = data.find(d => d.id === index);
+    const member = data.find(d => String(d.id) === String(index));
     if (!member) return;
     if (member.step !== val) {
       pushUndoState();
@@ -2330,7 +2330,7 @@ const INITIAL_ROSTER = [
 
   function saveNote(index, val) {
     if (currentTab !== 'daily') return;
-    const member = data.find(d => d.id === index);
+    const member = data.find(d => String(d.id) === String(index));
     if (!member) return;
     if (member.notes !== val) {
       pushUndoState();
@@ -4052,6 +4052,49 @@ const INITIAL_ROSTER = [
 
   // Initialize
   checkDayRollover();
+
+  // Robust iPad interaction layer: handle table actions through event delegation
+  // instead of inline onclick handlers. This avoids Safari/iPad inline-handler
+  // quirks and guarantees IDs remain strings such as "gb_024".
+  document.addEventListener('click', function(e) {
+    const el = e.target.closest && e.target.closest('[data-action]');
+    if (!el) return;
+    const action = el.dataset.action;
+    const id = String(el.dataset.memberId || '');
+    if (!id) return;
+
+    try {
+      if (action === 'checkin') {
+        e.preventDefault();
+        e.stopPropagation();
+        toggleCheckIn(id);
+      } else if (action === 'count') {
+        e.preventDefault();
+        e.stopPropagation();
+        updateCounts(id, el.dataset.metric, Number(el.dataset.delta));
+      } else if (action === 'exact') {
+        e.preventDefault();
+        e.stopPropagation();
+        setExactValue(id, el.dataset.metric);
+      }
+    } catch (err) {
+      console.error('[GB Tracker interaction]', action, id, err);
+      setSyncBadge('⚠️ Tap error — see Sync Log');
+      syncWarn('UI interaction failed', action, id, err);
+    }
+  }, true);
+
+  document.addEventListener('change', function(e) {
+    const el = e.target.closest && e.target.closest('[data-action="step"]');
+    if (!el) return;
+    try {
+      saveStep(String(el.dataset.memberId || ''), el.value);
+    } catch (err) {
+      console.error('[GB Tracker step]', err);
+      syncWarn('Step interaction failed', err);
+    }
+  }, true);
+
   renderTableStructure();
   updateSortHeaderIcons();
   updateTotals();
