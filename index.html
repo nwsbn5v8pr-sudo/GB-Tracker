@@ -379,10 +379,12 @@
   }
 
   table {
-    width: 100%;
+    width: max-content;
+    min-width: 100%;
     border-collapse: separate;
     border-spacing: 0;
     font-size: 13px;
+    table-layout: auto;
   }
 
   /* Sortable Headers */
@@ -432,17 +434,60 @@
     background: var(--section-header-bg) !important;
   }
 
+  /* Fixed first column: it must never expand over the metric columns or let
+     scrolled content show through it on iPad/Safari. */
   .col-sticky {
     position: sticky;
     left: 0;
-    background: var(--sticky-bg);
-    z-index: 10;
+    width: 210px !important;
+    min-width: 210px !important;
+    max-width: 210px !important;
+    background: var(--sticky-bg) !important;
+    background-color: var(--sticky-bg) !important;
+    z-index: 50;
     border-right: 1px solid var(--border);
-    min-width: 210px;
+    overflow: hidden;
+    isolation: isolate;
+  }
+  .col-sticky > * {
+    max-width: 100%;
+    min-width: 0;
+  }
+  .col-sticky .name-cell-wrap {
+    width: 100%;
+    min-width: 0;
+    max-width: 100%;
+  }
+  .col-sticky .name-cell {
+    min-width: 0;
+    max-width: 100%;
+    overflow: hidden;
+  }
+  .col-sticky .member-name,
+  .col-sticky .role-tag {
+    display: block;
+    max-width: 100%;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
   }
   thead th.col-sticky {
-    z-index: 30;
-    background: var(--bg-card);
+    z-index: 70;
+    background: var(--bg-card) !important;
+    background-color: var(--bg-card) !important;
+  }
+  tbody tr.checked-in-row .col-sticky {
+    background: #e0f7e7 !important;
+    background-color: #e0f7e7 !important;
+  }
+  tbody tr.grand-slam-row .col-sticky {
+    background: #fff8d9 !important;
+    background-color: #fff8d9 !important;
+  }
+  tfoot td.col-sticky {
+    background: var(--bg-primary) !important;
+    background-color: var(--bg-primary) !important;
+    z-index: 70;
   }
 
   tbody tr {
@@ -1013,6 +1058,9 @@
             <th style="text-align:center;" id="th-pz" onclick="setColumnSort('pz')">
               🔄 PZ Conversion <span class="sort-icon" id="sort-icon-pz">↕️</span>
             </th>
+            <th style="text-align:center;" id="th-upgrade" onclick="setColumnSort('upgrade')">
+              🆙 Upgrades <span class="sort-icon" id="sort-icon-upgrade">↕️</span>
+            </th>
             <th style="text-align:center;" id="th-biz" onclick="setColumnSort('biz')">
               💼 Business <span class="sort-icon" id="sort-icon-biz">↕️</span>
             </th>
@@ -1034,6 +1082,7 @@
             <td style="text-align:center;" id="tot-slam">0 / 61</td>
             <td style="text-align:center;" id="tot-ac">0</td>
             <td style="text-align:center;" id="tot-pz">0</td>
+            <td style="text-align:center;" id="tot-upgrade">0</td>
             <td style="text-align:center;" id="tot-biz">0</td>
             <td style="text-align:center;" id="tot-acc">0</td>
             <td style="text-align:center;" id="tot-step">-</td>
@@ -1246,19 +1295,19 @@
     // counter concurrently both survive — the displayed value is the SUM of all
     // slots, never a last-write-wins overwrite that can silently drop a tap.
     if (!m._by || typeof m._by !== 'object') {
-      m._by = { ac: {}, pz: {}, biz: {}, acc: {} };
+      m._by = { ac: {}, pz: {}, upgrade: {}, biz: {}, acc: {} };
       // Seed with whatever the member currently shows, attributed to a
       // synthetic "legacy" bucket so existing/migrated data isn't lost.
-      ['ac', 'pz', 'biz', 'acc'].forEach(k => {
+      ['ac', 'pz', 'upgrade', 'biz', 'acc'].forEach(k => {
         if ((m[k] || 0) > 0) m._by[k]['_legacy'] = m[k];
       });
     }
-    ['ac', 'pz', 'biz', 'acc'].forEach(k => { if (!m._by[k]) m._by[k] = {}; });
+    ['ac', 'pz', 'upgrade', 'biz', 'acc'].forEach(k => { if (!m._by[k]) m._by[k] = {}; });
     // Option B scaffolding — safe to add to pre-existing records.
     if (!m._ckpt    || typeof m._ckpt    !== 'object') m._ckpt = {};
     if (!m._byTs    || typeof m._byTs    !== 'object') m._byTs = {};
     if (!m._adopted || typeof m._adopted !== 'object') m._adopted = {};
-    ['ac', 'pz', 'biz', 'acc'].forEach(k => { if (!m._byTs[k]) m._byTs[k] = {}; });
+    ['ac', 'pz', 'upgrade', 'biz', 'acc'].forEach(k => { if (!m._byTs[k]) m._byTs[k] = {}; });
     // 6) Per-record conflict resolution marker.
     if (typeof m.updatedAt !== 'number') {
       m.updatedAt = Math.max(
@@ -1290,7 +1339,7 @@
      _byTs[metric]  = { clientId: ts }  when that device last changed its delta
      _adopted[metric] = ts              newest checkpoint folded in locally
      ============================================================ */
-  const METRIC_KEYS = ['ac', 'pz', 'biz', 'acc'];
+  const METRIC_KEYS = ['ac', 'pz', 'upgrade', 'biz', 'acc'];
 
   /* Fold the newest known checkpoint into this member by discarding only the
      deltas that PREDATE it. Post-checkpoint taps are preserved. Every device
@@ -1337,14 +1386,15 @@
       checkedIn: false,
       ac: 0,
       pz: 0,
+      upgrade: 0,
       biz: 0,
       acc: 0,
       step: "",
       notes: "",
       updatedAt: 0,
       _ts: { step: 0, notes: 0, checkedIn: 0 },
-      _by: { ac: {}, pz: {}, biz: {}, acc: {} },
-      _byTs: { ac: {}, pz: {}, biz: {}, acc: {} },
+      _by: { ac: {}, pz: {}, upgrade: {}, biz: {}, acc: {} },
+      _byTs: { ac: {}, pz: {}, upgrade: {}, biz: {}, acc: {} },
       _ckpt: {},
       _adopted: {}
     };
@@ -1396,8 +1446,8 @@
       lastRoomResetId=ri; lastRoomResetTs=rt;
       data.forEach(d=>{
         ensureMemberTs(d); d.checkedIn=false; d.ac=0; d.pz=0; d.biz=0; d.acc=0; d.step=""; d.notes="";
-        d._ts={step:rt,notes:rt,checkedIn:rt}; d._by={ac:{},pz:{},biz:{},acc:{}};
-        d._byTs={ac:{},pz:{},biz:{},acc:{}}; d._ckpt={}; d._adopted={};
+        d._ts={step:rt,notes:rt,checkedIn:rt}; d._by={ac:{},pz:{},upgrade:{},biz:{},acc:{}};
+        d._byTs={ac:{},pz:{},upgrade:{},biz:{},acc:{}}; d._ckpt={}; d._adopted={};
         METRIC_KEYS.forEach(k=>{d._ckpt[k]={val:0,ts:rt,by:'room-reset'};d._adopted[k]=rt;});
         d.updatedAt=rt;
       });
@@ -1818,6 +1868,7 @@
         shiftsWorked: 0,
         ac: 0,
         pz: 0,
+        upgrade: 0,
         biz: 0,
         acc: 0,
         slamsAchieved: 0,
@@ -1830,13 +1881,14 @@
       set.forEach(p => {
         const entry = memberMap[p.id];
         if (entry) {
-          const workedShift = p.checkedIn || (p.ac || 0) > 0 || (p.pz || 0) > 0 || (p.biz || 0) > 0 || (p.acc || 0) > 0;
+          const workedShift = p.checkedIn || (p.ac || 0) > 0 || (p.pz || 0) > 0 || (p.upgrade || 0) > 0 || (p.biz || 0) > 0 || (p.acc || 0) > 0;
           if (workedShift) {
             entry.shiftsWorked += 1;
             entry.checkedIn = true;
           }
           entry.ac += (p.ac || 0);
           entry.pz += (p.pz || 0);
+          entry.upgrade += (p.upgrade || 0);
           entry.biz += (p.biz || 0);
           entry.acc += (p.acc || 0);
           if (getHitCount(p) === 4) entry.slamsAchieved += 1;
@@ -1955,6 +2007,13 @@
         </td>
         <td style="text-align:center;">
           <div class="counter-box">
+            <button type="button" class="cnt-btn minus" onclick="event.stopPropagation(); updateCounts('${String(p.id).replace(/'/g, "\\'")}', 'upgrade', -1)">−</button>
+            <span class="cnt-val" id="val-upgrade-${p.id}" title="Tap to set exact total" onclick="event.stopPropagation(); setExactValue('${String(p.id).replace(/'/g, "\\'")}', 'upgrade')">${p.upgrade || 0}</span>
+            <button type="button" class="cnt-btn plus" onclick="event.stopPropagation(); updateCounts('${String(p.id).replace(/'/g, "\\'")}', 'upgrade', 1)">+</button>
+          </div>
+        </td>
+        <td style="text-align:center;">
+          <div class="counter-box">
             <button type="button" class="cnt-btn minus" onclick="event.stopPropagation(); updateCounts('${String(p.id).replace(/'/g, "\\'")}', 'biz', -1)">−</button>
             <span class="cnt-val" id="val-biz-${p.id}" title="Tap to set exact total" onclick="event.stopPropagation(); setExactValue('${String(p.id).replace(/'/g, "\\'")}', 'biz')">${p.biz}</span>
             <button type="button" class="cnt-btn plus" onclick="event.stopPropagation(); updateCounts('${String(p.id).replace(/'/g, "\\'")}', 'biz', 1)">+</button>
@@ -2001,6 +2060,7 @@
         <td style="text-align:center;">${slamBadge}</td>
         <td style="text-align:center;"><span class="aggregate-val">${p.ac || 0}</span></td>
         <td style="text-align:center;"><span class="aggregate-val">${p.pz || 0}</span></td>
+        <td style="text-align:center;"><span class="aggregate-val">${p.upgrade || 0}</span></td>
         <td style="text-align:center;"><span class="aggregate-val">${p.biz || 0}</span></td>
         <td style="text-align:center;"><span class="aggregate-val">${p.acc || 0}</span></td>
         <td style="text-align:center;"><span style="font-weight:600; font-size:12px;">${escapeHtml(p.step || '-')}</span></td>
@@ -2025,6 +2085,7 @@
         <td style="text-align:center;">${slamBadge}</td>
         <td style="text-align:center;"><span class="aggregate-val">${p.ac}</span></td>
         <td style="text-align:center;"><span class="aggregate-val">${p.pz}</span></td>
+        <td style="text-align:center;"><span class="aggregate-val">${p.upgrade || 0}</span></td>
         <td style="text-align:center;"><span class="aggregate-val">${p.biz}</span></td>
         <td style="text-align:center;"><span class="aggregate-val">${p.acc}</span></td>
         <td style="text-align:center;"><span style="color: var(--text-secondary); font-size: 12px;">${p.shiftsWorked > 0 ? (p.ac / p.shiftsWorked).toFixed(1) + ' AC/shift' : '-'}</span></td>
@@ -2136,7 +2197,7 @@
         const divIn = document.createElement('tr');
         divIn.className = 'section-divider-row';
         divIn.id = 'header-checked-in';
-        divIn.innerHTML = `<td colspan="8" class="col-sticky">🟢 ${isLive ? 'On Shift / Checked In' : 'Active on Shift'} (${checkedMembers.length})</td>`;
+        divIn.innerHTML = `<td colspan="9" class="col-sticky">🟢 ${isLive ? 'On Shift / Checked In' : 'Active on Shift'} (${checkedMembers.length})</td>`;
         tbody.appendChild(divIn);
 
         checkedMembers.forEach(d => {
@@ -2149,7 +2210,7 @@
         const divOut = document.createElement('tr');
         divOut.className = 'section-divider-row';
         divOut.id = 'header-not-checked-in';
-        divOut.innerHTML = `<td colspan="8" class="col-sticky">⚪ Other Team Members (${uncheckedMembers.length})</td>`;
+        divOut.innerHTML = `<td colspan="9" class="col-sticky">⚪ Other Team Members (${uncheckedMembers.length})</td>`;
         tbody.appendChild(divOut);
 
         uncheckedMembers.forEach(d => {
@@ -2241,7 +2302,7 @@
     if (!member) return;
     ensureMemberTs(member);
 
-    const label = { ac: 'AppleCare+', pz: 'PZ Conversion', biz: 'Business', acc: 'Accessories' }[metric] || metric;
+    const label = { ac: 'AppleCare+', pz: 'PZ Conversion', upgrade: 'Upgrades', biz: 'Business', acc: 'Accessories' }[metric] || metric;
     const raw = prompt(`Set exact ${label} total for ${member.name}:`, String(member[metric] || 0));
     if (raw === null) return;
     const val = parseInt(String(raw).trim(), 10);
@@ -2358,6 +2419,8 @@
     if (elAc) elAc.textContent = member.ac;
     const elPz = document.getElementById(`val-pz-${i}`);
     if (elPz) elPz.textContent = member.pz;
+    const elUpgrade = document.getElementById(`val-upgrade-${i}`);
+    if (elUpgrade) elUpgrade.textContent = member.upgrade || 0;
     const elBiz = document.getElementById(`val-biz-${i}`);
     if (elBiz) elBiz.textContent = member.biz;
     const elAcc = document.getElementById(`val-acc-${i}`);
@@ -2395,7 +2458,7 @@
 
   function updateTotals() {
     const list = getDisplayList();
-    let totAc = 0, totPz = 0, totBiz = 0, totAcc = 0, totSlam = 0, totCheckin = 0;
+    let totAc = 0, totPz = 0, totUpgrade = 0, totBiz = 0, totAcc = 0, totSlam = 0, totCheckin = 0;
 
     list.forEach(d => {
       if (currentTab === 'daily') {
@@ -2412,6 +2475,7 @@
       }
       totAc += (d.ac || 0);
       totPz += (d.pz || 0);
+      totUpgrade += (d.upgrade || 0);
       totBiz += (d.biz || 0);
       totAcc += (d.acc || 0);
     });
@@ -2441,6 +2505,7 @@
 
     document.getElementById("tot-ac").textContent = totAc;
     document.getElementById("tot-pz").textContent = totPz;
+    document.getElementById("tot-upgrade").textContent = totUpgrade;
     document.getElementById("tot-biz").textContent = totBiz;
     document.getElementById("tot-acc").textContent = totAcc;
 
@@ -2760,8 +2825,8 @@
       ensureMemberTs(d);
       d.checkedIn=false; d.ac=0; d.pz=0; d.biz=0; d.acc=0; d.step=""; d.notes="";
       d._ts={step:lastRoomResetTs,notes:lastRoomResetTs,checkedIn:lastRoomResetTs};
-      d._by={ac:{},pz:{},biz:{},acc:{}};
-      d._byTs={ac:{},pz:{},biz:{},acc:{}};
+      d._by={ac:{},pz:{},upgrade:{},biz:{},acc:{}};
+      d._byTs={ac:{},pz:{},upgrade:{},biz:{},acc:{}};
       d._ckpt={}; d._adopted={};
       METRIC_KEYS.forEach(k => {
         d._ckpt[k]={val:0,ts:lastRoomResetTs,by:sourceClientId||CLIENT_ID};
@@ -2802,10 +2867,10 @@
         csv += `"${inStatus}","${formatMemberName(p.name)}","${p.role}","${slamLabel}",${p.ac || 0},${p.pz || 0},${p.biz || 0},${p.acc || 0},"${p.step || ''}","${p.notes || ''}"\n`;
       });
     } else {
-      csv = "Name,Job Title,Shifts Worked,Grand Slams (🏆),Total AppleCare+ (🍎),Total PZ Conversion (🔄),Total Business (💼),Total Accessories (🎧)\n";
+      csv = "Name,Job Title,Shifts Worked,Grand Slams (🏆),Total AppleCare+ (🍎),Total PZ Conversion (🔄),Total Upgrades (🆙),Total Business (💼),Total Accessories (🎧)\n";
       const exportData = [...list].sort((a, b) => b.ac - a.ac);
       exportData.forEach(p => {
-        csv += `"${formatMemberName(p.name)}","${p.role}",${p.shiftsWorked},${p.slamsAchieved || 0},${p.ac},${p.pz},${p.biz},${p.acc}\n`;
+        csv += `"${formatMemberName(p.name)}","${p.role}",${p.shiftsWorked},${p.slamsAchieved || 0},${p.ac},${p.pz},${p.upgrade || 0},${p.biz},${p.acc}\n`;
       });
     }
 
@@ -3113,6 +3178,7 @@
     m.checkedIn = !!r.checked_in;
     m.ac = Number(r.ac || 0);
     m.pz = Number(r.pz || 0);
+    m.upgrade = Number(r.upgrade || 0);
     m.biz = Number(r.biz || 0);
     m.acc = Number(r.acc || 0);
     m.step = r.step || '';
@@ -3132,6 +3198,7 @@
       checked_in: !!m.checkedIn,
       ac: Math.max(0, Number(m.ac || 0)),
       pz: Math.max(0, Number(m.pz || 0)),
+      upgrade: Math.max(0, Number(m.upgrade || 0)),
       biz: Math.max(0, Number(m.biz || 0)),
       acc: Math.max(0, Number(m.acc || 0)),
       step: String(m.step || ''),
@@ -3397,6 +3464,7 @@
             checked_in: false,
             ac: 0,
             pz: 0,
+            upgrade: 0,
             biz: 0,
             acc: 0,
             step: "",
@@ -3415,6 +3483,7 @@
               checked_in: false,
               ac: 0,
               pz: 0,
+              upgrade: 0,
                 biz: 0,
               acc: 0,
               step: "",
