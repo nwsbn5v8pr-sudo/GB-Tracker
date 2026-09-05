@@ -2280,6 +2280,7 @@
       name: member.name,
       id: member.id,
       metric: metric,
+      delta: delta,
       myBucketVal: member._by[metric][CLIENT_ID],
       myBucketTs: now,
       date: activeShiftDate,
@@ -3323,7 +3324,10 @@
 
   function broadcastDelta(payload) {
     // Translate existing tracker delta events into atomic central writes.
-    if (!gbCentralReady || gbHydrating) return;
+    // Supabase is the source of truth. Do not require Realtime to be
+    // SUBSCRIBED before accepting a write; a user can tap a metric during the
+    // short connection window and that tap must still reach the database.
+    if (!gbSupabase || gbHydrating) return;
     (async () => {
       try {
         if (payload.type === 'delta_count') {
@@ -3337,6 +3341,26 @@
             p_client_id: CLIENT_ID
           });
           if (row) await gbApplyRealtimeRow(row);
+        } else if (payload.type === 'delta_set_exact') {
+          const metric = payload.metric;
+          const allowed = ['ac', 'pz', 'upgrade', 'biz', 'acc'];
+          if (!allowed.includes(metric)) return;
+          const val = Math.max(0, Number(payload.val || 0));
+          const patch = {};
+          patch[metric] = val;
+          patch.updated_by = CLIENT_ID;
+          // Use a direct central update for exact-value corrections. The
+          // database remains authoritative and Realtime distributes the
+          // resulting row to every other GB device.
+          await gbCentralPatch(String(payload.id), patch);
+          const refreshed = await gbSupabase
+            .from(GB_SUPABASE_TABLE)
+            .select('*')
+            .eq('id', String(payload.id))
+            .eq('removed', false)
+            .maybeSingle();
+          if (refreshed.error) throw refreshed.error;
+          if (refreshed.data) await gbApplyRealtimeRow(refreshed.data);
         } else if (payload.type === 'delta_checkin') {
           await gbCentralRPC('gb_focus_follow_patch', {
             p_id: String(payload.id),
