@@ -490,6 +490,38 @@
     z-index: 70;
   }
 
+  /* Dark-mode/iPad Safari fix: the checked-in sticky cell uses a light
+     green background, so its text must explicitly stay readable.  Keep
+     the first column above scrolled metric cells and give it a solid edge. */
+  .col-sticky .member-name {
+    color: var(--text-primary) !important;
+  }
+  .col-sticky .role-tag {
+    color: var(--text-secondary) !important;
+  }
+  tbody tr.checked-in-row .col-sticky .member-name {
+    color: #1c1c1e !important;
+  }
+  tbody tr.checked-in-row .col-sticky .role-tag {
+    color: #6e6e73 !important;
+  }
+  .col-sticky {
+    isolation: isolate;
+    box-shadow: 2px 0 0 var(--border);
+  }
+  @media (prefers-color-scheme: dark) {
+    tbody tr.checked-in-row .col-sticky {
+      background: #173522 !important;
+      background-color: #173522 !important;
+    }
+    tbody tr.checked-in-row .col-sticky .member-name {
+      color: #f2f2f7 !important;
+    }
+    tbody tr.checked-in-row .col-sticky .role-tag {
+      color: #a8a8ad !important;
+    }
+  }
+
   tbody tr {
     border-bottom: 1px solid var(--border);
   }
