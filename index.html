@@ -949,6 +949,8 @@
           <button type="button" onclick="switchTab('quarterly');closeMoreMenu()">📈 Quarterly</button>
           <button type="button" onclick="switchTab('history');closeMoreMenu()">📜 History Logs</button>
           <div class="menu-divider"></div>
+          <button type="button" onclick="manualRollOverGbDay();closeMoreMenu()">💾 Save & Start New Day</button>
+          <div class="menu-divider"></div>
           <button type="button" onclick="checkAll(false);closeMoreMenu()">◻️ Clear Check-Ins</button>
           <button type="button" onclick="exportCSV();closeMoreMenu()">📥 Export CSV</button>
           <button type="button" onclick="lockTrackerNow();closeMoreMenu()">🔒 Lock</button>
@@ -959,6 +961,19 @@
   </div>
 
   <!-- Timeframe Navigation Tabs -->
+  <div class="timeframe-nav" id="timeframeNav">
+    <div class="segmented-control">
+      <button class="tab-btn active" id="tab-daily" onclick="switchTab('daily')">📅 Daily</button>
+      <button class="tab-btn" id="tab-prior" onclick="switchTab('prior')">⬅️ Prior Day</button>
+      <button class="tab-btn" id="tab-weekly" onclick="switchTab('weekly')">📊 Weekly</button>
+      <button class="tab-btn" id="tab-monthly" onclick="switchTab('monthly')">🗓️ Monthly</button>
+      <button class="tab-btn" id="tab-quarterly" onclick="switchTab('quarterly')">📈 Quarterly</button>
+      <button class="tab-btn" id="tab-history" onclick="switchTab('history')">📜 History</button>
+    </div>
+    <div class="timeframe-controls">
+      <select class="period-selector" id="periodSelector" onchange="onPeriodChange()" style="display:none;"></select>
+    </div>
+  </div>
 <!-- 🌟 Top Performers Section -->
   <div class="top-performers-card" id="topPerformersCard">
     <div class="top-performers-header">
@@ -1677,47 +1692,19 @@
   }
 
   /* ============================================================
-     14) DAILY ROLLOVER — DATE-DRIVEN ONLY.
-     This is the ONLY function permitted to clear the live board, and it does so
-     strictly because the calendar date changed. It is never called from any MQTT
-     handler, so an MQTT reconnect at 2 PM can never reset the daily board.
+     14) DAILY ROLLOVER
+     Only the confirmed Supabase archive/reset is allowed to clear the GB board.
      ============================================================ */
-  function checkDayRollover() {
+  async function checkDayRollover() {
     const today = getTodayString();
-    if (!activeShiftDate) { activeShiftDate = today; return; }
-    if (activeShiftDate === today) return;               // same day: do nothing
-
-    const closingDate = activeShiftDate;
-    const hasActiveData = data.some(d => d.checkedIn || d.ac > 0 || d.pz > 0 || d.biz > 0 || d.acc > 0 || d.notes || d.step);
-    syncLog('DATE CHANGED — rolling over', { from: closingDate, to: today, hadData: hasActiveData });
-
-    if (hasActiveData) {
-      const existingIdx = historyRecords.findIndex(r => r.date === closingDate);
-      const finalSnapshot = {
-        id: 'hist_' + closingDate,
-        date: closingDate,
-        timestamp: Date.now(),
-        finalized: true,
-        data: JSON.parse(JSON.stringify(data))
-      };
-      if (existingIdx >= 0) {
-        historyRecords[existingIdx] = finalSnapshot;
-      } else {
-        historyRecords.unshift(finalSnapshot);
-      }
-      historyRecords.sort((a, b) => (b.date > a.date ? 1 : (b.date < a.date ? -1 : 0)));
+    if (!activeShiftDate) {
+      activeShiftDate = today;
+      saveLocalState();
+      return false;
     }
-
-    // Start a fresh live shift for today
-    data = []; // Start empty; users add the current team members.
-    activeShiftDate = today;
-    lastVersion = nextVersion();
-    saveLocalState();
-    renderTableStructure();
-    updateTotals();
-    reorderRows();
-    flashAutoSaveBadge(`📅 ${closingDate} Archived → New Shift (${today})`);
-    publishState('day-rollover');
+    if (activeShiftDate === today) return false;
+    if (!gbCentralReady || !stateHydrated) return false;
+    return await archiveCurrentDay(true, activeShiftDate);
   }
 
   function scheduleReorder() {
@@ -2594,7 +2581,8 @@
   function switchTab(tab) {
     currentTab = tab;
     document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
-    document.getElementById(`tab-${tab}`).classList.add('active');
+    const activeTabBtn = document.getElementById(`tab-${tab}`);
+    if (activeTabBtn) activeTabBtn.classList.add('active');
 
     const periodSelector = document.getElementById('periodSelector');
     const mainTableCard = document.getElementById('mainTableCard');
@@ -2714,40 +2702,183 @@
     reorderRows();
   }
 
-  /* 💾 ARCHIVE & HISTORY LOGIC */
-  function archiveCurrentDay(silent = false, targetDate = null) {
-    const today = targetDate || activeShiftDate || getTodayString();
-    const existingIdx = historyRecords.findIndex(r => r.date === today);
+  /* 💾 ARCHIVE & HISTORY LOGIC
+     The GB tracker now keeps completed days in Supabase as well as localStorage.
+     This means Prior Day / History survives reloads and is available on every iPad.
+     The server-side RPC writes the archive FIRST and resets the live board in the
+     same database transaction. */
+  async function loadGbCloudHistory() {
+    if (!gbSupabase) return false;
+    const { data: rows, error } = await gbSupabase
+      .from('gb_focus_follow_history')
+      .select('history_date,snapshot,created_at,updated_at')
+      .order('history_date', { ascending: false });
+    if (error) throw error;
 
-    const snapshot = {
-      date: today,
-      timestamp: Date.now(),
+    const cloudRecords = (rows || []).map(r => ({
+      id: 'hist_' + String(r.history_date),
+      date: String(r.history_date),
+      timestamp: Date.parse(r.updated_at || r.created_at || '') || Date.now(),
       finalized: true,
-      data: JSON.parse(JSON.stringify(data))
-    };
+      data: Array.isArray(r.snapshot) ? r.snapshot : (r.snapshot && Array.isArray(r.snapshot.data) ? r.snapshot.data : [])
+    })).filter(r => Array.isArray(r.data));
 
-    if (existingIdx >= 0) {
-      historyRecords[existingIdx] = snapshot;
-    } else {
-      historyRecords.unshift(snapshot);
-    }
-    historyRecords.sort((a, b) => (b.date > a.date ? 1 : (b.date < a.date ? -1 : 0)));
+    const byDate = new Map();
+    historyRecords.forEach(r => { if (r && r.date) byDate.set(r.date, r); });
+    cloudRecords.forEach(r => byDate.set(r.date, r));
+    historyRecords = Array.from(byDate.values()).sort((a,b) => b.date.localeCompare(a.date));
     saveLocalState();
-
-    if (!silent) {
-      alert(`✅ Shift (${today}) archived to Prior Day, Weekly, Monthly & Quarterly tallies!`);
-    } else {
-      flashAutoSaveBadge(`✅ Day Closed & Archived (${today})`);
-    }
-
-    // Propagate finalized day snapshot to all devices
-    publishState('archive-day');
+    return true;
   }
 
-  /* NOTE: A previous `closeOutDay()` helper was removed here. It was unreachable
-     (zero callers) and contained a board-clearing branch, so deleting it removes
-     any chance of a future code path resetting the live day outside of the
-     date-driven checkDayRollover() above. (Requirements 13 & 14) */
+  function hasGbActivity(rows) {
+    return Array.isArray(rows) && rows.some(d =>
+      d.checkedIn || d.ac > 0 || d.pz > 0 || d.upgrade > 0 ||
+      d.biz > 0 || d.acc > 0 || d.notes || d.step
+    );
+  }
+
+  async function archiveCurrentDay(silent = false, targetDate = null) {
+    if (!gbSupabase || !gbCentralReady) {
+      if (!silent) alert('⚠️ GB cloud sync is not ready. The day was NOT cleared.');
+      setSyncBadge('🔴 GB Daily Save Failed — Live data NOT cleared');
+      return false;
+    }
+
+    const closingDate = targetDate || activeShiftDate || getTodayString();
+    if (closingDate === getTodayString() && currentTab !== 'daily') {
+      // No-op guard; the archive function is allowed from any tab, but never
+      // accidentally archives today's still-active shift unless explicitly called.
+    }
+
+    // Pull the authoritative shared roster immediately before archiving.
+    // This captures the latest values from all iPads, not just this device.
+    let latestRows = null;
+    try {
+      const { data: rows, error } = await gbSupabase
+        .from(GB_SUPABASE_TABLE)
+        .select('*')
+        .eq('removed', false)
+        .order('name', { ascending: true });
+      if (error) throw error;
+      latestRows = rows || [];
+    } catch (e) {
+      syncWarn('GB archive could not read current shared data', e);
+      if (!silent) alert('⚠️ Could not read the shared GB data. Nothing was cleared.');
+      setSyncBadge('🔴 GB Daily Save Failed — Live data NOT cleared');
+      return false;
+    }
+
+    const snapshotData = latestRows.length
+      ? latestRows.map(gbDbToMember).filter(m => !isMemberTombstoned(m.id))
+      : JSON.parse(JSON.stringify(data));
+
+    if (!hasGbActivity(snapshotData)) {
+      if (!silent) alert(`ℹ️ No GB activity was recorded for ${closingDate}. Nothing was cleared.`);
+      return false;
+    }
+
+    const snapshot = {
+      id: 'hist_' + closingDate,
+      date: closingDate,
+      timestamp: Date.now(),
+      finalized: true,
+      data: snapshotData
+    };
+
+    try {
+      const { data: result, error } = await gbSupabase.rpc('gb_focus_follow_archive_day', {
+        p_history_date: closingDate,
+        p_snapshot: snapshotData
+      });
+      if (error) throw error;
+      if (!result || result.ok !== true) throw new Error('Archive RPC did not confirm success.');
+
+      const idx = historyRecords.findIndex(r => r.date === closingDate);
+      if (idx >= 0) historyRecords[idx] = snapshot;
+      else historyRecords.unshift(snapshot);
+      historyRecords.sort((a,b) => b.date.localeCompare(a.date));
+
+      activeShiftDate = getTodayString();
+      lastVersion = nextVersion();
+      clearPending();
+
+      // Re-read the now-reset central roster so every iPad displays the same
+      // fresh team roster with zeroed daily metrics.
+      await gbLoadCentralMembers();
+      saveLocalState();
+      renderTableStructure();
+      updateTotals();
+      reorderRows();
+
+      flashAutoSaveBadge(`✅ ${closingDate} Saved • New Day Started`);
+      setSyncBadge('🟢 Central Supabase Sync Active');
+      syncLog('GB DAILY ARCHIVE + RESET COMPLETE', { archiveDate: closingDate, members: snapshotData.length });
+      return true;
+    } catch (e) {
+      syncWarn('GB DAILY ARCHIVE FAILED — LIVE DATA NOT CLEARED', e);
+      setSyncBadge('🔴 GB Daily Save Failed — Live data NOT cleared');
+      if (!silent) alert(`❌ GB daily save failed.\n\n${e.message || e}\n\nYour live data was NOT cleared.`);
+      return false;
+    }
+  }
+
+  async function manualRollOverGbDay() {
+    if (!gbCentralReady) {
+      alert('⏳ GB cloud sync is still connecting. Please try again in a moment.');
+      return;
+    }
+    const closingDate = activeShiftDate || getTodayString();
+    if (!hasGbActivity(data)) {
+      alert('There is no GB activity to archive yet.');
+      return;
+    }
+    if (!confirm(`Save the complete GB team for ${closingDate} and start a new day?\n\nAll team-member metrics will be archived first. The live board will then reset for today.`)) {
+      return;
+    }
+    const ok = await archiveCurrentDay(false, closingDate);
+    if (ok) switchTab('daily');
+  }
+
+  // Automatic GB rollover: 9:01 PM local time, plus catch-up if an iPad was
+  // asleep/closed when the scheduled minute occurred.
+  let gbArchiveRunning = false;
+  let gbLastArchiveAttempt = '';
+  async function scheduledGbDailyArchive() {
+    if (gbArchiveRunning || !gbCentralReady || !stateHydrated) return;
+    const now = new Date();
+    const today = getTodayString();
+    const hh = now.getHours();
+    const mm = now.getMinutes();
+    const liveDay = activeShiftDate || today;
+
+    if (hh === 21 && mm === 1) {
+      const key = `scheduled:${today}`;
+      if (gbLastArchiveAttempt !== key) {
+        gbLastArchiveAttempt = key;
+        await archiveCurrentDay(true, today);
+      }
+      return;
+    }
+
+    if (liveDay && liveDay !== today) {
+      const key = `catchup:${liveDay}`;
+      if (gbLastArchiveAttempt !== key) {
+        gbLastArchiveAttempt = key;
+        await archiveCurrentDay(true, liveDay);
+      }
+    }
+  }
+
+  function startGbDailyArchiveEngine() {
+    setInterval(async () => {
+      if (gbArchiveRunning) return;
+      gbArchiveRunning = true;
+      try { await scheduledGbDailyArchive(); }
+      finally { gbArchiveRunning = false; }
+    }, 15000);
+    scheduledGbDailyArchive();
+  }
 
   function flashAutoSaveBadge(txt) {
     const badge = document.getElementById('autoSaveBadge');
@@ -2772,7 +2903,7 @@
       container.innerHTML = `
         <div style="padding: 30px; text-align: center; color: var(--text-secondary);">
           <h3>No Archived Shifts Yet</h3>
-          <p style="margin-top: 6px; font-size: 13px;">Daily shifts automatically save in real time and archive permanently at 8:59 PM.</p>
+          <p style="margin-top: 6px; font-size: 13px;">Daily shifts save in real time and archive automatically at 9:01 PM.</p>
         </div>
       `;
       return;
@@ -3698,6 +3829,8 @@
                 gbCentralReady = true;
                 setSyncBadge('🟢 Central Supabase Sync Active');
                 syncLog('CENTRAL SUPABASE CONNECTED');
+                loadGbCloudHistory().catch(e => syncWarn('GB cloud history load failed', e));
+                startGbDailyArchiveEngine();
               } else if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT') {
                 gbCentralReady = false;
                 setSyncBadge('⚠️ Supabase realtime disconnected');
@@ -3897,7 +4030,6 @@
   }
 
   // Initialize
-  checkDayRollover();
   renderTableStructure();
   updateSortHeaderIcons();
   updateTotals();
