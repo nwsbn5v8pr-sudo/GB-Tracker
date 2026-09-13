@@ -2172,10 +2172,47 @@
     }
   }
 
-  function checkAll(status) {
+  async function checkAll(status) {
     if (currentTab !== 'daily') return;
     pushUndoState();
     const now = Date.now();
+
+    // Clear Check-Ins starts a clean live board, matching PZ.
+    // Clear check-ins AND all daily metrics/notes in one atomic cloud operation.
+    if (status === false) {
+      data.forEach(d => {
+        ensureMemberTs(d);
+        d.checkedIn = false;
+        d.ac = 0;
+        d.pz = 0;
+        d.services = 0;
+        d.upgrade = 0;
+        d.biz = 0;
+        d.acc = 0;
+        d.step = '';
+        d.notes = '';
+        d._ts.checkedIn = now;
+        touchMember(d, now);
+        renderCheckInVisual(d.id);
+        renderRow(d.id);
+      });
+      updateTotals();
+      saveLocalState();
+
+      if (gbSupabase && !gbHydrating) {
+        try {
+          await gbCentralRPC('gb_focus_follow_clear_checkins', { p_client_id: CLIENT_ID });
+        } catch (e) {
+          // Cloud failed: keep the local state visible but warn the user.
+          syncWarn('GB clear check-ins failed', e);
+          return;
+        }
+      }
+      flashAutoSaveBadge('🧹 Check-Ins + Metrics + Notes Cleared');
+      setTimeout(reorderRows, 60);
+      return;
+    }
+
     data.forEach(d => {
       ensureMemberTs(d);
       d.checkedIn = status;
