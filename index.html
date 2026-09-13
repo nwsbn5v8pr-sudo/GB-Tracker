@@ -3433,31 +3433,60 @@
 
     const incoming = gbDbToMember(row);
     const local = data.find(m => String(m.id) === id);
+
+    // A local tap is already rendered optimistically. Supabase returns the same
+    // row through the RPC and Realtime, so re-rendering it causes the visible
+    // row/table to flash on every tap. Ignore our own echo; the optimistic state
+    // is already correct and the server remains the source of truth.
+    if (local && row.updated_by === CLIENT_ID) {
+      lastVersion = Math.max(Number(lastVersion || 0), Number(incoming.rev || 0));
+      return;
+    }
+
     if (!local) {
       data.push(incoming);
     } else {
       const localRev = Number(local.rev || 0);
       const remoteRev = Number(incoming.rev || 0);
-      if (remoteRev < localRev && row.updated_by !== CLIENT_ID) return;
+      if (remoteRev < localRev) return;
 
-      // Merge note and Apple Step independently so changing one cannot erase the other.
-      const merged = incoming;
-      if (Number(local._ts?.notes || 0) > Number(incoming._ts?.notes || 0)) {
-        merged.notes = local.notes || '';
-        merged._ts.notes = local._ts.notes;
-      }
-      if (Number(local._ts?.step || 0) > Number(incoming._ts?.step || 0)) {
-        merged.step = local.step || '';
-        merged._ts.step = local._ts.step;
-      }
-      const ix = data.findIndex(m => String(m.id) === id);
-      data[ix] = merged;
+      // Preserve local conflict-resolution metadata. The database stores the
+      // authoritative totals, while _by/_ckpt are local bookkeeping used by
+      // the UI. Reconcile a remote metric into a synthetic server bucket so a
+      // later local tap does not recompute back to an older local total.
+      const merged = Object.assign(local, incoming);
+      merged._by = local._by || { ac:{}, pz:{}, upgrade:{}, biz:{}, acc:{} };
+      merged._byTs = local._byTs || { ac:{}, pz:{}, upgrade:{}, biz:{}, acc:{} };
+      merged._ckpt = local._ckpt || {};
+      merged._adopted = local._adopted || {};
+      METRIC_KEYS.forEach(metric => {
+        if (!merged._by[metric]) merged._by[metric] = {};
+        if (!merged._byTs[metric]) merged._byTs[metric] = {};
+        const c = merged._ckpt[metric];
+        const base = c ? Number(c.val || 0) : 0;
+        let nonServer = 0;
+        for (const cid in merged._by[metric]) {
+          if (cid !== '__server__') nonServer += Number(merged._by[metric][cid] || 0);
+        }
+        merged._by[metric]['__server__'] = Number(incoming[metric] || 0) - base - nonServer;
+        merged._byTs[metric]['__server__'] = Number(row.updated_at ? Date.parse(row.updated_at) : Date.now());
+      });
+      ensureMemberTs(merged);
     }
+
     lastVersion = Math.max(Number(lastVersion || 0), Number(incoming.rev || 0));
     saveLocalState();
-    renderTableStructure();
+
+    // Update only the affected row/counters. Do NOT rebuild the whole table on
+    // every Supabase event — that was the source of the visible flicker.
+    renderRow(id);
+    renderCheckInVisual(id);
     updateTotals();
-    scheduleReorder();
+    if (currentSort.column === 'name' || currentSort.column === 'step') {
+      // Name/step ordering is not affected by metric taps.
+    } else {
+      scheduleReorder();
+    }
   }
 
   async function gbCentralPatch(id, patch) {
