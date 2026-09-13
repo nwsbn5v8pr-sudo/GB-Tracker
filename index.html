@@ -3848,6 +3848,13 @@
     }
   }
 
+  // Prevent the initial local render from flashing while Supabase hydrates the shared roster.
+  // Keep the board hidden only during the first cloud load, then reveal the final state once.
+  function setGbInitialBoardReady(ready) {
+    const tbody = document.getElementById('tableBody');
+    if (tbody) tbody.style.visibility = ready ? 'visible' : 'hidden';
+  }
+
   function initCentralSupabaseSync() {
     try {
       if (!window.supabase || !window.supabase.createClient) {
@@ -3875,6 +3882,7 @@
             lastVersion = Math.max(0, ...rows.map(r => Number(r.revision || 0)));
             saveLocalState();
             renderTableStructure(); updateTotals(); scheduleReorder();
+            setGbInitialBoardReady(true);
             gbHydrating = false;
           } else if (data.length) {
             // One-time bootstrap only when the dedicated GB table is empty.
@@ -3882,6 +3890,7 @@
             const {error: seedError} = await gbSupabase.from(GB_SUPABASE_TABLE).upsert(payload,{onConflict:'id'});
             if (seedError) throw seedError;
           }
+          setGbInitialBoardReady(true);
 
           gbSupabaseChannel = gbSupabase.channel('gb-focus-follow-central')
             .on('postgres_changes',
@@ -3905,6 +3914,7 @@
         })
         .catch(e => {
           gbCentralReady = false;
+          setGbInitialBoardReady(true);
           syncWarn('CENTRAL SUPABASE INIT FAILED', e);
           setSyncBadge('⚠️ Central Sync Failed');
         });
@@ -4096,6 +4106,7 @@
   }
 
   // Initialize
+  setGbInitialBoardReady(false);
   renderTableStructure();
   updateSortHeaderIcons();
   updateTotals();
