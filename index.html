@@ -3407,6 +3407,24 @@
   let gbHydrating = false;
   let gbBootstrapDone = false;
 
+  // Which day the SHARED board is tracking, taken from the rows themselves.
+  // The most common shift_date wins, so one stray row cannot drag the whole
+  // board onto the wrong day; ties break to the earlier date so a pending
+  // shift is archived rather than skipped. Returns null when no row carries a
+  // shift_date yet, in which case the caller keeps whatever it already had.
+  function gbLiveDayFromRows(rows) {
+    const counts = new Map();
+    (rows || []).forEach(function (r) {
+      const d = String((r && r.shift_date) || '').slice(0, 10);
+      if (/^\d{4}-\d{2}-\d{2}$/.test(d)) counts.set(d, (counts.get(d) || 0) + 1);
+    });
+    let best = null, bestN = 0;
+    counts.forEach(function (n, d) {
+      if (n > bestN || (n === bestN && best && d < best)) { best = d; bestN = n; }
+    });
+    return best;
+  }
+
   function gbDbToMember(r) {
     const m = createFreshMember({ name: r.name || '', role: r.role || '' }, r.id);
     m.id = r.id;
@@ -3440,7 +3458,10 @@
       acc: Math.max(0, Number(m.acc || 0)),
       step: String(m.step || ''),
       notes: String(m.notes || ''),
-      updated_by: CLIENT_ID
+      updated_by: CLIENT_ID,
+      // The day this live board belongs to, so the SHARED table is what says
+      // which shift is open rather than one iPad's localStorage.
+      shift_date: activeShiftDate || getTodayString()
     };
   }
 
@@ -3457,7 +3478,12 @@
     if (Array.isArray(rows) && rows.length > 0) {
       gbHydrating = true;
       data = rows.map(gbDbToMember).filter(m => !isMemberTombstoned(m.id));
-      activeShiftDate = getTodayString();
+      // Adopt the day the shared board is tracking. This used to be forced to
+      // getTodayString() on EVERY hydrate — every load and every reconnect —
+      // which erased the pending day, so checkDayRollover() always saw
+      // activeShiftDate === today and a missed rollover could never be caught
+      // up. That is what left the history table full of gaps.
+      activeShiftDate = gbLiveDayFromRows(rows) || activeShiftDate || getTodayString();
       lastVersion = Math.max(0, ...rows.map(r => Number(r.revision || 0)));
       saveLocalState();
       renderTableStructure();
@@ -3785,6 +3811,17 @@
         if (direct.error) throw direct.error;
         rpcResult = direct.data ? direct.data.length : 0;
       }
+
+      // Stamp the new day on the shared rows. Done separately because the
+      // server-side reset function does not know about shift_date, and this
+      // must hold whichever of the two reset paths above ran.
+      try {
+        const stamp = await gbSupabase
+          .from(GB_SUPABASE_TABLE)
+          .update({ shift_date: getTodayString() })
+          .eq("removed", false);
+        if (stamp.error) syncWarn("Could not stamp the new shift_date", stamp.error);
+      } catch (e) { syncWarn("Could not stamp the new shift_date", e); }
 
       // Read the authoritative post-reset state back from Supabase. Never
       // rebuild the live board from this iPad's old local copy.
