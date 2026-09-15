@@ -1492,7 +1492,7 @@
     if(rd===getTodayString() && rt && ri){
       lastRoomResetId=ri; lastRoomResetTs=rt;
       data.forEach(d=>{
-        ensureMemberTs(d); d.checkedIn=false; d.ac=0; d.pz=0; d.biz=0; d.acc=0; d.step=""; d.notes="";
+        ensureMemberTs(d); d.checkedIn=false; METRIC_KEYS.forEach(k=>{d[k]=0;}); d.step=""; d.notes="";
         d._ts={step:rt,notes:rt,checkedIn:rt}; d._by={ac:{},pz:{},upgrade:{},biz:{},acc:{}};
         d._byTs={ac:{},pz:{},upgrade:{},biz:{},acc:{}}; d._ckpt={}; d._adopted={};
         METRIC_KEYS.forEach(k=>{d._ckpt[k]={val:0,ts:rt,by:'room-reset'};d._adopted[k]=rt;});
@@ -2183,12 +2183,7 @@
       data.forEach(d => {
         ensureMemberTs(d);
         d.checkedIn = false;
-        d.ac = 0;
-        d.pz = 0;
-        d.services = 0;
-        d.upgrade = 0;
-        d.biz = 0;
-        d.acc = 0;
+        METRIC_KEYS.forEach(k => { d[k] = 0; });
         d.step = '';
         d.notes = '';
         d._ts.checkedIn = now;
@@ -3024,7 +3019,7 @@
     pushUndoState();
     data.forEach(d => {
       ensureMemberTs(d);
-      d.checkedIn=false; d.ac=0; d.pz=0; d.biz=0; d.acc=0; d.step=""; d.notes="";
+      d.checkedIn=false; METRIC_KEYS.forEach(k=>{d[k]=0;}); d.step=""; d.notes="";
       d._ts={step:lastRoomResetTs,notes:lastRoomResetTs,checkedIn:lastRoomResetTs};
       d._by={ac:{},pz:{},upgrade:{},biz:{},acc:{}};
       d._byTs={ac:{},pz:{},upgrade:{},biz:{},acc:{}};
