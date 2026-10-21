@@ -1498,8 +1498,8 @@
       lastRoomResetId=ri; lastRoomResetTs=rt;
       data.forEach(d=>{
         ensureMemberTs(d); d.checkedIn=false; METRIC_KEYS.forEach(k=>{d[k]=0;}); d.step=""; d.notes="";
-        d._ts={step:rt,notes:rt,checkedIn:rt}; d._by={ac:{},pz:{},upgrade:{},biz:{},acc:{}};
-        d._byTs={ac:{},pz:{},upgrade:{},biz:{},acc:{}}; d._ckpt={}; d._adopted={};
+        d._ts={step:rt,notes:rt,checkedIn:rt}; d._by={ac:{},pz:{},upgrade:{},biz:{},acc:{},demo:{}};
+        d._byTs={ac:{},pz:{},upgrade:{},biz:{},acc:{},demo:{}}; d._ckpt={}; d._adopted={};
         METRIC_KEYS.forEach(k=>{d._ckpt[k]={val:0,ts:rt,by:'room-reset'};d._adopted[k]=rt;});
         d.updatedAt=rt;
       });
@@ -1944,6 +1944,7 @@
         upgrade: 0,
         biz: 0,
         acc: 0,
+        demo: 0,
         slamsAchieved: 0,
         step: "-",
         notes: ""
@@ -1954,11 +1955,12 @@
       set.forEach(p => {
         const entry = memberMap[p.id];
         if (entry) {
-          const workedShift = p.checkedIn || (p.ac || 0) > 0 || (p.pz || 0) > 0 || (p.upgrade || 0) > 0 || (p.biz || 0) > 0 || (p.acc || 0) > 0;
+          const workedShift = p.checkedIn || (p.demo || 0) > 0 || (p.ac || 0) > 0 || (p.pz || 0) > 0 || (p.upgrade || 0) > 0 || (p.biz || 0) > 0 || (p.acc || 0) > 0;
           if (workedShift) {
             entry.shiftsWorked += 1;
             entry.checkedIn = true;
           }
+          entry.demo += (p.demo || 0);
           entry.ac += (p.ac || 0);
           entry.pz += (p.pz || 0);
           entry.upgrade += (p.upgrade || 0);
@@ -2158,6 +2160,7 @@
           </div>
         </td>
         <td style="text-align:center;">${slamBadge}</td>
+        <td style="text-align:center;"><span class="aggregate-val">${p.demo || 0}</span></td>
         <td style="text-align:center;"><span class="aggregate-val">${p.ac}</span></td>
         <td style="text-align:center;"><span class="aggregate-val">${p.pz}</span></td>
         <td style="text-align:center;"><span class="aggregate-val">${p.upgrade || 0}</span></td>
@@ -3073,8 +3076,8 @@
       ensureMemberTs(d);
       d.checkedIn=false; METRIC_KEYS.forEach(k=>{d[k]=0;}); d.step=""; d.notes="";
       d._ts={step:lastRoomResetTs,notes:lastRoomResetTs,checkedIn:lastRoomResetTs};
-      d._by={ac:{},pz:{},upgrade:{},biz:{},acc:{}};
-      d._byTs={ac:{},pz:{},upgrade:{},biz:{},acc:{}};
+      d._by={ac:{},pz:{},upgrade:{},biz:{},acc:{},demo:{}};
+      d._byTs={ac:{},pz:{},upgrade:{},biz:{},acc:{},demo:{}};
       d._ckpt={}; d._adopted={};
       METRIC_KEYS.forEach(k => {
         d._ckpt[k]={val:0,ts:lastRoomResetTs,by:sourceClientId||CLIENT_ID};
@@ -3106,19 +3109,19 @@
     
     let csv = "";
     if (isLive || isPrior) {
-      csv = "Checked In,Name,Job Title,Grand Slam Status (🏆),AppleCare+ (🍎),PZ Conversion (🔄),Business (💼),Accessories (🎧),Apple Steps of Services,Notes\n";
+      csv = "Checked In,Name,Job Title,Grand Slam Status (🏆),Demo (🤳),AppleCare+ (🍎),PZ Conversion (🔄),Business (💼),Accessories (🎧),Apple Steps of Services,Notes\n";
       const exportData = [...list].sort((a, b) => (b.checkedIn ? 1 : 0) - (a.checkedIn ? 1 : 0));
       exportData.forEach(p => {
         const hits = getHitCount(p);
         const slamLabel = hits === 4 ? "GRAND SLAM (4/4) 🏆" : `${hits}/4`;
         const inStatus = p.checkedIn ? "Yes" : "No";
-        csv += `"${inStatus}","${formatMemberName(p.name)}","${p.role}","${slamLabel}",${p.ac || 0},${p.pz || 0},${p.biz || 0},${p.acc || 0},"${p.step || ''}","${p.notes || ''}"\n`;
+        csv += `"${inStatus}","${formatMemberName(p.name)}","${p.role}","${slamLabel}",${p.demo || 0},${p.ac || 0},${p.pz || 0},${p.biz || 0},${p.acc || 0},"${p.step || ''}","${p.notes || ''}"\n`;
       });
     } else {
-      csv = "Name,Job Title,Shifts Worked,Grand Slams (🏆),Total AppleCare+ (🍎),Total PZ Conversion (🔄),Total Upgrades (🆙),Total Business (💼),Total Accessories (🎧)\n";
+      csv = "Name,Job Title,Shifts Worked,Grand Slams (🏆),Total Demo (🤳),Total AppleCare+ (🍎),Total PZ Conversion (🔄),Total Upgrades (🆙),Total Business (💼),Total Accessories (🎧)\n";
       const exportData = [...list].sort((a, b) => b.ac - a.ac);
       exportData.forEach(p => {
-        csv += `"${formatMemberName(p.name)}","${p.role}",${p.shiftsWorked},${p.slamsAchieved || 0},${p.ac},${p.pz},${p.upgrade || 0},${p.biz},${p.acc}\n`;
+        csv += `"${formatMemberName(p.name)}","${p.role}",${p.shiftsWorked},${p.slamsAchieved || 0},${p.demo || 0},${p.ac},${p.pz},${p.upgrade || 0},${p.biz},${p.acc}\n`;
       });
     }
 
@@ -3567,8 +3570,8 @@
       // the UI. Reconcile a remote metric into a synthetic server bucket so a
       // later local tap does not recompute back to an older local total.
       const merged = Object.assign(local, incoming);
-      merged._by = local._by || { ac:{}, pz:{}, upgrade:{}, biz:{}, acc:{} };
-      merged._byTs = local._byTs || { ac:{}, pz:{}, upgrade:{}, biz:{}, acc:{} };
+      merged._by = local._by || { ac:{}, pz:{}, upgrade:{}, biz:{}, acc:{}, demo:{} };
+      merged._byTs = local._byTs || { ac:{}, pz:{}, upgrade:{}, biz:{}, acc:{}, demo:{} };
       merged._ckpt = local._ckpt || {};
       merged._adopted = local._adopted || {};
       METRIC_KEYS.forEach(metric => {
