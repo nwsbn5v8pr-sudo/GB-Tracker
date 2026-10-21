@@ -1327,7 +1327,9 @@
   }
 
 
-  let currentTab = 'daily'; // 'daily' | 'prior' | 'weekly' | 'monthly' | 'quarterly' | 'history'
+  let currentTab = 'daily';
+  // Display preference only; team members and their data remain in the roster.
+  let uncheckedMembersCollapsed = true; // 'daily' | 'prior' | 'weekly' | 'monthly' | 'quarterly' | 'history'
   let selectedPeriodKey = 'yesterday';
   let activeShiftDate = getTodayString();
   let reorderTimer = null;
@@ -1573,7 +1575,7 @@
   // A function declaration is hoisted complete, so call order cannot matter.
   // Change the store's day boundary here; nothing else reads these values.
   function rolloverConfig() {
-    return { timeZone: 'America/Los_Angeles', hour: 22 };
+    return { timeZone: 'America/Los_Angeles', hour: 23, minute: 59 };
   }
 
   // Calendar date and hour as they read on the Pacific clock at instant `d`.
@@ -1582,20 +1584,22 @@
       const parts = new Intl.DateTimeFormat('en-CA', {
         timeZone: rolloverConfig().timeZone,
         year: 'numeric', month: '2-digit', day: '2-digit',
-        hour: '2-digit', hourCycle: 'h23'
+        hour: '2-digit', minute: '2-digit', hourCycle: 'h23'
       }).formatToParts(d).reduce(function (acc, part) {
         acc[part.type] = part.value; return acc;
       }, {});
       const hour = Number(parts.hour);
-      if (parts.year && parts.month && parts.day && hour >= 0 && hour <= 23) {
-        return { date: `${parts.year}-${parts.month}-${parts.day}`, hour: hour };
+      const minute = Number(parts.minute);
+      if (parts.year && parts.month && parts.day && hour >= 0 && hour <= 23 && minute >= 0 && minute <= 59) {
+        return { date: `${parts.year}-${parts.month}-${parts.day}`, hour: hour, minute: minute };
       }
     } catch (e) {}
     // Intl or the zone is unavailable: fall back to this device's own clock so
     // the tracker still rolls over once a day, just on local time.
     return {
       date: `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`,
-      hour: d.getHours()
+      hour: d.getHours(),
+      minute: d.getMinutes()
     };
   }
 
@@ -1610,7 +1614,9 @@
 
   function getTodayString() {
     const parts = zonedParts(new Date());
-    return parts.hour >= rolloverConfig().hour ? shiftDateString(parts.date, 1) : parts.date;
+    const boundary = rolloverConfig();
+    return (parts.hour > boundary.hour || (parts.hour === boundary.hour && parts.minute >= boundary.minute))
+      ? shiftDateString(parts.date, 1) : parts.date;
   }
 
   function getPriorDayString() {
@@ -2320,7 +2326,7 @@
         const divOut = document.createElement('tr');
         divOut.className = 'section-divider-row';
         divOut.id = 'header-not-checked-in';
-        divOut.innerHTML = `<td colspan="10" class="col-sticky">⚪ Other Team Members (${uncheckedMembers.length})</td>`;
+        divOut.innerHTML = `<td colspan="10" class="col-sticky"><button type="button" onclick="toggleUncheckedMembersCollapsed()" aria-expanded="${!uncheckedMembersCollapsed}" style="width:100%;text-align:left;background:transparent;border:0;color:inherit;font:inherit;padding:0;cursor:pointer;">${uncheckedMembersCollapsed ? '▸' : '▾'} ⚪ Not Checked In (${uncheckedMembers.length}) · ${uncheckedMembersCollapsed ? 'Show' : 'Hide'}</button></td>`;
         tbody.appendChild(divOut);
 
         uncheckedMembers.forEach(d => {
@@ -2338,6 +2344,11 @@
     }
 
     filterTable();
+  }
+
+  function toggleUncheckedMembersCollapsed() {
+    uncheckedMembersCollapsed = !uncheckedMembersCollapsed;
+    reorderRows();
   }
 
   function updateCounts(index, metric, delta) {
@@ -2655,7 +2666,8 @@
 
       const rowEl = document.getElementById(`row-${p.id}`);
       if (rowEl) {
-        if (matchName && matchRole && matchCheckin && matchStep && matchSlam) {
+        const hiddenByCollapse = uncheckedMembersCollapsed && (currentTab === 'daily' || currentTab === 'prior') && !p.checkedIn;
+        if (matchName && matchRole && matchCheckin && matchStep && matchSlam && !hiddenByCollapse) {
           rowEl.style.display = "";
           visibleCount++;
         } else {
@@ -2990,7 +3002,7 @@
       container.innerHTML = `
         <div style="padding: 30px; text-align: center; color: var(--text-secondary);">
           <h3>No Archived Shifts Yet</h3>
-          <p style="margin-top: 6px; font-size: 13px;">Daily shifts save in real time and archive automatically at 10 PM Pacific.</p>
+          <p style="margin-top: 6px; font-size: 13px;">Daily shifts save in real time and archive automatically at 11:59 PM Pacific.</p>
         </div>
       `;
       return;
