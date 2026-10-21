@@ -3741,7 +3741,7 @@
     if (!confirm(
       "RESET TODAY'S LIVE TRACKER ON ALL IPADS?\n\n" +
       "This will clear ALL live Daily data for EVERY team member on every iPad:\n" +
-      "• Check-ins\n• AppleCare+\n• Upgrades\n• Business\n• Accessories\n• Steps of Service\n• Notes / Focus\n\n" +
+      "• Check-ins\n• Demo\n• AppleCare+\n• Upgrades\n• Business\n• Accessories\n• Steps of Service\n• Notes / Focus\n\n" +
       "Historical / previous-day records will NOT be deleted."
     )) return;
 
@@ -3798,6 +3798,7 @@
             upgrade: 0,
             biz: 0,
             acc: 0,
+            demo: 0,
             step: "",
             notes: "",
             updated_at: resetTs,
@@ -3855,6 +3856,7 @@
         Number(r.upgrade || 0) !== 0 ||
         Number(r.biz || 0) !== 0 ||
         Number(r.acc || 0) !== 0 ||
+        Number(r.demo || 0) !== 0 ||
         String(r.step || '') !== '' ||
         String(r.notes || '') !== ''
       );
