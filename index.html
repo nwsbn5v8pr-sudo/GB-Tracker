@@ -1099,6 +1099,9 @@
             <th style="text-align:center;" id="th-slam" onclick="setColumnSort('slam')">
               🏆 Status <span class="sort-icon" id="sort-icon-slam">↕️</span>
             </th>
+            <th style="text-align:center;" id="th-demo" onclick="setColumnSort('demo')">
+              🤳 Demo <span class="sort-icon" id="sort-icon-demo">↕️</span>
+            </th>
             <th style="text-align:center;" id="th-ac" onclick="setColumnSort('ac')">
               🍎 AppleCare+ <span class="sort-icon" id="sort-icon-ac">↕️</span>
             </th>
@@ -1127,6 +1130,7 @@
           <tr id="tableFooterRow">
             <td class="col-sticky" id="tot-label">TOTAL STORE SCORE</td>
             <td style="text-align:center;" id="tot-slam">0 / 61</td>
+            <td style="text-align:center;" id="tot-demo">0</td>
             <td style="text-align:center;" id="tot-ac">0</td>
             <td style="text-align:center;" id="tot-pz">0</td>
             <td style="text-align:center;" id="tot-upgrade">0</td>
@@ -1345,16 +1349,16 @@
       m._by = { ac: {}, pz: {}, upgrade: {}, biz: {}, acc: {} };
       // Seed with whatever the member currently shows, attributed to a
       // synthetic "legacy" bucket so existing/migrated data isn't lost.
-      ['ac', 'pz', 'upgrade', 'biz', 'acc'].forEach(k => {
+      ['ac', 'pz', 'upgrade', 'biz', 'acc', 'demo'].forEach(k => {
         if ((m[k] || 0) > 0) m._by[k]['_legacy'] = m[k];
       });
     }
-    ['ac', 'pz', 'upgrade', 'biz', 'acc'].forEach(k => { if (!m._by[k]) m._by[k] = {}; });
+    ['ac', 'pz', 'upgrade', 'biz', 'acc', 'demo'].forEach(k => { if (!m._by[k]) m._by[k] = {}; });
     // Option B scaffolding — safe to add to pre-existing records.
     if (!m._ckpt    || typeof m._ckpt    !== 'object') m._ckpt = {};
     if (!m._byTs    || typeof m._byTs    !== 'object') m._byTs = {};
     if (!m._adopted || typeof m._adopted !== 'object') m._adopted = {};
-    ['ac', 'pz', 'upgrade', 'biz', 'acc'].forEach(k => { if (!m._byTs[k]) m._byTs[k] = {}; });
+    ['ac', 'pz', 'upgrade', 'biz', 'acc', 'demo'].forEach(k => { if (!m._byTs[k]) m._byTs[k] = {}; });
     // 6) Per-record conflict resolution marker.
     if (typeof m.updatedAt !== 'number') {
       m.updatedAt = Math.max(
@@ -1386,7 +1390,7 @@
      _byTs[metric]  = { clientId: ts }  when that device last changed its delta
      _adopted[metric] = ts              newest checkpoint folded in locally
      ============================================================ */
-  const METRIC_KEYS = ['ac', 'pz', 'upgrade', 'biz', 'acc'];
+  const METRIC_KEYS = ['ac', 'pz', 'upgrade', 'biz', 'acc', 'demo'];
 
   /* Fold the newest known checkpoint into this member by discarding only the
      deltas that PREDATE it. Post-checkpoint taps are preserved. Every device
@@ -1436,12 +1440,13 @@
       upgrade: 0,
       biz: 0,
       acc: 0,
+      demo: 0,
       step: "",
       notes: "",
       updatedAt: 0,
       _ts: { step: 0, notes: 0, checkedIn: 0 },
-      _by: { ac: {}, pz: {}, upgrade: {}, biz: {}, acc: {} },
-      _byTs: { ac: {}, pz: {}, upgrade: {}, biz: {}, acc: {} },
+      _by: { ac: {}, pz: {}, upgrade: {}, biz: {}, acc: {}, demo: {} },
+      _byTs: { ac: {}, pz: {}, upgrade: {}, biz: {}, acc: {}, demo: {} },
       _ckpt: {},
       _adopted: {}
     };
@@ -1778,7 +1783,7 @@
   }
 
   function updateSortHeaderIcons() {
-    const cols = ['name', 'slam', 'ac', 'pz', 'biz', 'acc', 'step'];
+    const cols = ['name', 'slam', 'demo', 'ac', 'pz', 'biz', 'acc', 'step'];
     cols.forEach(c => {
       const th = document.getElementById(`th-${c}`);
       const icon = document.getElementById(`sort-icon-${c}`);
@@ -2059,6 +2064,7 @@
           </div>
         </td>
         <td style="text-align:center;" id="val-slam-${p.id}"></td>
+        <td style="text-align:center;"><div class="counter-box"><button type="button" class="cnt-btn minus" onclick="event.stopPropagation(); updateCounts(${JSON.stringify(String(p.id))}, 'demo', -1)">−</button><span class="cnt-val" id="val-demo-${p.id}" title="Tap to set exact total" onclick="event.stopPropagation(); setExactValue(${JSON.stringify(String(p.id))}, 'demo')">${p.demo || 0}</span><button type="button" class="cnt-btn plus" onclick="event.stopPropagation(); updateCounts(${JSON.stringify(String(p.id))}, 'demo', 1)">+</button></div></td>
         <td style="text-align:center;">
           <div class="counter-box">
             <button type="button" class="cnt-btn minus" onclick="event.stopPropagation(); updateCounts('${String(p.id).replace(/'/g, "\\'")}', 'ac', -1)">−</button>
@@ -2126,6 +2132,7 @@
           </div>
         </td>
         <td style="text-align:center;">${slamBadge}</td>
+        <td style="text-align:center;"><span class="aggregate-val">${p.demo || 0}</span></td>
         <td style="text-align:center;"><span class="aggregate-val">${p.ac || 0}</span></td>
         <td style="text-align:center;"><span class="aggregate-val">${p.pz || 0}</span></td>
         <td style="text-align:center;"><span class="aggregate-val">${p.upgrade || 0}</span></td>
@@ -2297,7 +2304,7 @@
         const divIn = document.createElement('tr');
         divIn.className = 'section-divider-row';
         divIn.id = 'header-checked-in';
-        divIn.innerHTML = `<td colspan="9" class="col-sticky">🟢 ${isLive ? 'On Shift / Checked In' : 'Active on Shift'} (${checkedMembers.length})</td>`;
+        divIn.innerHTML = `<td colspan="10" class="col-sticky">🟢 ${isLive ? 'On Shift / Checked In' : 'Active on Shift'} (${checkedMembers.length})</td>`;
         tbody.appendChild(divIn);
 
         checkedMembers.forEach(d => {
@@ -2310,7 +2317,7 @@
         const divOut = document.createElement('tr');
         divOut.className = 'section-divider-row';
         divOut.id = 'header-not-checked-in';
-        divOut.innerHTML = `<td colspan="9" class="col-sticky">⚪ Other Team Members (${uncheckedMembers.length})</td>`;
+        divOut.innerHTML = `<td colspan="10" class="col-sticky">⚪ Other Team Members (${uncheckedMembers.length})</td>`;
         tbody.appendChild(divOut);
 
         uncheckedMembers.forEach(d => {
@@ -2403,7 +2410,7 @@
     if (!member) return;
     ensureMemberTs(member);
 
-    const label = { ac: 'AppleCare+', pz: 'PZ Conversion', upgrade: 'Upgrades', biz: 'Business', acc: 'Accessories' }[metric] || metric;
+    const label = { ac: 'AppleCare+', pz: 'PZ Conversion', upgrade: 'Upgrades', biz: 'Business', acc: 'Accessories', demo: 'Demo' }[metric] || metric;
     const raw = prompt(`Set exact ${label} total for ${member.name}:`, String(member[metric] || 0));
     if (raw === null) return;
     const val = parseInt(String(raw).trim(), 10);
@@ -2526,6 +2533,8 @@
     if (elBiz) elBiz.textContent = member.biz;
     const elAcc = document.getElementById(`val-acc-${i}`);
     if (elAcc) elAcc.textContent = member.acc;
+    const elDemo = document.getElementById(`val-demo-${i}`);
+    if (elDemo) elDemo.textContent = member.demo || 0;
 
     const stepSelect = document.getElementById(`step-${i}`);
     if (stepSelect && document.activeElement !== stepSelect && stepSelect.value !== (member.step || '')) {
@@ -2559,7 +2568,7 @@
 
   function updateTotals() {
     const list = getDisplayList();
-    let totAc = 0, totPz = 0, totUpgrade = 0, totBiz = 0, totAcc = 0, totSlam = 0, totCheckin = 0;
+    let totDemo = 0, totAc = 0, totPz = 0, totUpgrade = 0, totBiz = 0, totAcc = 0, totSlam = 0, totCheckin = 0;
 
     list.forEach(d => {
       if (currentTab === 'daily') {
@@ -2579,6 +2588,7 @@
       totUpgrade += (d.upgrade || 0);
       totBiz += (d.biz || 0);
       totAcc += (d.acc || 0);
+      totDemo += (d.demo || 0);
     });
 
     const isLive = (currentTab === 'daily');
@@ -2609,6 +2619,7 @@
     document.getElementById("tot-upgrade").textContent = totUpgrade;
     document.getElementById("tot-biz").textContent = totBiz;
     document.getElementById("tot-acc").textContent = totAcc;
+    document.getElementById("tot-demo").textContent = totDemo;
 
     updateTopPerformers();
   }
@@ -3436,6 +3447,7 @@
     m.upgrade = Number(r.upgrade || 0);
     m.biz = Number(r.biz || 0);
     m.acc = Number(r.acc || 0);
+    m.demo = Number(r.demo || 0);
     m.step = r.step || '';
     m.notes = r.notes || '';
     m.updatedAt = Date.parse(r.updated_at || '') || 0;
@@ -3456,6 +3468,7 @@
       upgrade: Math.max(0, Number(m.upgrade || 0)),
       biz: Math.max(0, Number(m.biz || 0)),
       acc: Math.max(0, Number(m.acc || 0)),
+      demo: Math.max(0, Number(m.demo || 0)),
       step: String(m.step || ''),
       notes: String(m.notes || ''),
       updated_by: CLIENT_ID,
@@ -3634,7 +3647,7 @@
           if (row) await gbApplyRealtimeRow(row);
         } else if (payload.type === 'delta_set_exact') {
           const metric = payload.metric;
-          const allowed = ['ac', 'pz', 'upgrade', 'biz', 'acc'];
+          const allowed = ['ac', 'pz', 'upgrade', 'biz', 'acc', 'demo'];
           if (!allowed.includes(metric)) return;
           const val = Math.max(0, Number(payload.val || 0));
           const patch = {};
