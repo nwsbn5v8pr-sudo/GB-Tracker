@@ -3457,6 +3457,12 @@
     m.rev = Number(r.revision || 0);
     m.revBy = r.updated_by || '';
     ensureMemberTs(m);
+    // Seed the newly introduced Demo metric from the authoritative DB value
+    // when loading existing rows, so the first tap after reload preserves it.
+    if (!Object.keys(m._by.demo || {}).length && m.demo > 0) {
+      m._by.demo.__server__ = m.demo;
+      m._byTs.demo.__server__ = m.updatedAt || Date.now();
+    }
     return m;
   }
 
