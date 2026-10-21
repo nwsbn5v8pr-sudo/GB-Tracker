@@ -2066,7 +2066,7 @@
           </div>
         </td>
         <td style="text-align:center;" id="val-slam-${p.id}"></td>
-        <td style="text-align:center;"><div class="counter-box"><button type="button" class="cnt-btn minus" onclick="event.stopPropagation(); updateCounts(${JSON.stringify(String(p.id))}, 'demo', -1)">−</button><span class="cnt-val" id="val-demo-${p.id}" title="Tap to set exact total" onclick="event.stopPropagation(); setExactValue(${JSON.stringify(String(p.id))}, 'demo')">${p.demo || 0}</span><button type="button" class="cnt-btn plus" onclick="event.stopPropagation(); updateCounts(${JSON.stringify(String(p.id))}, 'demo', 1)">+</button></div></td>
+        <td style="text-align:center;"><div class="counter-box"><button type="button" class="cnt-btn minus" onclick="event.stopPropagation(); updateCounts(this.closest('tr').id.replace('row-', ''), 'demo', -1)">−</button><span class="cnt-val" id="val-demo-${p.id}" title="Tap to set exact total" onclick="event.stopPropagation(); setExactValue(this.closest('tr').id.replace('row-', ''), 'demo')">${p.demo || 0}</span><button type="button" class="cnt-btn plus" onclick="event.stopPropagation(); updateCounts(this.closest('tr').id.replace('row-', ''), 'demo', 1)">+</button></div></td>
         <td style="text-align:center;">
           <div class="counter-box">
             <button type="button" class="cnt-btn minus" onclick="event.stopPropagation(); updateCounts('${String(p.id).replace(/'/g, "\\'")}', 'ac', -1)">−</button>
