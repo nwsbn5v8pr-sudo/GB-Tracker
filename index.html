@@ -884,6 +884,35 @@
     .top-bar > .btn-group::-webkit-scrollbar { display: none; }
   }
 
+
+  /* GB Pro Vs Pro — aligned with the PZ Pro Vs Pro visual system */
+  .gb-challenge-wrap{display:none;width:calc(100vw - 30px);max-width:none;position:relative;left:50%;transform:translateX(-50%);box-sizing:border-box;margin:0 auto;padding:4px 0 28px}
+  .gb-challenge-wrap.active{display:block}
+  .gb-challenge-heading{margin:4px 0 14px}
+  .gb-challenge-heading h2{font-size:20px;font-weight:800;margin:0 0 4px}
+  .gb-challenge-heading p{color:var(--text-secondary);font-size:12px;margin:0}
+  .gb-challenge-tabs{display:flex;gap:6px;align-items:center;flex-wrap:wrap;margin-bottom:14px}
+  .gb-challenge-tabs .tab-btn{background:var(--tab-bg);color:var(--text-primary);border:0;border-radius:9px;padding:9px 13px;font-weight:700}
+  .gb-challenge-tabs .tab-btn.active{background:var(--tab-active-bg);box-shadow:0 1px 4px rgba(0,0,0,.12)}
+  .gb-challenge-tabs .gb-challenge-back{margin-left:auto}
+  .gb-challenge-card{background:var(--bg-card);color:var(--text-primary);border:1px solid var(--border);border-radius:14px;padding:16px;margin-bottom:14px;box-sizing:border-box;min-width:0}
+  .gb-challenge-card h3{font-size:15px;font-weight:800;margin:0 0 12px}
+  .gb-challenge-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}
+  .gb-challenge-metrics{grid-template-columns:repeat(4,minmax(0,1fr))}
+  .gb-challenge-stat{font-size:25px;font-weight:800}
+  .gb-challenge-muted{color:var(--text-secondary);font-size:12px}
+  .gb-challenge-form{display:flex;flex-wrap:wrap;gap:10px;align-items:end}
+  .gb-challenge-form label{display:flex;flex-direction:column;gap:5px;font-size:12px;font-weight:700;min-width:150px;flex:1;color:var(--text-secondary)}
+  .gb-challenge-form input,.gb-challenge-form select{padding:10px;border:1px solid var(--border-strong);border-radius:9px;min-height:40px;background:var(--bg-primary);color:var(--text-primary);width:100%;box-sizing:border-box}
+  .gb-challenge-wrap button:not(.tab-btn){padding:10px 14px;border:0;border-radius:9px;background:var(--accent);color:white;font-weight:700;cursor:pointer}
+  .gb-challenge-wrap button.secondary{background:#777}
+  .gb-challenge-table{width:100%;border-collapse:collapse;min-width:650px}
+  .gb-challenge-table th,.gb-challenge-table td{padding:9px 10px;border-bottom:1px solid var(--border);text-align:left;white-space:nowrap}
+  .gb-challenge-card ul,.gb-challenge-card ol{padding-left:20px;line-height:1.8;margin:8px 0 0}
+  .gb-challenge-card p{line-height:1.65}
+  @media(max-width:900px){.gb-challenge-metrics{grid-template-columns:repeat(2,minmax(0,1fr))}.gb-challenge-tabs .gb-challenge-back{margin-left:0}}
+  @media(max-width:700px){.gb-challenge-wrap{width:calc(100vw - 24px)}.gb-challenge-grid{grid-template-columns:minmax(0,1fr)}.gb-challenge-metrics{grid-template-columns:repeat(2,minmax(0,1fr))}}
+
   /* GB Pro Vs Pro challenge */
   .gb-challenge-wrap { display:none; max-width:1400px; margin:18px auto; padding:0 16px 28px; }
   .gb-challenge-wrap.active { display:block; }
@@ -947,55 +976,103 @@
 
 
   <section class="gb-challenge-wrap" id="gbChallengeView">
-    <div class="gb-challenge-card">
-      <div style="display:flex;justify-content:space-between;gap:12px;align-items:center;flex-wrap:wrap">
-        <div><h2>🏆 GB Pro Vs Pro</h2><div class="gb-challenge-muted">Verified transactions • Daily Grand Slam • NPS streak bonuses</div></div>
-        <button class="secondary" type="button" onclick="closeGBChallenge()">← Back to Focus & Follow</button>
+    <div class="gb-challenge-heading">
+      <h2>🏅 GB Pro Vs Pro</h2>
+      <p>Live team totals, verified transactions, Grand Slam achievements, and NPS bonuses.</p>
+    </div>
+    <div class="segmented-control gb-challenge-tabs" role="tablist" aria-label="GB Pro Vs Pro sections">
+      <button class="tab-btn active" id="gb-view-standings" type="button" onclick="switchGBChallengeView('standings')" role="tab" aria-selected="true">🏆 Standings</button>
+      <button class="tab-btn" id="gb-view-manage" type="button" onclick="switchGBChallengeView('manage')" role="tab" aria-selected="false">👥 Manage Teams</button>
+      <button class="tab-btn" id="gb-view-rules" type="button" onclick="switchGBChallengeView('rules')" role="tab" aria-selected="false">📋 Rules</button>
+      <button class="secondary gb-challenge-back" type="button" onclick="closeGBChallenge()">← Back to Focus & Follow</button>
+    </div>
+    <div id="gbChallengeStandingsPage">
+      <div class="gb-challenge-card">
+        <h3>📊 Challenge Overview</h3>
+        <div class="gb-challenge-grid gb-challenge-metrics">
+          <div class="team-metric"><span>Challenge members</span><strong id="gbChallengeMemberCount">0</strong></div>
+          <div class="team-metric"><span>Verified transactions</span><strong id="gbChallengeTransactions">0</strong></div>
+          <div class="team-metric"><span>Grand Slam bonuses</span><strong id="gbChallengeSlams">0</strong></div>
+          <div class="team-metric"><span>NPS bonus points</span><strong id="gbChallengeNps">0</strong></div>
+        </div>
       </div>
-      <div class="gb-challenge-grid" style="margin-top:16px">
-        <div><div class="gb-challenge-muted">Challenge members</div><div class="gb-challenge-stat" id="gbChallengeMemberCount">0</div></div>
-        <div><div class="gb-challenge-muted">Verified transactions</div><div class="gb-challenge-stat" id="gbChallengeTransactions">0</div></div>
-        <div><div class="gb-challenge-muted">Grand Slam bonuses</div><div class="gb-challenge-stat" id="gbChallengeSlams">0</div></div>
-        <div><div class="gb-challenge-muted">NPS bonus points</div><div class="gb-challenge-stat" id="gbChallengeNps">0</div></div>
+      <div class="gb-challenge-card">
+        <h3>🏆 Team Standings</h3>
+        <div id="gbChallengeStandings" class="gb-challenge-muted">Connect to cloud to load standings.</div>
+      </div>
+      <div class="gb-challenge-card">
+        <h3>🕘 Recent Challenge Activity</h3>
+        <div id="gbChallengeActivity" class="gb-challenge-muted">No activity yet.</div>
       </div>
     </div>
-    <div class="gb-challenge-card">
-      <h3>Team roster</h3>
-      <form class="gb-challenge-form" id="gbChallengeMemberForm">
-        <label>Team member name<input id="gbChallengeMemberName" maxlength="120" required placeholder="Add a team member"></label>
-        <label>Team<select id="gbChallengeMemberTeam" required><option value="Team A">Interim Coach Jerome</option><option value="Team B">Coach Shane</option></select></label>
-        <label>Role<select id="gbChallengeMemberRole" required><option>Genius</option><option>Technical Expert</option><option>Technical Specialist</option><option>Genius Admin</option></select></label>
-        <button type="submit">＋ Add member</button>
-      </form>
-      <div class="gb-challenge-muted" style="margin-top:8px">This roster is separate from the daily GB tracker roster. Team and role assignments are shown here.</div>
-      <div id="gbChallengeRoster" style="margin-top:12px"></div>
+    <div id="gbChallengeManagePage" style="display:none;">
+      <div class="gb-challenge-card">
+        <h3>👥 Team Roster</h3>
+        <form class="gb-challenge-form" id="gbChallengeMemberForm">
+          <label>Team member name<input id="gbChallengeMemberName" maxlength="120" required placeholder="Add a team member"></label>
+          <label>Team<select id="gbChallengeMemberTeam" required><option value="Team A">Interim Coach Jerome</option><option value="Team B">Coach Shane</option></select></label>
+          <label>Role<select id="gbChallengeMemberRole" required><option>Genius</option><option>Technical Expert</option><option>Technical Specialist</option><option>Genius Admin</option></select></label>
+          <button type="submit">＋ Add member</button>
+        </form>
+        <p class="gb-challenge-muted" style="margin-top:8px">This challenge roster is separate from the daily GB tracker roster.</p>
+        <div id="gbChallengeRoster" style="margin-top:12px"></div>
+      </div>
+      <div class="gb-challenge-card">
+        <h3>🧾 Record a Qualifying Transaction</h3>
+        <form class="gb-challenge-form" id="gbChallengeTransactionForm">
+          <label>Team member<select id="gbChallengeTxnMember" required><option value="">Select member</option></select></label>
+          <label>Category<select id="gbChallengeCategory" required><option>AppleCare+</option><option>PZ Conversion</option><option>Business</option><option>Accessories</option></select></label>
+          <label>Number of transactions<input id="gbChallengeQuantity" type="number" min="1" max="100" value="1" required></label>
+          <label>Verification<select id="gbChallengeVerification" required><option>Printed receipt</option><option>Easy Pay visual verification</option></select></label>
+          <button type="submit">＋ Add verified point(s)</button>
+        </form>
+        <p class="gb-challenge-muted" style="margin-top:8px">Each verified transaction earns 1 point. Demo, check-ins, and Steps of Service earn zero challenge points.</p>
+      </div>
+      <div class="gb-challenge-card">
+        <h3>⭐ Record NPS Streak Bonus</h3>
+        <form class="gb-challenge-form" id="gbChallengeNpsForm">
+          <label>Team member<select id="gbChallengeNpsMember" required><option value="">Select member</option></select></label>
+          <label>Completed 10-streak milestones<input id="gbChallengeNpsQuantity" type="number" min="1" max="100" value="1" required></label>
+          <button type="submit">＋ Add NPS bonus</button>
+        </form>
+        <p class="gb-challenge-muted" style="margin-top:8px">+20 points for every 10 NPS streaks (20 streaks = 40 bonus points).</p>
+      </div>
     </div>
-    <div class="gb-challenge-card">
-      <h3>Record a qualifying transaction</h3>
-      <form class="gb-challenge-form" id="gbChallengeTransactionForm">
-        <label>Team member<select id="gbChallengeTxnMember" required><option value="">Select member</option></select></label>
-        <label>Category<select id="gbChallengeCategory" required><option>AppleCare+</option><option>PZ Conversion</option><option>Business</option><option>Accessories</option></select></label>
-        <label>Number of transactions<input id="gbChallengeQuantity" type="number" min="1" max="100" value="1" required></label>
-        <label>Verification<select id="gbChallengeVerification" required><option>Printed receipt</option><option>Easy Pay visual verification</option></select></label>
-        <button type="submit">＋ Add verified point(s)</button>
-      </form>
-      <div class="gb-challenge-muted" style="margin-top:8px">Each verified transaction = 1 point. Demo, check-ins, and Steps of Service earn zero challenge points.</div>
-    </div>
-    <div class="gb-challenge-card">
-      <h3>Record NPS streak bonus</h3>
-      <form class="gb-challenge-form" id="gbChallengeNpsForm">
-        <label>Team member<select id="gbChallengeNpsMember" required><option value="">Select member</option></select></label>
-        <label>Completed 10-streak milestones<input id="gbChallengeNpsQuantity" type="number" min="1" max="100" value="1" required></label>
-        <button type="submit">＋ Add NPS bonus</button>
-      </form>
-      <div class="gb-challenge-muted" style="margin-top:8px">+20 points for every 10 NPS streaks (e.g. 20 streaks = 40 bonus points).</div>
-    </div>
-    <div class="gb-challenge-card"><h3>🏅 Standings</h3><div id="gbChallengeStandings" class="gb-challenge-muted">Connect to cloud to load standings.</div></div>
-    <div class="gb-challenge-card"><h3>Recent challenge activity</h3><div id="gbChallengeActivity" class="gb-challenge-muted">No activity yet.</div></div>
-    <div class="gb-challenge-card"><h3>Challenge rules</h3>
-      <ol><li>Each verified AppleCare+, PZ Conversion, Business, or Accessories transaction earns 1 point.</li><li>Transactions must be verified by printed receipt or Easy Pay visual transaction check.</li><li>+10 Grand Slam bonus when all four categories are achieved by the same person on the same day.</li><li>+20 NPS bonus points for every 10 NPS streaks.</li><li>Demo activity, check-ins, and Steps of Service do not count toward challenge points.</li><li>Do not enter customer personal information in notes.</li></ol>
+    <div id="gbChallengeRulesPage" style="display:none;">
+      <div class="gb-challenge-card">
+        <h3>⭐ Base Points</h3>
+        <div class="team-metric-grid">
+          <div class="team-metric"><span>🍎 AppleCare+</span><strong>1 pt</strong></div>
+          <div class="team-metric"><span>🔄 PZ Conversion</span><strong>1 pt</strong></div>
+          <div class="team-metric"><span>💼 Business</span><strong>1 pt</strong></div>
+          <div class="team-metric"><span>🎧 Accessories</span><strong>1 pt</strong></div>
+        </div>
+      </div>
+      <div class="gb-challenge-card">
+        <h3>🏆 Bonus Points</h3>
+        <ul><li><strong>Grand Slam: +10 points</strong> when all four qualifying categories are achieved by the same person on the same day.</li><li><strong>NPS: +20 points</strong> for every 10 NPS streaks.</li></ul>
+      </div>
+      <div class="gb-challenge-card">
+        <h3>🧾 Receipt & Transaction Verification</h3>
+        <p>Every transaction counted toward points must be verifiable by a printed receipt or a visual check of the recent transaction in Easy Pay. If it cannot be verified, do not count it until confirmed. Keep customer information private.</p>
+      </div>
+      <div class="gb-challenge-card">
+        <h3>📌 Scoring Guidelines</h3>
+        <ul><li>Each verified AppleCare+, PZ Conversion, Business, or Accessories transaction earns 1 point.</li><li>Grand Slam and NPS bonuses are added on top of base points.</li><li>Demo activity, check-ins, and Steps of Service do not add challenge points.</li><li>Do not enter customer personal information in notes.</li></ul>
+      </div>
     </div>
   </section>
+  <script>
+    function switchGBChallengeView(view) {
+      const pages = {standings:'gbChallengeStandingsPage',manage:'gbChallengeManagePage',rules:'gbChallengeRulesPage'};
+      Object.entries(pages).forEach(([key,id]) => {
+        const page=document.getElementById(id);
+        if(page) page.style.display=key===view?'block':'none';
+        const btn=document.getElementById('gb-view-'+key);
+        if(btn){btn.classList.toggle('active',key===view);btn.setAttribute('aria-selected',key===view?'true':'false');}
+      });
+    }
+  </script>
 
   <!-- Top Action Bar -->
   <div class="top-bar">
