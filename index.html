@@ -1015,7 +1015,6 @@
           <button type="button" onclick="switchTab('monthly');closeMoreMenu()">🗓️ Monthly</button>
           <button type="button" onclick="switchTab('quarterly');closeMoreMenu()">📈 Quarterly</button>
           <button type="button" onclick="switchTab('history');closeMoreMenu()">📜 History Logs</button>
-          <button type="button" onclick="openGBChallenge();closeMoreMenu()">🏆 Pro Vs Pro Challenge</button>
           <div class="menu-divider"></div>
           <button type="button" onclick="manualRollOverGbDay();closeMoreMenu()">💾 Save & Start New Day</button>
           <div class="menu-divider"></div>
@@ -1032,6 +1031,7 @@
   <div class="timeframe-nav" id="timeframeNav">
     <div class="segmented-control">
       <button class="tab-btn active" id="tab-daily" onclick="switchTab('daily')">📅 Daily</button>
+      <button class="tab-btn" id="tab-challenge" onclick="switchTab('challenge')">🏆 Pro Vs Pro</button>
       <button class="tab-btn" id="tab-prior" onclick="switchTab('prior')">⬅️ Prior Day</button>
       <button class="tab-btn" id="tab-weekly" onclick="switchTab('weekly')">📊 Weekly</button>
       <button class="tab-btn" id="tab-monthly" onclick="switchTab('monthly')">🗓️ Monthly</button>
@@ -2754,6 +2754,8 @@
 
   /* 📑 TAB SWITCHING LOGIC */
   function switchTab(tab) {
+    if (tab === 'challenge') { openGBChallenge(); return; }
+    closeGBChallenge();
     currentTab = tab;
     document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
     const activeTabBtn = document.getElementById(`tab-${tab}`);
@@ -4288,6 +4290,10 @@
   let gbChallengeMembers = [];
   let gbChallengeEvents = [];
   function openGBChallenge() {
+    currentTab = 'challenge';
+    document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+    const challengeTab = document.getElementById('tab-challenge');
+    if (challengeTab) challengeTab.classList.add('active');
     document.body.classList.add('gb-challenge-open');
     document.getElementById('gbChallengeView').classList.add('active');
     loadGBChallenge();
