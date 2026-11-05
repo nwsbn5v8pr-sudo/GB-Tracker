@@ -963,7 +963,7 @@
       <h3>Team roster</h3>
       <form class="gb-challenge-form" id="gbChallengeMemberForm">
         <label>Team member name<input id="gbChallengeMemberName" maxlength="120" required placeholder="Add a team member"></label>
-        <label>Team<select id="gbChallengeMemberTeam" required><option>Team A</option><option>Team B</option></select></label>
+        <label>Team<select id="gbChallengeMemberTeam" required><option value="Team A">Interim Coach Jerome</option><option value="Team B">Coach Shane</option></select></label>
         <label>Role<select id="gbChallengeMemberRole" required><option>Genius</option><option>Technical Expert</option><option>Technical Specialist</option><option>Genius Admin</option></select></label>
         <button type="submit">＋ Add member</button>
       </form>
@@ -4331,12 +4331,14 @@
     document.getElementById('gbChallengeTransactions').textContent=txTotal;
     document.getElementById('gbChallengeSlams').textContent=slamTotal;
     document.getElementById('gbChallengeNps').textContent=npsTotal;
-    const options='<option value="">Select member</option>'+['Team A','Team B'].map(team=>'<optgroup label="'+team+'">'+members.filter(m=>m.team_name===team).map(m=>'<option value="'+escapeGBChallenge(m.name)+'">'+escapeGBChallenge(m.name)+'</option>').join('')+'</optgroup>').join('');
+    const challengeTeams=[{value:'Team A',label:'Interim Coach Jerome'},{value:'Team B',label:'Coach Shane'}];
+    const teamLabel=value=>challengeTeams.find(t=>t.value===value)?.label||value;
+    const options='<option value="">Select member</option>'+challengeTeams.map(team=>'<optgroup label="'+team.label+'">'+members.filter(m=>m.team_name===team.value).map(m=>'<option value="'+escapeGBChallenge(m.name)+'">'+escapeGBChallenge(m.name)+'</option>').join('')+'</optgroup>').join('');
     document.getElementById('gbChallengeTxnMember').innerHTML=options;
     document.getElementById('gbChallengeNpsMember').innerHTML=options;
-    document.getElementById('gbChallengeRoster').innerHTML=members.length?['Team A','Team B'].map(team=>'<div style="margin-bottom:12px"><b>'+team+'</b><div>'+members.filter(m=>m.team_name===team).map(m=>'<span style="display:inline-flex;gap:6px;align-items:center;background:#8882;padding:7px 10px;border-radius:20px;margin:3px">'+escapeGBChallenge(m.name)+' <small style="opacity:.7">'+escapeGBChallenge(m.role||'')+'</small> <button class="secondary" style="padding:3px 7px" onclick="removeGBChallengeMember(\''+m.id+'\')" title="Remove member">×</button></span>').join('')+'</div></div>').join(''):'<div class="gb-challenge-muted">No challenge members yet.</div>';
+    document.getElementById('gbChallengeRoster').innerHTML=members.length?challengeTeams.map(team=>'<div style="margin-bottom:12px"><b>'+team.label+'</b><div>'+members.filter(m=>m.team_name===team.value).map(m=>'<span style="display:inline-flex;gap:6px;align-items:center;background:#8882;padding:7px 10px;border-radius:20px;margin:3px">'+escapeGBChallenge(m.name)+' <small style="opacity:.7">'+escapeGBChallenge(m.role||'')+'</small> <button class="secondary" style="padding:3px 7px" onclick="removeGBChallengeMember(\''+m.id+'\')" title="Remove member">×</button></span>').join('')+'</div></div>').join(''):'<div class="gb-challenge-muted">No challenge members yet.</div>';
     const ranked=Object.values(by).sort((a,b)=>b.points-a.points||a.name.localeCompare(b.name));
-    document.getElementById('gbChallengeStandings').innerHTML=ranked.length?'<table class="gb-challenge-table"><thead><tr><th>#</th><th>Team</th><th>Team member</th><th>Role</th><th>Transactions</th><th>Grand Slams</th><th>NPS bonus</th><th>Total points</th></tr></thead><tbody>'+ranked.map((x,i)=>'<tr><td>'+(i+1)+'</td><td>'+escapeGBChallenge(x.team_name)+'</td><td>'+escapeGBChallenge(x.name)+'</td><td>'+escapeGBChallenge(x.role)+'</td><td>'+x.tx+'</td><td>'+x.slam+'</td><td>'+x.nps+'</td><td><b>'+x.points+'</b></td></tr>').join('')+'</tbody></table>':'No team members yet.';
+    document.getElementById('gbChallengeStandings').innerHTML=ranked.length?'<table class="gb-challenge-table"><thead><tr><th>#</th><th>Team</th><th>Team member</th><th>Role</th><th>Transactions</th><th>Grand Slams</th><th>NPS bonus</th><th>Total points</th></tr></thead><tbody>'+ranked.map((x,i)=>'<tr><td>'+(i+1)+'</td><td>'+escapeGBChallenge(teamLabel(x.team_name))+'</td><td>'+escapeGBChallenge(x.name)+'</td><td>'+escapeGBChallenge(x.role)+'</td><td>'+x.tx+'</td><td>'+x.slam+'</td><td>'+x.nps+'</td><td><b>'+x.points+'</b></td></tr>').join('')+'</tbody></table>':'No team members yet.';
     document.getElementById('gbChallengeActivity').innerHTML=events.length?'<table class="gb-challenge-table"><thead><tr><th>Date</th><th>Member</th><th>Activity</th><th>Points</th><th>Verification</th></tr></thead><tbody>'+events.slice(0,30).map(x=>'<tr><td>'+escapeGBChallenge(x.challenge_date)+'</td><td>'+escapeGBChallenge(x.member_name)+'</td><td>'+(x.event_type==='transaction'?escapeGBChallenge(x.category)+' × '+x.quantity:'NPS streak × '+x.quantity)+'</td><td>'+x.points+'</td><td>'+escapeGBChallenge(x.verification_method||'NPS bonus')+'</td></tr>').join('')+'</tbody></table>':'No activity recorded yet.';
   }
   function escapeGBChallenge(v){return String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));}
