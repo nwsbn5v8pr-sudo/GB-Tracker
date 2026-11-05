@@ -883,6 +883,23 @@
     }
     .top-bar > .btn-group::-webkit-scrollbar { display: none; }
   }
+
+  /* GB Pro Vs Pro challenge */
+  .gb-challenge-wrap { display:none; max-width:1400px; margin:18px auto; padding:0 16px 28px; }
+  .gb-challenge-wrap.active { display:block; }
+  .gb-challenge-card { background:var(--card-bg, #fff); border:1px solid var(--border-color, #ddd); border-radius:16px; padding:18px; margin-bottom:16px; }
+  .gb-challenge-grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(190px,1fr)); gap:12px; }
+  .gb-challenge-form { display:flex; flex-wrap:wrap; gap:10px; align-items:end; }
+  .gb-challenge-form label { display:flex; flex-direction:column; gap:5px; font-size:12px; font-weight:700; min-width:150px; flex:1; }
+  .gb-challenge-form input,.gb-challenge-form select { padding:10px; border:1px solid #aaa; border-radius:9px; min-height:40px; background:var(--input-bg,#fff); color:inherit; }
+  .gb-challenge-wrap button { padding:10px 14px; border:0; border-radius:9px; background:#007aff; color:white; font-weight:700; cursor:pointer; }
+  .gb-challenge-wrap button.secondary { background:#777; }
+  .gb-challenge-table { width:100%; border-collapse:collapse; }
+  .gb-challenge-table th,.gb-challenge-table td { padding:10px 8px; border-bottom:1px solid var(--border-color,#ddd); text-align:left; }
+  .gb-challenge-muted { color:#777; font-size:13px; }
+  .gb-challenge-stat { font-size:25px; font-weight:800; }
+  .gb-challenge-wrap h2,.gb-challenge-wrap h3 { margin:0 0 12px; }
+  body.gb-challenge-open #topPerformersCard, body.gb-challenge-open .kpi-grid, body.gb-challenge-open #mainTableCard, body.gb-challenge-open #historyCard { display:none !important; }
 </style>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script>
@@ -928,6 +945,56 @@
 </head>
 <body>
 
+
+  <section class="gb-challenge-wrap" id="gbChallengeView">
+    <div class="gb-challenge-card">
+      <div style="display:flex;justify-content:space-between;gap:12px;align-items:center;flex-wrap:wrap">
+        <div><h2>🏆 GB Pro Vs Pro</h2><div class="gb-challenge-muted">Verified transactions • Daily Grand Slam • NPS streak bonuses</div></div>
+        <button class="secondary" type="button" onclick="closeGBChallenge()">← Back to Focus & Follow</button>
+      </div>
+      <div class="gb-challenge-grid" style="margin-top:16px">
+        <div><div class="gb-challenge-muted">Challenge members</div><div class="gb-challenge-stat" id="gbChallengeMemberCount">0</div></div>
+        <div><div class="gb-challenge-muted">Verified transactions</div><div class="gb-challenge-stat" id="gbChallengeTransactions">0</div></div>
+        <div><div class="gb-challenge-muted">Grand Slam bonuses</div><div class="gb-challenge-stat" id="gbChallengeSlams">0</div></div>
+        <div><div class="gb-challenge-muted">NPS bonus points</div><div class="gb-challenge-stat" id="gbChallengeNps">0</div></div>
+      </div>
+    </div>
+    <div class="gb-challenge-card">
+      <h3>Team roster</h3>
+      <form class="gb-challenge-form" id="gbChallengeMemberForm">
+        <label>Team member name<input id="gbChallengeMemberName" maxlength="120" required placeholder="Add a team member"></label>
+        <button type="submit">＋ Add member</button>
+      </form>
+      <div class="gb-challenge-muted" style="margin-top:8px">This roster starts empty and is separate from the daily GB tracker roster.</div>
+      <div id="gbChallengeRoster" style="margin-top:12px"></div>
+    </div>
+    <div class="gb-challenge-card">
+      <h3>Record a qualifying transaction</h3>
+      <form class="gb-challenge-form" id="gbChallengeTransactionForm">
+        <label>Team member<select id="gbChallengeTxnMember" required><option value="">Select member</option></select></label>
+        <label>Category<select id="gbChallengeCategory" required><option>AppleCare+</option><option>PZ Conversion</option><option>Business</option><option>Accessories</option></select></label>
+        <label>Number of transactions<input id="gbChallengeQuantity" type="number" min="1" max="100" value="1" required></label>
+        <label>Verification<select id="gbChallengeVerification" required><option>Printed receipt</option><option>Easy Pay visual verification</option></select></label>
+        <button type="submit">＋ Add verified point(s)</button>
+      </form>
+      <div class="gb-challenge-muted" style="margin-top:8px">Each verified transaction = 1 point. Demo, check-ins, and Steps of Service earn zero challenge points.</div>
+    </div>
+    <div class="gb-challenge-card">
+      <h3>Record NPS streak bonus</h3>
+      <form class="gb-challenge-form" id="gbChallengeNpsForm">
+        <label>Team member<select id="gbChallengeNpsMember" required><option value="">Select member</option></select></label>
+        <label>Completed 10-streak milestones<input id="gbChallengeNpsQuantity" type="number" min="1" max="100" value="1" required></label>
+        <button type="submit">＋ Add NPS bonus</button>
+      </form>
+      <div class="gb-challenge-muted" style="margin-top:8px">+20 points for every 10 NPS streaks (e.g. 20 streaks = 40 bonus points).</div>
+    </div>
+    <div class="gb-challenge-card"><h3>🏅 Standings</h3><div id="gbChallengeStandings" class="gb-challenge-muted">Connect to cloud to load standings.</div></div>
+    <div class="gb-challenge-card"><h3>Recent challenge activity</h3><div id="gbChallengeActivity" class="gb-challenge-muted">No activity yet.</div></div>
+    <div class="gb-challenge-card"><h3>Challenge rules</h3>
+      <ol><li>Each verified AppleCare+, PZ Conversion, Business, or Accessories transaction earns 1 point.</li><li>Transactions must be verified by printed receipt or Easy Pay visual transaction check.</li><li>+10 Grand Slam bonus when all four categories are achieved by the same person on the same day.</li><li>+20 NPS bonus points for every 10 NPS streaks.</li><li>Demo activity, check-ins, and Steps of Service do not count toward challenge points.</li><li>Do not enter customer personal information in notes.</li></ol>
+    </div>
+  </section>
+
   <!-- Top Action Bar -->
   <div class="top-bar">
     <div class="app-title">
@@ -948,6 +1015,7 @@
           <button type="button" onclick="switchTab('monthly');closeMoreMenu()">🗓️ Monthly</button>
           <button type="button" onclick="switchTab('quarterly');closeMoreMenu()">📈 Quarterly</button>
           <button type="button" onclick="switchTab('history');closeMoreMenu()">📜 History Logs</button>
+          <button type="button" onclick="openGBChallenge();closeMoreMenu()">🏆 Pro Vs Pro Challenge</button>
           <div class="menu-divider"></div>
           <button type="button" onclick="manualRollOverGbDay();closeMoreMenu()">💾 Save & Start New Day</button>
           <div class="menu-divider"></div>
@@ -4213,6 +4281,73 @@
       }
     });
   }
+
+
+  // GB PRO VS PRO CHALLENGE — separate roster and append-only cloud events
+  // ============================================================
+  let gbChallengeMembers = [];
+  let gbChallengeEvents = [];
+  function openGBChallenge() {
+    document.body.classList.add('gb-challenge-open');
+    document.getElementById('gbChallengeView').classList.add('active');
+    loadGBChallenge();
+  }
+  function closeGBChallenge() {
+    document.body.classList.remove('gb-challenge-open');
+    document.getElementById('gbChallengeView').classList.remove('active');
+  }
+  async function loadGBChallenge() {
+    if (!gbSupabase) { document.getElementById('gbChallengeStandings').textContent='Cloud connection is not ready. Please try again in a moment.'; return; }
+    const [m,e] = await Promise.all([
+      gbSupabase.from('gb_challenge_members').select('*').order('name'),
+      gbSupabase.from('gb_challenge_events').select('*').order('created_at',{ascending:false}).limit(1000)
+    ]);
+    if (m.error || e.error) { console.error('GB challenge load',m.error,e.error); document.getElementById('gbChallengeStandings').textContent='Could not load challenge data: '+(m.error||e.error).message; return; }
+    gbChallengeMembers=m.data||[]; gbChallengeEvents=e.data||[]; renderGBChallenge();
+  }
+  function renderGBChallenge() {
+    const members=gbChallengeMembers;
+    const events=gbChallengeEvents;
+    const by={}; members.forEach(m=>by[m.id]={name:m.name,points:0,tx:0,slam:0,nps:0,catsByDay:{}});
+    events.forEach(ev=>{
+      const m=members.find(x=>x.name===ev.member_name); if(!m) return;
+      const x=by[m.id]; x.points+=Number(ev.points||0);
+      if(ev.event_type==='transaction') { x.tx+=Number(ev.quantity||1); const d=ev.challenge_date; (x.catsByDay[d] ||= new Set()).add(ev.category); }
+      if(ev.event_type==='nps_streak') x.nps+=Number(ev.points||0);
+    });
+    let slamTotal=0;
+    Object.values(by).forEach(x=>{ Object.values(x.catsByDay).forEach(set=>{if(['AppleCare+','PZ Conversion','Business','Accessories'].every(c=>set.has(c))){x.points+=10;x.slam++;slamTotal++;}}); });
+    const txTotal=events.filter(x=>x.event_type==='transaction').reduce((a,x)=>a+Number(x.quantity||1),0);
+    const npsTotal=events.filter(x=>x.event_type==='nps_streak').reduce((a,x)=>a+Number(x.points||0),0);
+    document.getElementById('gbChallengeMemberCount').textContent=members.length;
+    document.getElementById('gbChallengeTransactions').textContent=txTotal;
+    document.getElementById('gbChallengeSlams').textContent=slamTotal;
+    document.getElementById('gbChallengeNps').textContent=npsTotal;
+    const options='<option value="">Select member</option>'+members.map(m=>'<option value="'+escapeGBChallenge(m.name)+'">'+escapeGBChallenge(m.name)+'</option>').join('');
+    document.getElementById('gbChallengeTxnMember').innerHTML=options;
+    document.getElementById('gbChallengeNpsMember').innerHTML=options;
+    document.getElementById('gbChallengeRoster').innerHTML=members.length?members.map(m=>'<span style="display:inline-flex;gap:6px;align-items:center;background:#8882;padding:7px 10px;border-radius:20px;margin:3px">'+escapeGBChallenge(m.name)+' <button class="secondary" style="padding:3px 7px" onclick="removeGBChallengeMember(\''+m.id+'\')" title="Remove member">×</button></span>').join(''):'<div class="gb-challenge-muted">No challenge members yet. Add names when your team is ready.</div>';
+    const ranked=Object.values(by).sort((a,b)=>b.points-a.points||a.name.localeCompare(b.name));
+    document.getElementById('gbChallengeStandings').innerHTML=ranked.length?'<table class="gb-challenge-table"><thead><tr><th>#</th><th>Team member</th><th>Transactions</th><th>Grand Slams</th><th>NPS bonus</th><th>Total points</th></tr></thead><tbody>'+ranked.map((x,i)=>'<tr><td>'+(i+1)+'</td><td>'+escapeGBChallenge(x.name)+'</td><td>'+x.tx+'</td><td>'+x.slam+'</td><td>'+x.nps+'</td><td><b>'+x.points+'</b></td></tr>').join('')+'</tbody></table>':'No team members yet.';
+    document.getElementById('gbChallengeActivity').innerHTML=events.length?'<table class="gb-challenge-table"><thead><tr><th>Date</th><th>Member</th><th>Activity</th><th>Points</th><th>Verification</th></tr></thead><tbody>'+events.slice(0,30).map(x=>'<tr><td>'+escapeGBChallenge(x.challenge_date)+'</td><td>'+escapeGBChallenge(x.member_name)+'</td><td>'+(x.event_type==='transaction'?escapeGBChallenge(x.category)+' × '+x.quantity:'NPS streak × '+x.quantity)+'</td><td>'+x.points+'</td><td>'+escapeGBChallenge(x.verification_method||'NPS bonus')+'</td></tr>').join('')+'</tbody></table>':'No activity recorded yet.';
+  }
+  function escapeGBChallenge(v){return String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));}
+  document.getElementById('gbChallengeMemberForm').addEventListener('submit',async e=>{
+    e.preventDefault(); const name=document.getElementById('gbChallengeMemberName').value.trim(); if(!name||!gbSupabase)return;
+    const {error}=await gbSupabase.from('gb_challenge_members').insert({name}); if(error){alert('Could not add member: '+error.message);return;} document.getElementById('gbChallengeMemberName').value=''; await loadGBChallenge();
+  });
+  async function removeGBChallengeMember(id){const m=gbChallengeMembers.find(x=>x.id===id);if(!m||!confirm('Remove '+m.name+' from the challenge roster? Existing challenge activity will remain in history.'))return;const {error}=await gbSupabase.from('gb_challenge_members').delete().eq('id',id);if(error){alert('Could not remove member: '+error.message);return;}await loadGBChallenge();}
+  document.getElementById('gbChallengeTransactionForm').addEventListener('submit',async e=>{
+    e.preventDefault(); if(!gbSupabase)return; const member=document.getElementById('gbChallengeTxnMember').value; const category=document.getElementById('gbChallengeCategory').value; const quantity=Number(document.getElementById('gbChallengeQuantity').value); const verification=document.getElementById('gbChallengeVerification').value;
+    if(!member||!Number.isInteger(quantity)||quantity<1)return;
+    const {error}=await gbSupabase.from('gb_challenge_events').insert({member_name:member,event_type:'transaction',category,quantity,points:quantity,verified:true,verification_method:verification,client_id:CLIENT_ID});
+    if(error){alert('Could not record transaction: '+error.message);return;} document.getElementById('gbChallengeQuantity').value='1';await loadGBChallenge();
+  });
+  document.getElementById('gbChallengeNpsForm').addEventListener('submit',async e=>{
+    e.preventDefault(); if(!gbSupabase)return; const member=document.getElementById('gbChallengeNpsMember').value; const quantity=Number(document.getElementById('gbChallengeNpsQuantity').value); if(!member||!Number.isInteger(quantity)||quantity<1)return;
+    const {error}=await gbSupabase.from('gb_challenge_events').insert({member_name:member,event_type:'nps_streak',category:'NPS',quantity,points:quantity*20,verified:true,verification_method:'NPS streak milestone',client_id:CLIENT_ID});
+    if(error){alert('Could not record NPS bonus: '+error.message);return;} document.getElementById('gbChallengeNpsQuantity').value='1';await loadGBChallenge();
+  });
 
   // Initialize
   setGbInitialBoardReady(false);
