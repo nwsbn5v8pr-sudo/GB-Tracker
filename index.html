@@ -963,9 +963,11 @@
       <h3>Team roster</h3>
       <form class="gb-challenge-form" id="gbChallengeMemberForm">
         <label>Team member name<input id="gbChallengeMemberName" maxlength="120" required placeholder="Add a team member"></label>
+        <label>Team<select id="gbChallengeMemberTeam" required><option>Team A</option><option>Team B</option></select></label>
+        <label>Role<select id="gbChallengeMemberRole" required><option>Genius</option><option>Technical Expert</option><option>Technical Specialist</option><option>Genius Admin</option></select></label>
         <button type="submit">＋ Add member</button>
       </form>
-      <div class="gb-challenge-muted" style="margin-top:8px">This roster starts empty and is separate from the daily GB tracker roster.</div>
+      <div class="gb-challenge-muted" style="margin-top:8px">This roster is separate from the daily GB tracker roster. Team and role assignments are shown here.</div>
       <div id="gbChallengeRoster" style="margin-top:12px"></div>
     </div>
     <div class="gb-challenge-card">
@@ -4314,7 +4316,7 @@
   function renderGBChallenge() {
     const members=gbChallengeMembers;
     const events=gbChallengeEvents;
-    const by={}; members.forEach(m=>by[m.id]={name:m.name,points:0,tx:0,slam:0,nps:0,catsByDay:{}});
+    const by={}; members.forEach(m=>by[m.id]={name:m.name,team_name:m.team_name||'Team A',role:m.role||'',points:0,tx:0,slam:0,nps:0,catsByDay:{}});
     events.forEach(ev=>{
       const m=members.find(x=>x.name===ev.member_name); if(!m) return;
       const x=by[m.id]; x.points+=Number(ev.points||0);
@@ -4329,18 +4331,18 @@
     document.getElementById('gbChallengeTransactions').textContent=txTotal;
     document.getElementById('gbChallengeSlams').textContent=slamTotal;
     document.getElementById('gbChallengeNps').textContent=npsTotal;
-    const options='<option value="">Select member</option>'+members.map(m=>'<option value="'+escapeGBChallenge(m.name)+'">'+escapeGBChallenge(m.name)+'</option>').join('');
+    const options='<option value="">Select member</option>'+['Team A','Team B'].map(team=>'<optgroup label="'+team+'">'+members.filter(m=>m.team_name===team).map(m=>'<option value="'+escapeGBChallenge(m.name)+'">'+escapeGBChallenge(m.name)+'</option>').join('')+'</optgroup>').join('');
     document.getElementById('gbChallengeTxnMember').innerHTML=options;
     document.getElementById('gbChallengeNpsMember').innerHTML=options;
-    document.getElementById('gbChallengeRoster').innerHTML=members.length?members.map(m=>'<span style="display:inline-flex;gap:6px;align-items:center;background:#8882;padding:7px 10px;border-radius:20px;margin:3px">'+escapeGBChallenge(m.name)+' <button class="secondary" style="padding:3px 7px" onclick="removeGBChallengeMember(\''+m.id+'\')" title="Remove member">×</button></span>').join(''):'<div class="gb-challenge-muted">No challenge members yet. Add names when your team is ready.</div>';
+    document.getElementById('gbChallengeRoster').innerHTML=members.length?['Team A','Team B'].map(team=>'<div style="margin-bottom:12px"><b>'+team+'</b><div>'+members.filter(m=>m.team_name===team).map(m=>'<span style="display:inline-flex;gap:6px;align-items:center;background:#8882;padding:7px 10px;border-radius:20px;margin:3px">'+escapeGBChallenge(m.name)+' <small style="opacity:.7">'+escapeGBChallenge(m.role||'')+'</small> <button class="secondary" style="padding:3px 7px" onclick="removeGBChallengeMember(\\''+m.id+'\\')" title="Remove member">×</button></span>').join('')+'</div></div>').join(''):'<div class="gb-challenge-muted">No challenge members yet.</div>';
     const ranked=Object.values(by).sort((a,b)=>b.points-a.points||a.name.localeCompare(b.name));
-    document.getElementById('gbChallengeStandings').innerHTML=ranked.length?'<table class="gb-challenge-table"><thead><tr><th>#</th><th>Team member</th><th>Transactions</th><th>Grand Slams</th><th>NPS bonus</th><th>Total points</th></tr></thead><tbody>'+ranked.map((x,i)=>'<tr><td>'+(i+1)+'</td><td>'+escapeGBChallenge(x.name)+'</td><td>'+x.tx+'</td><td>'+x.slam+'</td><td>'+x.nps+'</td><td><b>'+x.points+'</b></td></tr>').join('')+'</tbody></table>':'No team members yet.';
+    document.getElementById('gbChallengeStandings').innerHTML=ranked.length?'<table class="gb-challenge-table"><thead><tr><th>#</th><th>Team</th><th>Team member</th><th>Role</th><th>Transactions</th><th>Grand Slams</th><th>NPS bonus</th><th>Total points</th></tr></thead><tbody>'+ranked.map((x,i)=>'<tr><td>'+(i+1)+'</td><td>'+escapeGBChallenge(x.team_name)+'</td><td>'+escapeGBChallenge(x.name)+'</td><td>'+escapeGBChallenge(x.role)+'</td><td>'+x.tx+'</td><td>'+x.slam+'</td><td>'+x.nps+'</td><td><b>'+x.points+'</b></td></tr>').join('')+'</tbody></table>':'No team members yet.';
     document.getElementById('gbChallengeActivity').innerHTML=events.length?'<table class="gb-challenge-table"><thead><tr><th>Date</th><th>Member</th><th>Activity</th><th>Points</th><th>Verification</th></tr></thead><tbody>'+events.slice(0,30).map(x=>'<tr><td>'+escapeGBChallenge(x.challenge_date)+'</td><td>'+escapeGBChallenge(x.member_name)+'</td><td>'+(x.event_type==='transaction'?escapeGBChallenge(x.category)+' × '+x.quantity:'NPS streak × '+x.quantity)+'</td><td>'+x.points+'</td><td>'+escapeGBChallenge(x.verification_method||'NPS bonus')+'</td></tr>').join('')+'</tbody></table>':'No activity recorded yet.';
   }
   function escapeGBChallenge(v){return String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));}
   document.getElementById('gbChallengeMemberForm').addEventListener('submit',async e=>{
-    e.preventDefault(); const name=document.getElementById('gbChallengeMemberName').value.trim(); if(!name||!gbSupabase)return;
-    const {error}=await gbSupabase.from('gb_challenge_members').insert({name}); if(error){alert('Could not add member: '+error.message);return;} document.getElementById('gbChallengeMemberName').value=''; await loadGBChallenge();
+    e.preventDefault(); const name=document.getElementById('gbChallengeMemberName').value.trim(); const team_name=document.getElementById('gbChallengeMemberTeam').value; const role=document.getElementById('gbChallengeMemberRole').value; if(!name||!gbSupabase)return;
+    const {error}=await gbSupabase.from('gb_challenge_members').insert({name,team_name,role}); if(error){alert('Could not add member: '+error.message);return;} document.getElementById('gbChallengeMemberName').value=''; await loadGBChallenge();
   });
   async function removeGBChallengeMember(id){const m=gbChallengeMembers.find(x=>x.id===id);if(!m||!confirm('Remove '+m.name+' from the challenge roster? Existing challenge activity will remain in history.'))return;const {error}=await gbSupabase.from('gb_challenge_members').delete().eq('id',id);if(error){alert('Could not remove member: '+error.message);return;}await loadGBChallenge();}
   document.getElementById('gbChallengeTransactionForm').addEventListener('submit',async e=>{
