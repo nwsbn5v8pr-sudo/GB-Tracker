@@ -2133,7 +2133,7 @@
     if (isLive) {
       tr.innerHTML = `
         <td class="col-sticky">
-          <div class="name-cell-wrap" onclick="toggleCheckIn('${String(p.id).replace(/'/g, "\\'")}')">
+          <div class="name-cell-wrap" onclick="toggleCheckIn('${String(p.id).replace(/'/g, "\'")}')">
             <span class="chk-badge" id="chk-badge-${p.id}">${p.checkedIn ? '✅' : '◻️'}</span>
             <div class="name-cell">
               <span class="member-name" id="name-${p.id}">${escapeHtml(formatMemberName(p.name))}</span>
@@ -2145,41 +2145,41 @@
         <td style="text-align:center;"><div class="counter-box"><button type="button" class="cnt-btn minus" onclick="event.stopPropagation(); updateCounts(this.closest('tr').id.replace('row-', ''), 'demo', -1)">−</button><span class="cnt-val" id="val-demo-${p.id}" title="Tap to set exact total" onclick="event.stopPropagation(); setExactValue(this.closest('tr').id.replace('row-', ''), 'demo')">${p.demo || 0}</span><button type="button" class="cnt-btn plus" onclick="event.stopPropagation(); updateCounts(this.closest('tr').id.replace('row-', ''), 'demo', 1)">+</button></div></td>
         <td style="text-align:center;">
           <div class="counter-box">
-            <button type="button" class="cnt-btn minus" onclick="event.stopPropagation(); updateCounts('${String(p.id).replace(/'/g, "\\'")}', 'ac', -1)">−</button>
-            <span class="cnt-val" id="val-ac-${p.id}" title="Tap to set exact total" onclick="event.stopPropagation(); setExactValue('${String(p.id).replace(/'/g, "\\'")}', 'ac')">${p.ac}</span>
-            <button type="button" class="cnt-btn plus" onclick="event.stopPropagation(); updateCounts('${String(p.id).replace(/'/g, "\\'")}', 'ac', 1)">+</button>
+            <button type="button" class="cnt-btn minus" onclick="event.stopPropagation(); updateCounts('${String(p.id).replace(/'/g, "\'")}', 'ac', -1)">−</button>
+            <span class="cnt-val" id="val-ac-${p.id}" title="Tap to set exact total" onclick="event.stopPropagation(); setExactValue('${String(p.id).replace(/'/g, "\'")}', 'ac')">${p.ac}</span>
+            <button type="button" class="cnt-btn plus" onclick="event.stopPropagation(); updateCounts('${String(p.id).replace(/'/g, "\'")}', 'ac', 1)">+</button>
           </div>
         </td>
         <td style="text-align:center;">
           <div class="counter-box">
-            <button type="button" class="cnt-btn minus" onclick="event.stopPropagation(); updateCounts('${String(p.id).replace(/'/g, "\\'")}', 'pz', -1)">−</button>
-            <span class="cnt-val" id="val-pz-${p.id}" title="Tap to set exact total" onclick="event.stopPropagation(); setExactValue('${String(p.id).replace(/'/g, "\\'")}', 'pz')">${p.pz}</span>
-            <button type="button" class="cnt-btn plus" onclick="event.stopPropagation(); updateCounts('${String(p.id).replace(/'/g, "\\'")}', 'pz', 1)">+</button>
+            <button type="button" class="cnt-btn minus" onclick="event.stopPropagation(); updateCounts('${String(p.id).replace(/'/g, "\'")}', 'pz', -1)">−</button>
+            <span class="cnt-val" id="val-pz-${p.id}" title="Tap to set exact total" onclick="event.stopPropagation(); setExactValue('${String(p.id).replace(/'/g, "\'")}', 'pz')">${p.pz}</span>
+            <button type="button" class="cnt-btn plus" onclick="event.stopPropagation(); updateCounts('${String(p.id).replace(/'/g, "\'")}', 'pz', 1)">+</button>
           </div>
         </td>
         <td style="text-align:center;">
           <div class="counter-box">
-            <button type="button" class="cnt-btn minus" onclick="event.stopPropagation(); updateCounts('${String(p.id).replace(/'/g, "\\'")}', 'upgrade', -1)">−</button>
-            <span class="cnt-val" id="val-upgrade-${p.id}" title="Tap to set exact total" onclick="event.stopPropagation(); setExactValue('${String(p.id).replace(/'/g, "\\'")}', 'upgrade')">${p.upgrade || 0}</span>
-            <button type="button" class="cnt-btn plus" onclick="event.stopPropagation(); updateCounts('${String(p.id).replace(/'/g, "\\'")}', 'upgrade', 1)">+</button>
+            <button type="button" class="cnt-btn minus" onclick="event.stopPropagation(); updateCounts('${String(p.id).replace(/'/g, "\'")}', 'upgrade', -1)">−</button>
+            <span class="cnt-val" id="val-upgrade-${p.id}" title="Tap to set exact total" onclick="event.stopPropagation(); setExactValue('${String(p.id).replace(/'/g, "\'")}', 'upgrade')">${p.upgrade || 0}</span>
+            <button type="button" class="cnt-btn plus" onclick="event.stopPropagation(); updateCounts('${String(p.id).replace(/'/g, "\'")}', 'upgrade', 1)">+</button>
           </div>
         </td>
         <td style="text-align:center;">
           <div class="counter-box">
-            <button type="button" class="cnt-btn minus" onclick="event.stopPropagation(); updateCounts('${String(p.id).replace(/'/g, "\\'")}', 'biz', -1)">−</button>
-            <span class="cnt-val" id="val-biz-${p.id}" title="Tap to set exact total" onclick="event.stopPropagation(); setExactValue('${String(p.id).replace(/'/g, "\\'")}', 'biz')">${p.biz}</span>
-            <button type="button" class="cnt-btn plus" onclick="event.stopPropagation(); updateCounts('${String(p.id).replace(/'/g, "\\'")}', 'biz', 1)">+</button>
+            <button type="button" class="cnt-btn minus" onclick="event.stopPropagation(); updateCounts('${String(p.id).replace(/'/g, "\'")}', 'biz', -1)">−</button>
+            <span class="cnt-val" id="val-biz-${p.id}" title="Tap to set exact total" onclick="event.stopPropagation(); setExactValue('${String(p.id).replace(/'/g, "\'")}', 'biz')">${p.biz}</span>
+            <button type="button" class="cnt-btn plus" onclick="event.stopPropagation(); updateCounts('${String(p.id).replace(/'/g, "\'")}', 'biz', 1)">+</button>
           </div>
         </td>
         <td style="text-align:center;">
           <div class="counter-box">
-            <button type="button" class="cnt-btn minus" onclick="event.stopPropagation(); updateCounts('${String(p.id).replace(/'/g, "\\'")}', 'acc', -1)">−</button>
-            <span class="cnt-val" id="val-acc-${p.id}" title="Tap to set exact total" onclick="event.stopPropagation(); setExactValue('${String(p.id).replace(/'/g, "\\'")}', 'acc')">${p.acc}</span>
-            <button type="button" class="cnt-btn plus" onclick="event.stopPropagation(); updateCounts('${String(p.id).replace(/'/g, "\\'")}', 'acc', 1)">+</button>
+            <button type="button" class="cnt-btn minus" onclick="event.stopPropagation(); updateCounts('${String(p.id).replace(/'/g, "\'")}', 'acc', -1)">−</button>
+            <span class="cnt-val" id="val-acc-${p.id}" title="Tap to set exact total" onclick="event.stopPropagation(); setExactValue('${String(p.id).replace(/'/g, "\'")}', 'acc')">${p.acc}</span>
+            <button type="button" class="cnt-btn plus" onclick="event.stopPropagation(); updateCounts('${String(p.id).replace(/'/g, "\'")}', 'acc', 1)">+</button>
           </div>
         </td>
         <td style="text-align:center;">
-          <select class="step-select" id="step-${p.id}" onchange="saveStep('${String(p.id).replace(/'/g, "\\'")}', this.value)">
+          <select class="step-select" id="step-${p.id}" onchange="saveStep('${String(p.id).replace(/'/g, "\'")}', this.value)">
             <option value="">-- None --</option>
             <option value="Approach" ${p.step === 'Approach' ? 'selected' : ''}>Approach</option>
             <option value="Probe" ${p.step === 'Probe' ? 'selected' : ''}>Probe</option>
@@ -2189,7 +2189,7 @@
           </select>
         </td>
         <td>
-          <textarea class="notes-input" id="notes-${p.id}" rows="1" placeholder="Add note / focus..." onclick="event.stopPropagation()" onfocus="beginNoteEdit(this)" oninput="saveNote('${String(p.id).replace(/'/g, "\\'")}', this.value)" onblur="endNoteEdit(this)">${escapeHtml(p.notes || '')}</textarea>
+          <textarea class="notes-input" id="notes-${p.id}" rows="1" placeholder="Add note / focus..." onclick="event.stopPropagation()" onfocus="beginNoteEdit(this)" oninput="saveNote('${String(p.id).replace(/'/g, "\'")}', this.value)" onblur="endNoteEdit(this)">${escapeHtml(p.notes || '')}</textarea>
         </td>
       `;
     } else if (isPrior) {
@@ -4334,7 +4334,7 @@
     const options='<option value="">Select member</option>'+['Team A','Team B'].map(team=>'<optgroup label="'+team+'">'+members.filter(m=>m.team_name===team).map(m=>'<option value="'+escapeGBChallenge(m.name)+'">'+escapeGBChallenge(m.name)+'</option>').join('')+'</optgroup>').join('');
     document.getElementById('gbChallengeTxnMember').innerHTML=options;
     document.getElementById('gbChallengeNpsMember').innerHTML=options;
-    document.getElementById('gbChallengeRoster').innerHTML=members.length?['Team A','Team B'].map(team=>'<div style="margin-bottom:12px"><b>'+team+'</b><div>'+members.filter(m=>m.team_name===team).map(m=>'<span style="display:inline-flex;gap:6px;align-items:center;background:#8882;padding:7px 10px;border-radius:20px;margin:3px">'+escapeGBChallenge(m.name)+' <small style="opacity:.7">'+escapeGBChallenge(m.role||'')+'</small> <button class="secondary" style="padding:3px 7px" onclick="removeGBChallengeMember(\\''+m.id+'\\')" title="Remove member">×</button></span>').join('')+'</div></div>').join(''):'<div class="gb-challenge-muted">No challenge members yet.</div>';
+    document.getElementById('gbChallengeRoster').innerHTML=members.length?['Team A','Team B'].map(team=>'<div style="margin-bottom:12px"><b>'+team+'</b><div>'+members.filter(m=>m.team_name===team).map(m=>'<span style="display:inline-flex;gap:6px;align-items:center;background:#8882;padding:7px 10px;border-radius:20px;margin:3px">'+escapeGBChallenge(m.name)+' <small style="opacity:.7">'+escapeGBChallenge(m.role||'')+'</small> <button class="secondary" style="padding:3px 7px" onclick="removeGBChallengeMember(\''+m.id+'\')" title="Remove member">×</button></span>').join('')+'</div></div>').join(''):'<div class="gb-challenge-muted">No challenge members yet.</div>';
     const ranked=Object.values(by).sort((a,b)=>b.points-a.points||a.name.localeCompare(b.name));
     document.getElementById('gbChallengeStandings').innerHTML=ranked.length?'<table class="gb-challenge-table"><thead><tr><th>#</th><th>Team</th><th>Team member</th><th>Role</th><th>Transactions</th><th>Grand Slams</th><th>NPS bonus</th><th>Total points</th></tr></thead><tbody>'+ranked.map((x,i)=>'<tr><td>'+(i+1)+'</td><td>'+escapeGBChallenge(x.team_name)+'</td><td>'+escapeGBChallenge(x.name)+'</td><td>'+escapeGBChallenge(x.role)+'</td><td>'+x.tx+'</td><td>'+x.slam+'</td><td>'+x.nps+'</td><td><b>'+x.points+'</b></td></tr>').join('')+'</tbody></table>':'No team members yet.';
     document.getElementById('gbChallengeActivity').innerHTML=events.length?'<table class="gb-challenge-table"><thead><tr><th>Date</th><th>Member</th><th>Activity</th><th>Points</th><th>Verification</th></tr></thead><tbody>'+events.slice(0,30).map(x=>'<tr><td>'+escapeGBChallenge(x.challenge_date)+'</td><td>'+escapeGBChallenge(x.member_name)+'</td><td>'+(x.event_type==='transaction'?escapeGBChallenge(x.category)+' × '+x.quantity:'NPS streak × '+x.quantity)+'</td><td>'+x.points+'</td><td>'+escapeGBChallenge(x.verification_method||'NPS bonus')+'</td></tr>').join('')+'</tbody></table>':'No activity recorded yet.';
