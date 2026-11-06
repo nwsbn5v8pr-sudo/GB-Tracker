@@ -944,6 +944,26 @@
   .gb-challenge-muted { color:#777; font-size:13px; }
   .gb-challenge-stat { font-size:25px; font-weight:800; }
   .gb-challenge-wrap h2,.gb-challenge-wrap h3 { margin:0 0 12px; }
+
+  /* Dark-mode readability for Coach vs Coach Rules and standings cards. */
+  .gb-challenge-wrap { color:var(--text-primary); }
+  .gb-challenge-card {
+    background:var(--bg-card) !important;
+    color:var(--text-primary) !important;
+    border-color:var(--border) !important;
+  }
+  .gb-challenge-card h3,
+  .gb-challenge-card p,
+  .gb-challenge-card li,
+  .gb-challenge-card strong { color:var(--text-primary); }
+  .gb-challenge-muted { color:var(--text-secondary) !important; }
+  .gb-challenge-card .team-metric {
+    background:var(--bg-primary);
+    border-color:var(--border);
+    color:var(--text-primary);
+  }
+  .gb-challenge-card .team-metric strong { color:var(--text-primary); }
+
   body.gb-challenge-open #topPerformersCard, body.gb-challenge-open .kpi-grid, body.gb-challenge-open #mainTableCard, body.gb-challenge-open #historyCard { display:none !important; }
   /* Match the PZ Pro vs Pro layout: retain the app identity and view tabs,
      but hide daily-management actions and roster filters while the challenge is open. */
