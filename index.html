@@ -885,7 +885,7 @@
   }
 
 
-  /* GB Coach Vs Coach — aligned with the PZ Coach Vs Coach visual system */
+  /* GB Coach vs Coach — aligned with the PZ Coach vs Coach visual system */
   .team-compare-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:16px;margin-bottom:14px;width:100%;box-sizing:border-box}
   .team-performance-card{min-width:0;width:100%;box-sizing:border-box;background:var(--bg-card);border:1px solid var(--border);border-radius:14px;padding:16px}
   .team-performance-card h2{font-size:17px;margin-bottom:4px}
@@ -929,7 +929,7 @@
   @media(max-width:900px){.gb-challenge-metrics{grid-template-columns:repeat(2,minmax(0,1fr))}.gb-challenge-tabs .gb-challenge-back{margin-left:0}}
   @media(max-width:700px){.gb-challenge-wrap{width:calc(100vw - 24px)}.gb-challenge-grid{grid-template-columns:minmax(0,1fr)}.gb-challenge-metrics{grid-template-columns:repeat(2,minmax(0,1fr))}}
 
-  /* GB Coach Vs Coach challenge */
+  /* GB Coach vs Coach challenge */
   .gb-challenge-wrap { display:none; max-width:1400px; margin:18px auto; padding:0 16px 28px; }
   .gb-challenge-wrap.active { display:block; }
   .gb-challenge-card { background:var(--card-bg, #fff); border:1px solid var(--border-color, #ddd); border-radius:16px; padding:18px; margin-bottom:16px; }
@@ -993,10 +993,10 @@
 
   <section class="gb-challenge-wrap" id="gbChallengeView">
     <div class="gb-challenge-heading">
-      <h2>🏅 GB Coach Vs Coach</h2>
+      <h2>🏅 GB Coach vs Coach</h2>
       <p>Live team totals are calculated from each person’s individual activity.</p>
     </div>
-    <div class="segmented-control gb-challenge-tabs" role="tablist" aria-label="GB Coach Vs Coach sections">
+    <div class="segmented-control gb-challenge-tabs" role="tablist" aria-label="GB Coach vs Coach sections">
       <button class="tab-btn active" id="gb-view-standings" type="button" onclick="switchGBChallengeView('standings')" role="tab" aria-selected="true">🏆 Standings</button>
       <button class="tab-btn" id="gb-view-rules" type="button" onclick="switchGBChallengeView('rules')" role="tab" aria-selected="false">📋 Rules</button>
       <button class="secondary gb-challenge-back" type="button" onclick="closeGBChallenge()">← Back to Focus & Follow</button>
@@ -1095,7 +1095,7 @@
   <div class="timeframe-nav" id="timeframeNav">
     <div class="segmented-control">
       <button class="tab-btn active" id="tab-daily" onclick="switchTab('daily')">📅 Daily</button>
-      <button class="tab-btn" id="tab-challenge" onclick="switchTab('challenge')">🏆 Coach Vs Coach</button>
+      <button class="tab-btn" id="tab-challenge" onclick="switchTab('challenge')">🏆 Coach vs Coach</button>
       <button class="tab-btn" id="tab-prior" onclick="switchTab('prior')">⬅️ Prior Day</button>
       <button class="tab-btn" id="tab-weekly" onclick="switchTab('weekly')">📊 Weekly</button>
       <button class="tab-btn" id="tab-monthly" onclick="switchTab('monthly')">🗓️ Monthly</button>
