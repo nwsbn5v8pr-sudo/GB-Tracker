@@ -1012,31 +1012,7 @@
       <div class="gb-challenge-card"><h3>🏆 Bonus Points</h3><ul><li><strong>Grand Slam: +10 points</strong> when all four qualifying categories are achieved by the same person on the same day.</li><li><strong>NPS: +20 points</strong> for every 10 NPS streaks recorded.</li><li><strong>Coach Request: +10 points</strong> for each verified customer request for a coach.</li></ul></div>
       <div class="gb-challenge-card"><h3>🧾 Receipt & Transaction Verification</h3><p>Every transaction counted toward points must be verifiable by a printed receipt or a visual check of the recent transaction in Easy Pay. If it cannot be verified, do not count it until confirmed. Keep customer information private.</p></div>
       <div class="gb-challenge-card"><h3>📌 Scoring Guidelines</h3><ul><li>Each verified AppleCare+, PZ Conversion, Business, or Accessories transaction earns 1 point.</li><li>Grand Slam and NPS bonuses are added on top of base points.</li><li>Demo activity, check-ins, and Steps of Service do not add challenge points.</li><li>Do not enter customer personal information in notes.</li></ul></div>
-      <div class="gb-challenge-card"><h3>👥 Manage Challenge Roster</h3>
-        <form class="gb-challenge-form" id="gbChallengeMemberForm">
-          <label>Team member name<input id="gbChallengeMemberName" maxlength="120" required placeholder="Add a team member"></label>
-          <label>Team<select id="gbChallengeMemberTeam" required><option value="Team A">Coach Jerome</option><option value="Team B">Coach Shane</option></select></label>
-          <label>Role<select id="gbChallengeMemberRole" required><option>Genius</option><option>Technical Expert</option><option>Technical Specialist</option><option>Genius Admin</option></select></label>
-          <button type="submit">＋ Add member</button>
-        </form><div id="gbChallengeRoster" style="margin-top:12px"></div>
-      </div>
-      <div class="gb-challenge-card"><h3>🧾 Record a Qualifying Transaction</h3>
-        <form class="gb-challenge-form" id="gbChallengeTransactionForm">
-          <label>Team member<select id="gbChallengeTxnMember" required><option value="">Select member</option></select></label>
-          <label>Category<select id="gbChallengeCategory" required><option>AppleCare+</option><option>PZ Conversion</option><option>Business</option><option>Accessories</option></select></label>
-          <label>Number of transactions<input id="gbChallengeQuantity" type="number" min="1" max="100" value="1" required></label>
-          <label>Verification<select id="gbChallengeVerification" required><option>Printed receipt</option><option>Easy Pay visual verification</option></select></label>
-          <button type="submit">＋ Add verified point(s)</button>
-        </form>
-      </div>
-      <div class="gb-challenge-card"><h3>⭐ Record NPS Streak Bonus</h3>
-        <form class="gb-challenge-form" id="gbChallengeNpsForm">
-          <label>Team member<select id="gbChallengeNpsMember" required><option value="">Select member</option></select></label>
-          <label>Completed 10-streak milestones<input id="gbChallengeNpsQuantity" type="number" min="1" max="100" value="1" required></label>
-          <button type="submit">＋ Add NPS bonus</button>
-        </form>
-      </div>
-      <div class="gb-challenge-card"><h3>🙋 Record a Coach Request Bonus</h3><form class="gb-challenge-form" id="gbChallengeCoachRequestForm"><label>Team member<select id="gbChallengeCoachRequestMember" required><option value="">Select member</option></select></label><label>Number of coach requests<input id="gbChallengeCoachRequestQuantity" type="number" min="1" max="100" value="1" required></label><button type="submit">＋ Add coach request bonus (+10 each)</button></form></div><div class="gb-challenge-card"><h3>🕘 Recent Challenge Activity</h3><div id="gbChallengeActivity" class="gb-challenge-muted">No activity yet.</div></div>
+      <div class="gb-challenge-card"><h3>🙋 Record a Coach Request Bonus</h3><form class="gb-challenge-form" id="gbChallengeCoachRequestForm"><label>Team member<select id="gbChallengeCoachRequestMember" required><option value="">Select member</option></select></label><label>Number of coach requests<input id="gbChallengeCoachRequestQuantity" type="number" min="1" max="100" value="1" required></label><button type="submit">＋ Add coach request bonus (+10 each)</button></form></div>
     </div>
   </section>
   <script>
@@ -4387,7 +4363,7 @@
       if(ev.event_type==='transaction'){const q=Number(ev.quantity||1);if(x.cats[ev.category]!==undefined)x.cats[ev.category]+=q;x.tx+=q;(x.days||(x.days={}))[ev.challenge_date] ||= new Set();if(x.days[ev.challenge_date]&&x.days[ev.challenge_date].add)x.days[ev.challenge_date].add(ev.category);}
       if(ev.event_type==='nps_streak')x.npsStreaks+=Number(ev.quantity||0)*10;
       if(ev.event_type==='nps_streak_adjustment')x.npsStreaks+=Number(ev.quantity||0);
-      if(ev.event_type==='coach_request'){x.coachRequests+=Number(ev.quantity||1);x.coachBonus+=Number(ev.points||Number(ev.quantity||1)*10);}
+      if(ev.event_type==='coach_request'||ev.event_type==='coach_request_adjustment'){x.coachRequests+=Number(ev.quantity||0);x.coachBonus+=Number(ev.points??Number(ev.quantity||0)*10);}
     });
     Object.values(by).forEach(x=>{x.npsStreaks=Math.max(0,x.npsStreaks);x.npsBonus=Math.floor(x.npsStreaks/10)*20;Object.values(x.days||{}).forEach(set=>{if(cats.every(([k])=>set.has(k))){x.slams++;x.slamBonus+=10;}});});
     const teamTotals=defs.map(team=>{
@@ -4403,45 +4379,36 @@
     const host=document.getElementById('gbChallengeStandings');
     host.innerHTML=compareHtml+'<div style="grid-column:1/-1;color:var(--text-secondary);font-size:12px;margin:0 0 2px;">Team totals are the sum of individual activity. Team assignments are read from the shared Supabase roster.</div>'+rankedTeams.map(t=>{
       const totalBase=Object.values(t.totals).reduce((n,v)=>n+v,0);
-      return '<article class="team-performance-card"><h2>'+escapeGBChallenge(t.team.label)+'</h2><div class="team-performance-sub">'+t.people.length+' assigned · Competition-to-date totals</div><div class="team-metric-grid">'+cats.map(([k,label])=>'<div class="team-metric"><span>'+label+'</span><strong>'+t.totals[k]+'</strong></div>').join('')+'<div class="team-metric"><span>🏆 Grand Slams</span><strong>'+t.slams+'</strong></div><div class="team-metric"><span>⭐ Slam Bonus</span><strong>+'+t.slamBonus+'</strong></div><div class="team-metric"><span>📈 NPS Bonus</span><strong>+'+t.nps+'</strong></div><div class="team-metric"><span>🙋 Coach Request Bonus</span><strong>+'+t.coachBonus+'</strong></div><div class="team-metric"><span>🏁 Total Points</span><strong>'+t.points+'</strong></div></div><div class="team-section-title">Individual Contributions</div><div class="team-roster-wrap"><table class="team-roster-table"><thead><tr><th>Team Member</th><th>AppleCare+</th><th>PZ Conversion</th><th>Business</th><th>Accessories</th><th>Grand Slams</th><th>Slam Bonus</th><th>NPS Streaks</th><th>NPS Bonus</th><th>Coach Requests</th><th>Coach Bonus</th><th>Points</th></tr></thead><tbody>'+t.rows.map(m=>'<tr><td>'+escapeGBChallenge(m.name)+'</td>'+cats.map(([k])=>'<td>'+m.cats[k]+'</td>').join('')+'<td>'+m.slams+'</td><td>+'+m.slamBonus+'</td><td><input class="gb-nps-streak-input" type="number" min="0" step="1" inputmode="numeric" aria-label="NPS streaks for '+escapeGBChallenge(m.name)+'" data-nps-member="'+escapeGBChallenge(m.name)+'" value="'+m.npsStreaks+'" style="width:76px;max-width:100%;background:var(--bg-primary);color:var(--text-primary);border:1px solid var(--border);border-radius:7px;padding:6px;text-align:center;"></td><td>+'+m.npsBonus+'</td><td>'+m.coachRequests+'</td><td>+'+m.coachBonus+'</td><td><strong>'+(Object.values(m.cats).reduce((n,v)=>n+v,0)+m.slamBonus+m.npsBonus+m.coachBonus)+'</strong></td></tr>').join('')+'<tr class="team-total-row"><td>Team Total</td>'+cats.map(([k])=>'<td>'+t.totals[k]+'</td>').join('')+'<td>'+t.slams+'</td><td>+'+t.slamBonus+'</td><td>'+t.people.reduce((n,m)=>n+m.npsStreaks,0)+'</td><td>+'+t.nps+'</td><td>'+t.coachRequests+'</td><td>+'+t.coachBonus+'</td><td>'+t.points+'</td></tr></tbody></table></div></article>';
+      return '<article class="team-performance-card"><h2>'+escapeGBChallenge(t.team.label)+'</h2><div class="team-performance-sub">'+t.people.length+' assigned · Competition-to-date totals</div><div class="team-metric-grid">'+cats.map(([k,label])=>'<div class="team-metric"><span>'+label+'</span><strong>'+t.totals[k]+'</strong></div>').join('')+'<div class="team-metric"><span>🏆 Grand Slams</span><strong>'+t.slams+'</strong></div><div class="team-metric"><span>⭐ Slam Bonus</span><strong>+'+t.slamBonus+'</strong></div><div class="team-metric"><span>📈 NPS Bonus</span><strong>+'+t.nps+'</strong></div><div class="team-metric"><span>🙋 Coach Request Bonus</span><strong>+'+t.coachBonus+'</strong></div><div class="team-metric"><span>🏁 Total Points</span><strong>'+t.points+'</strong></div></div><div class="team-section-title">Individual Contributions</div><div class="team-roster-wrap"><table class="team-roster-table"><thead><tr><th>Team Member</th><th>AppleCare+</th><th>PZ Conversion</th><th>Business</th><th>Accessories</th><th>Grand Slams</th><th>Slam Bonus</th><th>NPS Streaks</th><th>NPS Bonus</th><th>Coach Requests</th><th>Coach Bonus</th><th>Points</th></tr></thead><tbody>'+t.rows.map(m=>'<tr><td>'+escapeGBChallenge(m.name)+'</td>'+cats.map(([k])=>'<td>'+m.cats[k]+'</td>').join('')+'<td>'+m.slams+'</td><td>+'+m.slamBonus+'</td><td><input class="gb-nps-streak-input" type="number" min="0" step="1" inputmode="numeric" aria-label="NPS streaks for '+escapeGBChallenge(m.name)+'" data-nps-member="'+escapeGBChallenge(m.name)+'" value="'+m.npsStreaks+'" style="width:76px;max-width:100%;background:var(--bg-primary);color:var(--text-primary);border:1px solid var(--border);border-radius:7px;padding:6px;text-align:center;"></td><td>+'+m.npsBonus+'</td><td><input class="gb-coach-request-input" type="number" min="0" step="1" inputmode="numeric" aria-label="Coach requests for '+escapeGBChallenge(m.name)+'" data-coach-member="'+escapeGBChallenge(m.name)+'" value="'+m.coachRequests+'" style="width:76px;max-width:100%;background:var(--bg-primary);color:var(--text-primary);border:1px solid var(--border);border-radius:7px;padding:6px;text-align:center;"></td><td>+'+m.coachBonus+'</td><td><strong>'+(Object.values(m.cats).reduce((n,v)=>n+v,0)+m.slamBonus+m.npsBonus+m.coachBonus)+'</strong></td></tr>').join('')+'<tr class="team-total-row"><td>Team Total</td>'+cats.map(([k])=>'<td>'+t.totals[k]+'</td>').join('')+'<td>'+t.slams+'</td><td>+'+t.slamBonus+'</td><td>'+t.people.reduce((n,m)=>n+m.npsStreaks,0)+'</td><td>+'+t.nps+'</td><td>'+t.coachRequests+'</td><td>+'+t.coachBonus+'</td><td>'+t.points+'</td></tr></tbody></table></div></article>';
     }).join('');
     const options='<option value="">Select member</option>'+defs.map(team=>'<optgroup label="'+team.label+'">'+members.filter(m=>m.team_name===team.value).map(m=>'<option value="'+escapeGBChallenge(m.name)+'">'+escapeGBChallenge(m.name)+'</option>').join('')+'</optgroup>').join('');
-    document.getElementById('gbChallengeTxnMember').innerHTML=options;
-    document.getElementById('gbChallengeNpsMember').innerHTML=options;
-    document.getElementById('gbChallengeCoachRequestMember').innerHTML=options;
+    const coachRequestMember=document.getElementById('gbChallengeCoachRequestMember');
+    if(coachRequestMember) coachRequestMember.innerHTML=options;
     document.getElementById('gbChallengeRoster').innerHTML=members.length?defs.map(team=>'<div style="margin-bottom:12px"><b>'+team.label+'</b><div>'+members.filter(m=>m.team_name===team.value).map(m=>'<span style="display:inline-flex;gap:6px;align-items:center;background:#8882;padding:7px 10px;border-radius:20px;margin:3px">'+escapeGBChallenge(m.name)+' <small style="opacity:.7">'+escapeGBChallenge(m.role||'')+'</small> <button class="secondary" style="padding:3px 7px" onclick="removeGBChallengeMember(\''+m.id+'\')" title="Remove member">×</button></span>').join('')+'</div></div>').join(''):'<div class="gb-challenge-muted">No challenge members yet.</div>';
     document.getElementById('gbChallengeActivity').innerHTML=events.length?'<table class="gb-challenge-table"><thead><tr><th>Date</th><th>Member</th><th>Activity</th><th>Points</th><th>Verification</th></tr></thead><tbody>'+events.slice(0,30).map(x=>'<tr><td>'+escapeGBChallenge(x.challenge_date)+'</td><td>'+escapeGBChallenge(x.member_name)+'</td><td>'+(x.event_type==='transaction'?escapeGBChallenge(x.category)+' × '+x.quantity:x.event_type==='coach_request'?'Coach requested × '+x.quantity:x.event_type==='nps_streak_adjustment'?'NPS streak count adjusted ('+(Number(x.quantity)>0?'+':'')+x.quantity+')':'NPS 10-streak milestone × '+x.quantity)+'</td><td>'+x.points+'</td><td>'+escapeGBChallenge(x.verification_method||'NPS bonus')+'</td></tr>').join('')+'</tbody></table>':'No activity recorded yet.';
   }
   function escapeGBChallenge(v){return String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));}
-  document.getElementById('gbChallengeMemberForm').addEventListener('submit',async e=>{
-    e.preventDefault(); const name=document.getElementById('gbChallengeMemberName').value.trim(); const team_name=document.getElementById('gbChallengeMemberTeam').value; const role=document.getElementById('gbChallengeMemberRole').value; if(!name||!gbSupabase)return;
-    const {error}=await gbSupabase.from('gb_challenge_members').insert({name,team_name,role}); if(error){alert('Could not add member: '+error.message);return;} document.getElementById('gbChallengeMemberName').value=''; await loadGBChallenge();
-  });
-  async function removeGBChallengeMember(id){const m=gbChallengeMembers.find(x=>x.id===id);if(!m||!confirm('Remove '+m.name+' from the challenge roster? Existing challenge activity will remain in history.'))return;const {error}=await gbSupabase.from('gb_challenge_members').delete().eq('id',id);if(error){alert('Could not remove member: '+error.message);return;}await loadGBChallenge();}
-  document.getElementById('gbChallengeTransactionForm').addEventListener('submit',async e=>{
-    e.preventDefault(); if(!gbSupabase)return; const member=document.getElementById('gbChallengeTxnMember').value; const category=document.getElementById('gbChallengeCategory').value; const quantity=Number(document.getElementById('gbChallengeQuantity').value); const verification=document.getElementById('gbChallengeVerification').value;
-    if(!member||!Number.isInteger(quantity)||quantity<1)return;
-    const {error}=await gbSupabase.from('gb_challenge_events').insert({member_name:member,event_type:'transaction',category,quantity,points:quantity,verified:true,verification_method:verification,client_id:CLIENT_ID});
-    if(error){alert('Could not record transaction: '+error.message);return;} document.getElementById('gbChallengeQuantity').value='1';await loadGBChallenge();
-  });
   document.getElementById('gbChallengeCoachRequestForm').addEventListener('submit',async e=>{
     e.preventDefault(); if(!gbSupabase)return; const member=document.getElementById('gbChallengeCoachRequestMember').value; const quantity=Number(document.getElementById('gbChallengeCoachRequestQuantity').value); if(!member||!Number.isInteger(quantity)||quantity<1)return;
     const {error}=await gbSupabase.from('gb_challenge_events').insert({member_name:member,event_type:'coach_request',category:'Coach Request',quantity,points:quantity*10,verified:true,verification_method:'Coach requested',client_id:CLIENT_ID});
     if(error){alert('Could not record coach request bonus: '+error.message);return;} document.getElementById('gbChallengeCoachRequestQuantity').value='1';await loadGBChallenge();
   });
   document.getElementById('gbChallengeStandings').addEventListener('change',async e=>{
-    const input=e.target.closest('.gb-nps-streak-input');if(!input||!gbSupabase)return;
-    const member=input.dataset.npsMember;const next=Math.max(0,Math.floor(Number(input.value)||0));
+    const npsInput=e.target.closest('.gb-nps-streak-input');
+    const coachInput=e.target.closest('.gb-coach-request-input');
+    if((!npsInput&&!coachInput)||!gbSupabase)return;
+    const isNps=!!npsInput, input=isNps?npsInput:coachInput;
+    const member=isNps?input.dataset.npsMember:input.dataset.coachMember;
+    const next=Math.max(0,Math.floor(Number(input.value)||0));
     if(!gbChallengeMembers.some(m=>m.name===member))return;
-    const current=gbChallengeEvents.filter(ev=>ev.member_name===member).reduce((sum,ev)=>sum+(ev.event_type==='nps_streak'?Number(ev.quantity||0)*10:ev.event_type==='nps_streak_adjustment'?Number(ev.quantity||0):0),0);
+    const current=gbChallengeEvents.filter(ev=>ev.member_name===member).reduce((sum,ev)=>sum+(isNps?(ev.event_type==='nps_streak'?Number(ev.quantity||0)*10:ev.event_type==='nps_streak_adjustment'?Number(ev.quantity||0):0):(ev.event_type==='coach_request'||ev.event_type==='coach_request_adjustment'?Number(ev.quantity||0):0)),0);
     const delta=next-current;if(!delta)return;input.disabled=true;
-    const {error}=await gbSupabase.from('gb_challenge_events').insert({member_name:member,event_type:'nps_streak_adjustment',category:'NPS',quantity:delta,points:0,verified:true,verification_method:'Editable NPS streak count',client_id:CLIENT_ID});
-    if(error){alert('Could not save NPS streak count: '+error.message);input.disabled=false;input.value=String(current);return;} await loadGBChallenge();
-  });
-  document.getElementById('gbChallengeNpsForm').addEventListener('submit',async e=>{
-    e.preventDefault(); if(!gbSupabase)return; const member=document.getElementById('gbChallengeNpsMember').value; const quantity=Number(document.getElementById('gbChallengeNpsQuantity').value); if(!member||!Number.isInteger(quantity)||quantity<1)return;
-    const {error}=await gbSupabase.from('gb_challenge_events').insert({member_name:member,event_type:'nps_streak',category:'NPS',quantity,points:quantity*20,verified:true,verification_method:'NPS streak milestone',client_id:CLIENT_ID});
-    if(error){alert('Could not record NPS bonus: '+error.message);return;} document.getElementById('gbChallengeNpsQuantity').value='1';await loadGBChallenge();
+    const event_type=isNps?'nps_streak_adjustment':'coach_request_adjustment';
+    const category=isNps?'NPS':'Coach Request';
+    const points=isNps?0:delta*10;
+    const verification_method=isNps?'Editable NPS streak count':'Editable Coach Request count';
+    const {error}=await gbSupabase.from('gb_challenge_events').insert({member_name:member,event_type,category,quantity:delta,points,verified:true,verification_method,client_id:CLIENT_ID});
+    if(error){alert('Could not save '+(isNps?'NPS streak':'Coach Request')+' count: '+error.message);input.disabled=false;input.value=String(current);return;} await loadGBChallenge();
   });
 
   // Initialize
