@@ -945,6 +945,10 @@
   .gb-challenge-stat { font-size:25px; font-weight:800; }
   .gb-challenge-wrap h2,.gb-challenge-wrap h3 { margin:0 0 12px; }
   body.gb-challenge-open #topPerformersCard, body.gb-challenge-open .kpi-grid, body.gb-challenge-open #mainTableCard, body.gb-challenge-open #historyCard { display:none !important; }
+  /* Match the PZ Pro vs Pro layout: retain the app identity and view tabs,
+     but hide daily-management actions and roster filters while the challenge is open. */
+  body.gb-challenge-open .top-bar > .btn-group,
+  body.gb-challenge-open #filterPanel { display:none !important; }
 </style>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script>
