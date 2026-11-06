@@ -950,6 +950,17 @@
   body.gb-challenge-open #filterPanel,
   body.gb-challenge-open #btnAddMember,
   body.gb-challenge-open #btnUndo { display:none !important; }
+  /* Keep Coach vs Coach centered in the available viewport, independent of the daily page wrapper. */
+  body.gb-challenge-open #gbChallengeView {
+    width:calc(100vw - 32px) !important;
+    max-width:1400px !important;
+    position:relative !important;
+    left:auto !important;
+    transform:none !important;
+    margin:18px auto 28px !important;
+    box-sizing:border-box !important;
+  }
+  body.gb-challenge-open .gb-challenge-tabs .gb-challenge-back { display:none !important; }
 </style>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script>
@@ -1072,7 +1083,7 @@
     <div class="segmented-control gb-challenge-tabs" role="tablist" aria-label="GB Coach vs Coach sections">
       <button class="tab-btn active" id="gb-view-standings" type="button" onclick="switchGBChallengeView('standings')" role="tab" aria-selected="true">🏆 Standings</button>
       <button class="tab-btn" id="gb-view-rules" type="button" onclick="switchGBChallengeView('rules')" role="tab" aria-selected="false">📋 Rules</button>
-      <button class="secondary gb-challenge-back" type="button" onclick="closeGBChallenge()">← Back to Focus & Follow</button>
+      
     </div>
     <div id="gbChallengeStandingsPage"><div class="team-compare-grid" id="gbChallengeStandings"></div></div>
     <div id="gbChallengeRulesPage" style="display:none;">
