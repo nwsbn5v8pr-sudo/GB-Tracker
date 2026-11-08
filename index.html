@@ -4365,6 +4365,43 @@
   // ============================================================
   let gbChallengeMembers = [];
   let gbChallengeEvents = [];
+  let gbDailyChallengeRows = [];
+  const GB_CHALLENGE_START_DATE = '2026-11-07';
+
+  function gbChallengeNameKey(value) {
+    return String(value || '').toLowerCase().replace(/[^a-z]/g, '');
+  }
+  function gbChallengeDailyTotals() {
+    const totals = new Map();
+    const ambiguous = new Set();
+    const memberKeys = new Map();
+    gbChallengeMembers.forEach(m => {
+      const key = gbChallengeNameKey(m.name);
+      if (!memberKeys.has(key)) memberKeys.set(key, []);
+      memberKeys.get(key).push(m);
+    });
+    gbDailyChallengeRows.forEach(day => {
+      const grouped = new Map();
+      (day.data || []).forEach(row => {
+        const key = gbChallengeNameKey(row.name);
+        if (!key || !memberKeys.has(key)) return;
+        if (!grouped.has(key)) grouped.set(key, []);
+        grouped.get(key).push(row);
+      });
+      grouped.forEach((rows,key) => {
+        const challengeMatches = memberKeys.get(key) || [];
+        if (rows.length !== 1 || challengeMatches.length !== 1) { ambiguous.add(key); return; }
+        const member = challengeMatches[0];
+        const row = rows[0];
+        if (!totals.has(member.id)) totals.set(member.id,{cats:{'AppleCare+':0,'PZ Conversion':0,'Business':0,'Accessories':0},days:new Map()});
+        const t = totals.get(member.id);
+        const values = {'AppleCare+':Number(row.ac||0),'PZ Conversion':Number(row.pz||0),'Business':Number(row.biz||0),'Accessories':Number(row.acc||0)};
+        Object.keys(values).forEach(k => t.cats[k] += values[k]);
+        if (Object.values(values).every(v => v > 0)) t.days.set(day.date,true);
+      });
+    });
+    return {totals,ambiguous};
+  }
   function openGBChallenge() {
     currentTab = 'challenge';
     document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
@@ -4381,27 +4418,37 @@
   }
   async function loadGBChallenge() {
     if (!gbSupabase) { document.getElementById('gbChallengeStandings').textContent='Cloud connection is not ready. Please try again in a moment.'; return; }
-    const [m,e] = await Promise.all([
+    const [m,e,live,history] = await Promise.all([
       gbSupabase.from('gb_challenge_members').select('*').order('name'),
-      gbSupabase.from('gb_challenge_events').select('*').order('created_at',{ascending:false}).limit(1000)
+      gbSupabase.from('gb_challenge_events').select('*').order('created_at',{ascending:false}).limit(1000),
+      gbSupabase.from('gb_focus_follow_members').select('id,name,ac,pz,biz,acc,shift_date,removed').eq('removed',false),
+      gbSupabase.from('gb_focus_follow_history').select('history_date,snapshot').gte('history_date',GB_CHALLENGE_START_DATE).order('history_date',{ascending:true})
     ]);
-    if (m.error || e.error) { console.error('GB challenge load',m.error,e.error); document.getElementById('gbChallengeStandings').textContent='Could not load challenge data: '+(m.error||e.error).message; return; }
-    gbChallengeMembers=m.data||[]; gbChallengeEvents=e.data||[]; renderGBChallenge();
+    const failure=m.error||e.error||live.error||history.error;
+    if (failure) { console.error('GB challenge load',m.error,e.error,live.error,history.error); document.getElementById('gbChallengeStandings').textContent='Could not load challenge data: '+failure.message; return; }
+    gbChallengeMembers=m.data||[]; gbChallengeEvents=e.data||[];
+    const dailyRows=[];
+    (history.data||[]).forEach(r=>{if(r.history_date>=GB_CHALLENGE_START_DATE)dailyRows.push({date:r.history_date,data:Array.isArray(r.snapshot)?r.snapshot:(r.snapshot&&Array.isArray(r.snapshot.data)?r.snapshot.data:[])});});
+    const liveGroups=new Map();
+    (live.data||[]).forEach(r=>{const date=String(r.shift_date||'').slice(0,10);if(date>=GB_CHALLENGE_START_DATE){if(!liveGroups.has(date))liveGroups.set(date,[]);liveGroups.get(date).push(r);}});
+    liveGroups.forEach((data,date)=>dailyRows.push({date,data}));
+    gbDailyChallengeRows=dailyRows;
+    renderGBChallenge();
   }
   function renderGBChallenge() {
     const members=gbChallengeMembers, events=gbChallengeEvents;
     const cats=[['AppleCare+','🍎 AppleCare+'],['PZ Conversion','🔄 PZ Conversion'],['Business','💼 Business'],['Accessories','🎧 Accessories']];
     const defs=[{value:'Team A',label:'Coach Jerome'},{value:'Team B',label:'Coach Shane'}];
-    const by={}; members.forEach(m=>by[m.id]={...m,cats:Object.fromEntries(cats.map(([k])=>[k,0])),tx:0,slams:0,slamBonus:0,npsStreaks:0,npsBonus:0,coachRequests:0,coachBonus:0});
+    const daily=gbChallengeDailyTotals();
+    const by={}; members.forEach(m=>{const d=daily.totals.get(m.id);by[m.id]={...m,cats:d?{...d.cats}:Object.fromEntries(cats.map(([k])=>[k,0])),tx:0,slams:d?d.days.size:0,slamBonus:d?d.days.size*10:0,npsStreaks:0,npsBonus:0,coachRequests:0,coachBonus:0};});
     events.forEach(ev=>{
       const m=members.find(x=>x.name===ev.member_name); if(!m)return;
       const x=by[m.id];
-      if(ev.event_type==='transaction'){const q=Number(ev.quantity||1);if(x.cats[ev.category]!==undefined)x.cats[ev.category]+=q;x.tx+=q;(x.days||(x.days={}))[ev.challenge_date] ||= new Set();if(x.days[ev.challenge_date]&&x.days[ev.challenge_date].add)x.days[ev.challenge_date].add(ev.category);}
       if(ev.event_type==='nps_streak')x.npsStreaks+=Number(ev.quantity||0)*10;
       if(ev.event_type==='nps_streak_adjustment')x.npsStreaks+=Number(ev.quantity||0);
       if(ev.event_type==='coach_request'||ev.event_type==='coach_request_adjustment'){x.coachRequests+=Number(ev.quantity||0);x.coachBonus+=Number(ev.points??Number(ev.quantity||0)*10);}
     });
-    Object.values(by).forEach(x=>{x.npsStreaks=Math.max(0,x.npsStreaks);x.npsBonus=Math.floor(x.npsStreaks/10)*20;Object.values(x.days||{}).forEach(set=>{if(cats.every(([k])=>set.has(k))){x.slams++;x.slamBonus+=10;}});});
+    Object.values(by).forEach(x=>{x.npsStreaks=Math.max(0,x.npsStreaks);x.npsBonus=Math.floor(x.npsStreaks/10)*20;});
     const teamTotals=defs.map(team=>{
       const people=Object.values(by).filter(m=>m.team_name===team.value);
       const totals=Object.fromEntries(cats.map(([k])=>[k,people.reduce((n,m)=>n+m.cats[k],0)]));
@@ -4413,7 +4460,8 @@
     const rankedTeams=[...teamTotals].sort((a,b)=>b.points-a.points||a.team.label.localeCompare(b.team.label));
     const compareHtml='<article class="team-performance-card" style="grid-column:1/-1"><h2>🏁 Coach vs Coach · Team Comparison</h2><p class="team-performance-sub">Live totals calculated from every assigned roster member · zero activity remains visible</p><div class="team-metric-grid">'+rankedTeams.map((t,i)=>'<div class="team-metric"><span>'+(i===0?'🥇':'🥈')+' '+escapeGBChallenge(t.team.label)+' · Rank '+(i+1)+'</span><strong>'+t.points+' points</strong></div>').join('')+cats.map(([k,label])=>'<div class="team-metric"><span>'+label+' · Jerome</span><strong>'+teamTotals[0].totals[k]+'</strong></div><div class="team-metric"><span>'+label+' · Shane</span><strong>'+teamTotals[1].totals[k]+'</strong></div>').join('')+'</div></article>';
     const host=document.getElementById('gbChallengeStandings');
-    host.innerHTML=compareHtml+'<div style="grid-column:1/-1;color:var(--text-secondary);font-size:12px;margin:0 0 2px;">Team totals are the sum of individual activity. Team assignments are read from the shared Supabase roster.</div>'+rankedTeams.map(t=>{
+    const dailyStatus=daily.ambiguous.size?(' · '+daily.ambiguous.size+' name match(es) need roster cleanup and are excluded to prevent double counting'):'';
+    host.innerHTML=compareHtml+'<div style="grid-column:1/-1;color:var(--text-secondary);font-size:12px;margin:0 0 2px;">Daily metrics sync from the live tracker and archived days starting '+GB_CHALLENGE_START_DATE+'. Grand Slams are calculated per person per day. NPS and Coach Requests remain editable.'+dailyStatus+'</div>'+rankedTeams.map(t=>{
       const totalBase=Object.values(t.totals).reduce((n,v)=>n+v,0);
       return '<article class="team-performance-card"><h2>'+escapeGBChallenge(t.team.label)+'</h2><div class="team-performance-sub">'+t.people.length+' assigned · Competition-to-date totals</div><div class="team-metric-grid">'+cats.map(([k,label])=>'<div class="team-metric"><span>'+label+'</span><strong>'+t.totals[k]+'</strong></div>').join('')+'<div class="team-metric"><span>🏆 Grand Slams</span><strong>'+t.slams+'</strong></div><div class="team-metric"><span>⭐ Slam Bonus</span><strong>+'+t.slamBonus+'</strong></div><div class="team-metric"><span>📈 NPS Bonus</span><strong>+'+t.nps+'</strong></div><div class="team-metric"><span>🙋 Coach Request Bonus</span><strong>+'+t.coachBonus+'</strong></div><div class="team-metric"><span>🏁 Total Points</span><strong>'+t.points+'</strong></div></div><div class="team-section-title">Individual Contributions</div><div class="team-roster-wrap"><table class="team-roster-table"><thead><tr><th>Team Member</th><th>AppleCare+</th><th>PZ Conversion</th><th>Business</th><th>Accessories</th><th>Grand Slams</th><th>Slam Bonus</th><th>NPS Streaks</th><th>NPS Bonus</th><th>Coach Requests</th><th>Coach Bonus</th><th>Points</th></tr></thead><tbody>'+t.rows.map(m=>'<tr><td>'+escapeGBChallenge(m.name)+'</td>'+cats.map(([k])=>'<td>'+m.cats[k]+'</td>').join('')+'<td>'+m.slams+'</td><td>+'+m.slamBonus+'</td><td><input class="gb-nps-streak-input" type="number" min="0" step="1" inputmode="numeric" aria-label="NPS streaks for '+escapeGBChallenge(m.name)+'" data-nps-member="'+escapeGBChallenge(m.name)+'" value="'+m.npsStreaks+'" style="width:76px;max-width:100%;background:var(--bg-primary);color:var(--text-primary);border:1px solid var(--border);border-radius:7px;padding:6px;text-align:center;"></td><td>+'+m.npsBonus+'</td><td><input class="gb-coach-request-input" type="number" min="0" step="1" inputmode="numeric" aria-label="Coach requests for '+escapeGBChallenge(m.name)+'" data-coach-member="'+escapeGBChallenge(m.name)+'" value="'+m.coachRequests+'" style="width:76px;max-width:100%;background:var(--bg-primary);color:var(--text-primary);border:1px solid var(--border);border-radius:7px;padding:6px;text-align:center;"></td><td>+'+m.coachBonus+'</td><td><strong>'+(Object.values(m.cats).reduce((n,v)=>n+v,0)+m.slamBonus+m.npsBonus+m.coachBonus)+'</strong></td></tr>').join('')+'<tr class="team-total-row"><td>Team Total</td>'+cats.map(([k])=>'<td>'+t.totals[k]+'</td>').join('')+'<td>'+t.slams+'</td><td>+'+t.slamBonus+'</td><td>'+t.people.reduce((n,m)=>n+m.npsStreaks,0)+'</td><td>+'+t.nps+'</td><td>'+t.coachRequests+'</td><td>+'+t.coachBonus+'</td><td>'+t.points+'</td></tr></tbody></table></div></article>';
     }).join('');
