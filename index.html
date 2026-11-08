@@ -4366,7 +4366,27 @@
   let gbChallengeMembers = [];
   let gbChallengeEvents = [];
   let gbDailyChallengeRows = [];
+  let gbChallengeChannel = null;
+  let gbChallengeRefreshTimer = null;
   const GB_CHALLENGE_START_DATE = '2026-11-07';
+
+  function watchGBChallengeDailyMetrics() {
+    if (!gbSupabase || gbChallengeChannel) return;
+    gbChallengeChannel = gbSupabase.channel('gb-coach-challenge-daily-live')
+      .on('postgres_changes',{event:'*',schema:'public',table:'gb_focus_follow_members'},()=>{
+        if (document.body.classList.contains('gb-challenge-open')) {
+          clearTimeout(gbChallengeRefreshTimer);
+          gbChallengeRefreshTimer=setTimeout(()=>loadGBChallenge(),250);
+        }
+      })
+      .on('postgres_changes',{event:'*',schema:'public',table:'gb_focus_follow_history'},()=>{
+        if (document.body.classList.contains('gb-challenge-open')) {
+          clearTimeout(gbChallengeRefreshTimer);
+          gbChallengeRefreshTimer=setTimeout(()=>loadGBChallenge(),250);
+        }
+      })
+      .subscribe();
+  }
 
   function gbChallengeNameKey(value) {
     return String(value || '').toLowerCase().replace(/[^a-z]/g, '');
@@ -4410,6 +4430,7 @@
     document.body.classList.add('gb-challenge-open');
     document.getElementById('gbChallengeView').classList.add('active');
     switchGBChallengeView('standings');
+    watchGBChallengeDailyMetrics();
     loadGBChallenge();
   }
   function closeGBChallenge() {
