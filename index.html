@@ -3578,6 +3578,10 @@
   let gbCentralReady = false;
   let gbHydrating = false;
   let gbBootstrapDone = false;
+  // The automatic archive engine must wait for the first authoritative cloud
+  // roster load. Without this flag, startup can either reference an undefined
+  // identifier or archive a stale local snapshot before the shared day is known.
+  let stateHydrated = false;
 
   // Which day the SHARED board is tracking, taken from the rows themselves.
   // The most common shift_date wins, so one stray row cannot drag the whole
@@ -3665,6 +3669,7 @@
       // up. That is what left the history table full of gaps.
       activeShiftDate = gbLiveDayFromRows(rows) || activeShiftDate || getTodayString();
       lastVersion = Math.max(0, ...rows.map(r => Number(r.revision || 0)));
+      stateHydrated = true;
       saveLocalState();
       renderTableStructure();
       updateTotals();
@@ -4134,7 +4139,12 @@
           if (rows && rows.length) {
             gbHydrating = true;
             data = rows.map(gbDbToMember).filter(m => !isMemberTombstoned(m.id));
+            // The shared rows identify which business day their counters belong
+            // to. Hydrate that date before checking rollover so yesterday's
+            // metrics are archived and the live board is reset as one operation.
+            activeShiftDate = gbLiveDayFromRows(rows) || activeShiftDate || getTodayString();
             lastVersion = Math.max(0, ...rows.map(r => Number(r.revision || 0)));
+            stateHydrated = true;
             saveLocalState();
             renderTableStructure(); updateTotals(); scheduleReorder();
             setGbInitialBoardReady(true);
@@ -4144,6 +4154,10 @@
             const payload = data.filter(m => !isMemberTombstoned(m.id)).map(gbMemberPayload);
             const {error: seedError} = await gbSupabase.from(GB_SUPABASE_TABLE).upsert(payload,{onConflict:'id'});
             if (seedError) throw seedError;
+            stateHydrated = true;
+          } else {
+            activeShiftDate = getTodayString();
+            stateHydrated = true;
           }
           setGbInitialBoardReady(true);
 
