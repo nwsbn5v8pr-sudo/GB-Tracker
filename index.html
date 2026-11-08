@@ -4389,7 +4389,12 @@
   }
 
   function gbChallengeNameKey(value) {
-    return String(value || '').toLowerCase().replace(/[^a-z]/g, '');
+    // Daily tracker rows sometimes store an employee's full last-name initials
+    // (e.g. "Dominic DR") while the challenge roster uses first + last initial
+    // ("Dominic D."). Match on first name + first letter of the next token.
+    const parts=String(value||'').toLowerCase().replace(/[^a-z\s]/g,' ').trim().split(/\s+/).filter(Boolean);
+    if(!parts.length)return '';
+    return parts[0]+(parts[1]?parts[1][0]:'');
   }
   function gbChallengeDailyTotals() {
     const totals = new Map();
