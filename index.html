@@ -2492,6 +2492,12 @@
 
   function toggleUncheckedMembersCollapsed() {
     uncheckedMembersCollapsed = !uncheckedMembersCollapsed;
+    // If the user expands the not-checked-in section while the table is
+    // filtered to checked-in only, switch to All so the expanded rows appear.
+    if (!uncheckedMembersCollapsed && (currentTab === 'daily' || currentTab === 'prior')) {
+      const checkinFilter = document.getElementById('checkinFilter');
+      if (checkinFilter && checkinFilter.value === 'IN') checkinFilter.value = 'ALL';
+    }
     reorderRows();
   }
 
@@ -2823,7 +2829,9 @@
     const hIn = document.getElementById('header-checked-in');
     const hOut = document.getElementById('header-not-checked-in');
     if (hIn) hIn.style.display = (checkinFilter === 'OUT' || q !== '') ? 'none' : '';
-    if (hOut) hOut.style.display = (checkinFilter === 'IN' || q !== '') ? 'none' : '';
+    // Keep the collapsed-section control visible even with the Checked In
+    // filter active, so users can expand and reveal teammates not checked in.
+    if (hOut) hOut.style.display = q !== '' ? 'none' : '';
 
     document.getElementById("teamCount").textContent = `${visibleCount} Team Members`;
   }
