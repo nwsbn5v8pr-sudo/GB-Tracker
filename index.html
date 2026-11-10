@@ -4475,12 +4475,25 @@
     const failure=m.error||e.error||live.error||history.error;
     if (failure) { console.error('GB challenge load',m.error,e.error,live.error,history.error); document.getElementById('gbChallengeStandings').textContent='Could not load challenge data: '+failure.message; return; }
     gbChallengeMembers=m.data||[]; gbChallengeEvents=e.data||[];
-    const dailyRows=[];
-    (history.data||[]).forEach(r=>{if(r.history_date>=GB_CHALLENGE_START_DATE)dailyRows.push({date:r.history_date,data:Array.isArray(r.snapshot)?r.snapshot:(r.snapshot&&Array.isArray(r.snapshot.data)?r.snapshot.data:[])});});
+    // Prefer the finalized archive for a date. The live table can retain rows
+    // for the same shift date after rollover; merging both sources would count
+    // that day's sales twice. Accept all snapshot shapes used by older clients.
+    const dailyByDate=new Map();
+    (history.data||[]).forEach(r=>{
+      const date=String(r.history_date||'').slice(0,10);
+      if(date<GB_CHALLENGE_START_DATE)return;
+      const snap=r.snapshot;
+      const data=Array.isArray(snap)?snap:(snap&&Array.isArray(snap.data)?snap.data:(snap&&Array.isArray(snap.members)?snap.members:[]));
+      dailyByDate.set(date,{date,data,source:'archive'});
+    });
     const liveGroups=new Map();
-    (live.data||[]).forEach(r=>{const date=String(r.shift_date||'').slice(0,10);if(date>=GB_CHALLENGE_START_DATE){if(!liveGroups.has(date))liveGroups.set(date,[]);liveGroups.get(date).push(r);}});
-    liveGroups.forEach((data,date)=>dailyRows.push({date,data}));
-    gbDailyChallengeRows=dailyRows;
+    (live.data||[]).forEach(r=>{
+      const date=String(r.shift_date||'').slice(0,10);
+      if(date>=GB_CHALLENGE_START_DATE&&!liveGroups.has(date))liveGroups.set(date,[]);
+      if(date>=GB_CHALLENGE_START_DATE)liveGroups.get(date).push(r);
+    });
+    liveGroups.forEach((data,date)=>{if(!dailyByDate.has(date))dailyByDate.set(date,{date,data,source:'live'});});
+    gbDailyChallengeRows=Array.from(dailyByDate.values()).sort((a,b)=>a.date.localeCompare(b.date));
     renderGBChallenge();
   }
   function sortContributionTable(header){
@@ -4507,8 +4520,13 @@
     const defs=[{value:'Team A',label:'Coach Jerome'},{value:'Team B',label:'Coach Shane'}];
     const daily=gbChallengeDailyTotals();
     const by={}; members.forEach(m=>{const d=daily.totals.get(m.id);by[m.id]={...m,cats:d?{...d.cats}:Object.fromEntries(cats.map(([k])=>[k,0])),tx:0,slams:d?d.days.size:0,slamBonus:d?d.days.size*10:0,npsStreaks:0,npsBonus:0,coachRequests:0,coachBonus:0};});
+    const eventMembersByKey=new Map();
+    members.forEach(m=>{const key=gbChallengeNameKey(m.name);if(!eventMembersByKey.has(key))eventMembersByKey.set(key,[]);eventMembersByKey.get(key).push(m);});
     events.forEach(ev=>{
-      const m=members.find(x=>x.name===ev.member_name); if(!m)return;
+      const matches=eventMembersByKey.get(gbChallengeNameKey(ev.member_name))||[];
+      // Resolve abbreviated/full-name variants only when the key is unique.
+      if(matches.length!==1)return;
+      const m=matches[0];
       const x=by[m.id];
       if(ev.event_type==='nps_streak')x.npsStreaks+=Number(ev.quantity||0)*10;
       if(ev.event_type==='nps_streak_adjustment')x.npsStreaks+=Number(ev.quantity||0);
