@@ -1705,10 +1705,9 @@
   }
 
   // ---- Business day ---------------------------------------------------------
-  // The tracker's day boundary is 22:00 Pacific, not local midnight. Anything
-  // logged after 22:00 Pacific belongs to the NEXT business day, so the live
-  // board's day changes at 10 PM and the existing "board's day != today, so
-  // archive it" engine performs the rollover with no clock check of its own.
+  // The tracker's day boundary is 11:59 PM Pacific. Anything logged before
+  // that time belongs to the current calendar business day; after that point
+  // the live board advances and the archive engine saves/resets the prior day.
   // Pacific is resolved through the IANA zone, so this tracks PST and PDT
   // rather than drifting an hour for the months the region is on summer time.
   // The PZ retail tracker uses the identical rule so the two stay in step.
@@ -3103,34 +3102,37 @@
     if (ok) switchTab('daily');
   }
 
-  // Automatic GB rollover: driven purely by the business day changing, which
-  // happens at 22:00 Pacific (see getTodayString). No clock check is needed
-  // here, and an iPad that was asleep or closed at 10 PM still catches up the
-  // next time it runs, because the comparison is against a date, not a moment.
+  // Automatic GB rollover runs after 11:59 PM Pacific. The interval also
+  // catches up after a device sleeps or reconnects. Failed archive attempts
+  // are deliberately retried; only a confirmed archive/reset is considered done.
   let gbArchiveRunning = false;
-  let gbLastArchiveAttempt = '';
+  let gbLastArchivedDay = '';
   async function scheduledGbDailyArchive() {
-    if (gbArchiveRunning || !gbCentralReady || !stateHydrated) return;
+    if (gbArchiveRunning || !gbCentralReady || !stateHydrated) return false;
     const today = getTodayString();
     const liveDay = activeShiftDate || today;
+    if (!liveDay || liveDay === today || gbLastArchivedDay === liveDay) return false;
 
-    if (liveDay && liveDay !== today) {
-      const key = `catchup:${liveDay}`;
-      if (gbLastArchiveAttempt !== key) {
-        gbLastArchiveAttempt = key;
-        await archiveCurrentDay(true, liveDay);
-      }
-    }
+    const archived = await archiveCurrentDay(true, liveDay);
+    if (archived) gbLastArchivedDay = liveDay;
+    else syncWarn('GB rollover did not complete; will retry on next check', { liveDay, today });
+    return archived;
   }
 
   function startGbDailyArchiveEngine() {
-    setInterval(async () => {
-      if (gbArchiveRunning) return;
-      gbArchiveRunning = true;
-      try { await scheduledGbDailyArchive(); }
-      finally { gbArchiveRunning = false; }
-    }, 15000);
-    scheduledGbDailyArchive();
+    // Check immediately, then continue checking every 15 seconds. This makes
+    // the rollover resilient to a missed 11:59 PM tick, offline periods,
+    // transient Supabase failures, and iPads waking after midnight.
+    if (!window.gbDailyArchiveTimer) {
+      window.gbDailyArchiveTimer = setInterval(async () => {
+        if (gbArchiveRunning) return;
+        gbArchiveRunning = true;
+        try { await scheduledGbDailyArchive(); }
+        catch (e) { syncWarn('GB scheduled rollover check failed; will retry', e); }
+        finally { gbArchiveRunning = false; }
+      }, 15000);
+    }
+    scheduledGbDailyArchive().catch(e => syncWarn('GB initial rollover check failed; will retry', e));
   }
 
   function flashAutoSaveBadge(txt) {
