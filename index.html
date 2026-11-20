@@ -3036,8 +3036,37 @@
       : JSON.parse(JSON.stringify(data));
 
     if (!hasGbActivity(snapshotData)) {
-      if (!silent) alert(`ℹ️ No GB activity was recorded for ${closingDate}. Nothing was cleared.`);
-      return false;
+      // An empty shift still needs its live roster rolled forward. Do not call
+      // the archive RPC here: upserting an empty snapshot could overwrite a
+      // previously saved archive for this date.
+      try {
+        const { error, data: resetRows } = await gbSupabase
+          .from(GB_SUPABASE_TABLE)
+          .update({
+            checked_in: false, ac: 0, pz: 0, upgrade: 0, biz: 0, acc: 0,
+            demo: 0, step: '', notes: '', revision: Date.now(),
+            updated_at: new Date().toISOString(), updated_by: 'daily-rollover',
+            shift_date: getTodayString()
+          })
+          .eq('removed', false)
+          .select('id');
+        if (error) throw error;
+        if (!resetRows) throw new Error('The empty-shift reset was not confirmed.');
+        activeShiftDate = getTodayString();
+        lastVersion = nextVersion();
+        clearPending();
+        await gbLoadCentralMembers();
+        saveLocalState();
+        renderTableStructure(); updateTotals(); reorderRows();
+        setSyncBadge('🟢 Central Supabase Sync Active');
+        syncLog('GB EMPTY SHIFT RESET COMPLETE', { shiftDate: activeShiftDate, members: resetRows.length });
+        return true;
+      } catch (e) {
+        syncWarn('GB empty-shift reset failed — live data NOT cleared', e);
+        setSyncBadge('🔴 GB Daily Save Failed — Live data NOT cleared');
+        if (!silent) alert(`❌ GB reset failed. Live data was NOT cleared.\\n\\n${e.message || e}`);
+        return false;
+      }
     }
 
     const snapshot = {
@@ -4532,7 +4561,13 @@
       const x=by[m.id];
       if(ev.event_type==='nps_streak')x.npsStreaks+=Number(ev.quantity||0)*10;
       if(ev.event_type==='nps_streak_adjustment')x.npsStreaks+=Number(ev.quantity||0);
-      if(ev.event_type==='coach_request'||ev.event_type==='coach_request_adjustment'){x.coachRequests+=Number(ev.quantity||0);x.coachBonus+=Number(ev.points??Number(ev.quantity||0)*10);}
+      if(ev.event_type==='coach_request'||ev.event_type==='coach_request_adjustment'){
+        const quantity=Number(ev.quantity||0);
+        x.coachRequests+=quantity;
+        // Coach bonus is 10 points per request; derive it from the signed
+        // quantity so positive adds and negative corrections both recalculate.
+        x.coachBonus+=quantity*10;
+      }
     });
     Object.values(by).forEach(x=>{x.npsStreaks=Math.max(0,x.npsStreaks);x.npsBonus=Math.floor(x.npsStreaks/10)*20;});
     const teamTotals=defs.map(team=>{
@@ -4554,21 +4589,33 @@
   }
   function escapeGBChallenge(v){return String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));}
   document.getElementById('gbChallengeStandings').addEventListener('change',async e=>{
-    const npsInput=e.target.closest('.gb-nps-streak-input');
-    const coachInput=e.target.closest('.gb-coach-request-input');
+    const target=e.target;
+    const npsInput=target&&target.closest?target.closest('.gb-nps-streak-input'):null;
+    const coachInput=target&&target.closest?target.closest('.gb-coach-request-input'):null;
     if((!npsInput&&!coachInput)||!gbSupabase)return;
     const isNps=!!npsInput, input=isNps?npsInput:coachInput;
     const member=isNps?input.dataset.npsMember:input.dataset.coachMember;
     const next=Math.max(0,Math.floor(Number(input.value)||0));
     if(!gbChallengeMembers.some(m=>m.name===member))return;
-    const current=gbChallengeEvents.filter(ev=>ev.member_name===member).reduce((sum,ev)=>sum+(isNps?(ev.event_type==='nps_streak'?Number(ev.quantity||0)*10:ev.event_type==='nps_streak_adjustment'?Number(ev.quantity||0):0):(ev.event_type==='coach_request'||ev.event_type==='coach_request_adjustment'?Number(ev.quantity||0):0)),0);
-    const delta=next-current;if(!delta)return;input.disabled=true;
+    const eventTypes=isNps?['nps_streak','nps_streak_adjustment']:['coach_request','coach_request_adjustment'];
+    const current=gbChallengeEvents.filter(ev=>ev.member_name===member&&eventTypes.includes(ev.event_type)).reduce((sum,ev)=>sum+Number(ev.quantity||0)*(isNps&&ev.event_type==='nps_streak'?10:1),0);
+    const delta=next-current;
+    if(!delta){input.value=String(current);return;}
+    input.disabled=true;
     const event_type=isNps?'nps_streak_adjustment':'coach_request_adjustment';
     const category=isNps?'NPS':'Coach Request';
     const points=isNps?0:delta*10;
     const verification_method=isNps?'Editable NPS streak count':'Editable Coach Request count';
-    const {error}=await gbSupabase.from('gb_challenge_events').insert({member_name:member,event_type,category,quantity:delta,points,verified:true,verification_method,client_id:CLIENT_ID});
-    if(error){alert('Could not save '+(isNps?'NPS streak':'Coach Request')+' count: '+error.message);input.disabled=false;input.value=String(current);return;} await loadGBChallenge();
+    try {
+      const {error}=await gbSupabase.from('gb_challenge_events').insert({member_name:member,event_type,category,quantity:delta,points,verified:true,verification_method,client_id:CLIENT_ID});
+      if(error)throw error;
+      await loadGBChallenge();
+    } catch(error) {
+      console.error('GB challenge bonus save failed',error);
+      alert('Could not save '+(isNps?'NPS streak':'Coach Request')+' count: '+(error.message||error));
+      input.disabled=false;
+      input.value=String(current);
+    }
   });
 
   // Initialize
