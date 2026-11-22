@@ -4468,12 +4468,28 @@
       });
       grouped.forEach((rows,key) => {
         const challengeMatches = memberKeys.get(key) || [];
-        if (rows.length !== 1 || challengeMatches.length !== 1) { ambiguous.add(key); return; }
+        if (challengeMatches.length !== 1) { ambiguous.add(key); return; }
+
+        // Older GB rosters can contain duplicate database rows for the same
+        // employee/name after roster migrations. Keep the highest recorded
+        // value for each metric instead of discarding the employee's entire
+        // day or adding duplicate copies together. If different full names
+        // collide on the same first-name/last-initial key, keep excluding them
+        // until their identity is resolved.
+        const normalizedNames = new Set(rows.map(row =>
+          String(row.name||'').toLowerCase().replace(/[^a-z0-9]/g,'')
+        ));
+        if (normalizedNames.size !== 1) { ambiguous.add(key); return; }
+
         const member = challengeMatches[0];
-        const row = rows[0];
+        const values = {
+          'AppleCare+':Math.max(0,...rows.map(row=>Number(row.ac||0))),
+          'PZ Conversion':Math.max(0,...rows.map(row=>Number(row.pz||row.upgrade||0))),
+          'Business':Math.max(0,...rows.map(row=>Number(row.biz||0))),
+          'Accessories':Math.max(0,...rows.map(row=>Number(row.acc||0)))
+        };
         if (!totals.has(member.id)) totals.set(member.id,{cats:{'AppleCare+':0,'PZ Conversion':0,'Business':0,'Accessories':0},days:new Map()});
         const t = totals.get(member.id);
-        const values = {'AppleCare+':Number(row.ac||0),'PZ Conversion':Number(row.pz||0),'Business':Number(row.biz||0),'Accessories':Number(row.acc||0)};
         Object.keys(values).forEach(k => t.cats[k] += values[k]);
         if (Object.values(values).every(v => v > 0)) t.days.set(day.date,true);
       });
