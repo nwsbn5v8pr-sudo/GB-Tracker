@@ -4452,6 +4452,7 @@
   function gbChallengeDailyTotals() {
     const totals = new Map();
     const ambiguous = new Set();
+    const unassigned = new Map();
     const memberKeys = new Map();
     gbChallengeMembers.forEach(m => {
       const key = gbChallengeNameKey(m.name);
@@ -4462,39 +4463,45 @@
       const grouped = new Map();
       (day.data || []).forEach(row => {
         const key = gbChallengeNameKey(row.name);
-        if (!key || !memberKeys.has(key)) return;
+        if (!key) return;
         if (!grouped.has(key)) grouped.set(key, []);
         grouped.get(key).push(row);
       });
       grouped.forEach((rows,key) => {
         const challengeMatches = memberKeys.get(key) || [];
-        if (challengeMatches.length !== 1) { ambiguous.add(key); return; }
-
-        // Older GB rosters can contain duplicate database rows for the same
-        // employee/name after roster migrations. Keep the highest recorded
-        // value for each metric instead of discarding the employee's entire
-        // day or adding duplicate copies together. If different full names
-        // collide on the same first-name/last-initial key, keep excluding them
-        // until their identity is resolved.
         const normalizedNames = new Set(rows.map(row =>
           String(row.name||'').toLowerCase().replace(/[^a-z0-9]/g,'')
         ));
         if (normalizedNames.size !== 1) { ambiguous.add(key); return; }
 
-        const member = challengeMatches[0];
+        // A single employee may have more than one legacy database row after
+        // roster migrations. Use the maximum saved value per metric to avoid
+        // dropping that employee's day or counting mirrored duplicate rows
+        // twice. Distinct names that collide on the short key remain excluded.
         const values = {
           'AppleCare+':Math.max(0,...rows.map(row=>Number(row.ac||0))),
           'PZ Conversion':Math.max(0,...rows.map(row=>Number(row.pz||row.upgrade||0))),
           'Business':Math.max(0,...rows.map(row=>Number(row.biz||0))),
           'Accessories':Math.max(0,...rows.map(row=>Number(row.acc||0)))
         };
+        if (challengeMatches.length !== 1) {
+          if (challengeMatches.length === 0 && Object.values(values).some(v=>v>0)) {
+            const displayName=String(rows[0].name||'').trim();
+            if (!unassigned.has(displayName)) unassigned.set(displayName,{cats:{'AppleCare+':0,'PZ Conversion':0,'Business':0,'Accessories':0},days:new Map()});
+            const u=unassigned.get(displayName);
+            Object.keys(values).forEach(k=>u.cats[k]+=values[k]);
+            if(Object.values(values).every(v=>v>0))u.days.set(day.date,true);
+          } else if(challengeMatches.length>1) ambiguous.add(key);
+          return;
+        }
+        const member = challengeMatches[0];
         if (!totals.has(member.id)) totals.set(member.id,{cats:{'AppleCare+':0,'PZ Conversion':0,'Business':0,'Accessories':0},days:new Map()});
         const t = totals.get(member.id);
         Object.keys(values).forEach(k => t.cats[k] += values[k]);
         if (Object.values(values).every(v => v > 0)) t.days.set(day.date,true);
       });
     });
-    return {totals,ambiguous};
+    return {totals,ambiguous,unassigned};
   }
   function openGBChallenge() {
     currentTab = 'challenge';
@@ -4597,7 +4604,8 @@
     const rankedTeams=[...teamTotals].sort((a,b)=>b.points-a.points||a.team.label.localeCompare(b.team.label));
     const compareHtml='<article class="team-performance-card" style="grid-column:1/-1"><h2>🏁 Coach vs Coach · Team Comparison</h2><p class="team-performance-sub">Live totals calculated from every assigned roster member · zero activity remains visible</p><div class="team-metric-grid">'+rankedTeams.map((t,i)=>'<div class="team-metric"><span>'+(i===0?'🥇':'🥈')+' '+escapeGBChallenge(t.team.label)+' · Rank '+(i+1)+'</span><strong>'+t.points+' points</strong></div>').join('')+cats.map(([k,label])=>'<div class="team-metric"><span>'+label+' · Jerome</span><strong>'+teamTotals[0].totals[k]+'</strong></div><div class="team-metric"><span>'+label+' · Shane</span><strong>'+teamTotals[1].totals[k]+'</strong></div>').join('')+'</div></article>';
     const host=document.getElementById('gbChallengeStandings');
-    const dailyStatus=daily.ambiguous.size?(' · '+daily.ambiguous.size+' name match(es) need roster cleanup and are excluded to prevent double counting'):'';
+    const dailyStatus=(daily.ambiguous.size?(' · '+daily.ambiguous.size+' ambiguous name match(es) remain excluded to prevent double counting'):'')+
+      (daily.unassigned.size?(' · '+daily.unassigned.size+' active name(s) have activity but are not assigned to either coach: '+Array.from(daily.unassigned.keys()).sort().join(', ')):'');
     host.innerHTML=compareHtml+'<div style="grid-column:1/-1;color:var(--text-secondary);font-size:12px;margin:0 0 2px;">Daily metrics sync from the live tracker and archived days starting '+GB_CHALLENGE_START_DATE+'. Grand Slams are calculated per person per day. NPS and Coach Requests remain editable.'+dailyStatus+'</div>'+rankedTeams.map(t=>{
       const totalBase=Object.values(t.totals).reduce((n,v)=>n+v,0);
       return '<article class="team-performance-card"><h2>'+escapeGBChallenge(t.team.label)+'</h2><div class="team-performance-sub">'+t.people.length+' assigned · Competition-to-date totals</div><div class="team-metric-grid">'+cats.map(([k,label])=>'<div class="team-metric"><span>'+label+'</span><strong>'+t.totals[k]+'</strong></div>').join('')+'<div class="team-metric"><span>🏆 Grand Slams</span><strong>'+t.slams+'</strong></div><div class="team-metric"><span>⭐ Slam Bonus</span><strong>+'+t.slamBonus+'</strong></div><div class="team-metric"><span>📈 NPS Bonus</span><strong>+'+t.nps+'</strong></div><div class="team-metric"><span>🙋 Coach Request Bonus</span><strong>+'+t.coachBonus+'</strong></div><div class="team-metric"><span>🏁 Total Points</span><strong>'+t.points+'</strong></div></div><div class="team-section-title">Individual Contributions</div><div class="team-roster-wrap"><table class="team-roster-table"><thead><tr><th class="contribution-sort-header" onclick="sortContributionTable(this)" role="button" tabindex="0" aria-label="Sort by Team Member">Team Member <span class="sort-indicator" aria-hidden="true">↕</span></th><th class="contribution-sort-header" onclick="sortContributionTable(this)" role="button" tabindex="0" aria-label="Sort by AppleCare+">AppleCare+ <span class="sort-indicator" aria-hidden="true">↕</span></th><th class="contribution-sort-header" onclick="sortContributionTable(this)" role="button" tabindex="0" aria-label="Sort by PZ Conversion">PZ Conversion <span class="sort-indicator" aria-hidden="true">↕</span></th><th class="contribution-sort-header" onclick="sortContributionTable(this)" role="button" tabindex="0" aria-label="Sort by Business">Business <span class="sort-indicator" aria-hidden="true">↕</span></th><th class="contribution-sort-header" onclick="sortContributionTable(this)" role="button" tabindex="0" aria-label="Sort by Accessories">Accessories <span class="sort-indicator" aria-hidden="true">↕</span></th><th class="contribution-sort-header" onclick="sortContributionTable(this)" role="button" tabindex="0" aria-label="Sort by Grand Slams">Grand Slams <span class="sort-indicator" aria-hidden="true">↕</span></th><th class="contribution-sort-header" onclick="sortContributionTable(this)" role="button" tabindex="0" aria-label="Sort by Slam Bonus">Slam Bonus <span class="sort-indicator" aria-hidden="true">↕</span></th><th class="contribution-sort-header" onclick="sortContributionTable(this)" role="button" tabindex="0" aria-label="Sort by NPS Streaks">NPS Streaks <span class="sort-indicator" aria-hidden="true">↕</span></th><th class="contribution-sort-header" onclick="sortContributionTable(this)" role="button" tabindex="0" aria-label="Sort by NPS Bonus">NPS Bonus <span class="sort-indicator" aria-hidden="true">↕</span></th><th class="contribution-sort-header" onclick="sortContributionTable(this)" role="button" tabindex="0" aria-label="Sort by Coach Requests">Coach Requests <span class="sort-indicator" aria-hidden="true">↕</span></th><th class="contribution-sort-header" onclick="sortContributionTable(this)" role="button" tabindex="0" aria-label="Sort by Coach Bonus">Coach Bonus <span class="sort-indicator" aria-hidden="true">↕</span></th><th class="contribution-sort-header" onclick="sortContributionTable(this)" role="button" tabindex="0" aria-label="Sort by Points">Points <span class="sort-indicator" aria-hidden="true">↕</span></th></tr></thead><tbody>'+t.rows.map(m=>'<tr><td>'+escapeGBChallenge(m.name)+'</td>'+cats.map(([k])=>'<td>'+m.cats[k]+'</td>').join('')+'<td>'+m.slams+'</td><td>+'+m.slamBonus+'</td><td><input class="gb-nps-streak-input" type="number" min="0" step="1" inputmode="numeric" aria-label="NPS streaks for '+escapeGBChallenge(m.name)+'" data-nps-member="'+escapeGBChallenge(m.name)+'" value="'+m.npsStreaks+'" style="width:76px;max-width:100%;background:var(--bg-primary);color:var(--text-primary);border:1px solid var(--border);border-radius:7px;padding:6px;text-align:center;"></td><td>+'+m.npsBonus+'</td><td><input class="gb-coach-request-input" type="number" min="0" step="1" inputmode="numeric" aria-label="Coach requests for '+escapeGBChallenge(m.name)+'" data-coach-member="'+escapeGBChallenge(m.name)+'" value="'+m.coachRequests+'" style="width:76px;max-width:100%;background:var(--bg-primary);color:var(--text-primary);border:1px solid var(--border);border-radius:7px;padding:6px;text-align:center;"></td><td>+'+m.coachBonus+'</td><td><strong>'+(Object.values(m.cats).reduce((n,v)=>n+v,0)+m.slamBonus+m.npsBonus+m.coachBonus)+'</strong></td></tr>').join('')+'<tr class="team-total-row"><td>Team Total</td>'+cats.map(([k])=>'<td>'+t.totals[k]+'</td>').join('')+'<td>'+t.slams+'</td><td>+'+t.slamBonus+'</td><td>'+t.people.reduce((n,m)=>n+m.npsStreaks,0)+'</td><td>+'+t.nps+'</td><td>'+t.coachRequests+'</td><td>+'+t.coachBonus+'</td><td>'+t.points+'</td></tr></tbody></table></div></article>';
