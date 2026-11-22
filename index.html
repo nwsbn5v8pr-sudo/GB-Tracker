@@ -1113,9 +1113,9 @@
         <div class="team-metric"><span>💼 Business</span><strong>1 pt</strong></div>
         <div class="team-metric"><span>🎧 Accessories</span><strong>1 pt</strong></div>
       </div></div>
-      <div class="gb-challenge-card"><h3>🏆 Bonus Points</h3><ul><li><strong>Grand Slam: +10 points</strong> when all four qualifying categories are achieved by the same person on the same day.</li><li><strong>NPS: +20 points</strong> for every 10 NPS streaks recorded.</li><li><strong>Coach Request: +10 points</strong> for each completed coach request.</li></ul></div>
+      <div class="gb-challenge-card"><h3>🏆 Bonus Points</h3><ul><li><strong>Grand Slam: +10 points</strong> when all four qualifying transaction categories are achieved by the same person on the same day.</li><li><strong>NPS: +20 points</strong> for every 10 NPS streaks recorded.</li><li><strong>Coach Request: +10 points</strong> for each completed coach request.</li></ul></div>
       <div class="gb-challenge-card"><h3>🧾 Receipt & Transaction Verification</h3><p>Every transaction counted toward points must be verifiable by a printed receipt or a visual check of the recent transaction in Easy Pay. If it cannot be verified, do not count it until confirmed. Keep customer information private.</p></div>
-      <div class="gb-challenge-card"><h3>📌 Scoring Guidelines</h3><ul><li>Each verified AppleCare+, PZ Conversion, Business, or Accessories transaction earns 1 point.</li><li>Grand Slam and NPS bonuses are added on top of base points.</li><li>Demo activity, check-ins, and Steps of Service do not add challenge points.</li><li>Do not enter customer personal information in notes.</li></ul></div>
+      <div class="gb-challenge-card"><h3>📌 Scoring Guidelines</h3><ul><li>Each verified AppleCare+, PZ Conversion, Business, Accessories transaction, and T@A Sign🆙 signup earns 1 point.</li><li>Grand Slam and NPS bonuses are added on top of base points.</li><li>T@A Sign🆙 activity, check-ins, and Steps of Service do not add challenge points.</li><li>Do not enter customer personal information in notes.</li></ul></div>
     </div>
   </section>
 <!-- 🌟 Top Performers Section -->
@@ -1244,7 +1244,7 @@
               🏆 Status <span class="sort-icon" id="sort-icon-slam">↕️</span>
             </th>
             <th style="text-align:center;" id="th-demo" onclick="setColumnSort('demo')">
-              🤳 Demo <span class="sort-icon" id="sort-icon-demo">↕️</span>
+              🆙 T@A Sign🆙 <span class="sort-icon" id="sort-icon-demo">↕️</span>
             </th>
             <th style="text-align:center;" id="th-ac" onclick="setColumnSort('ac')">
               🍎 AppleCare+ <span class="sort-icon" id="sort-icon-ac">↕️</span>
@@ -3306,7 +3306,7 @@
     
     let csv = "";
     if (isLive || isPrior) {
-      csv = "Checked In,Name,Job Title,Grand Slam Status (🏆),Demo (🤳),AppleCare+ (🍎),PZ Conversion (🔄),Business (💼),Accessories (🎧),Apple Steps of Services,Notes\n";
+      csv = "Checked In,Name,Job Title,Grand Slam Status (🏆),T@A Sign🆙,AppleCare+ (🍎),PZ Conversion (🔄),Business (💼),Accessories (🎧),Apple Steps of Services,Notes\n";
       const exportData = [...list].sort((a, b) => (b.checkedIn ? 1 : 0) - (a.checkedIn ? 1 : 0));
       exportData.forEach(p => {
         const hits = getHitCount(p);
@@ -3315,7 +3315,7 @@
         csv += `"${inStatus}","${formatMemberName(p.name)}","${p.role}","${slamLabel}",${p.demo || 0},${p.ac || 0},${p.pz || 0},${p.biz || 0},${p.acc || 0},"${p.step || ''}","${p.notes || ''}"\n`;
       });
     } else {
-      csv = "Name,Job Title,Shifts Worked,Grand Slams (🏆),Total Demo (🤳),Total AppleCare+ (🍎),Total PZ Conversion (🔄),Total Upgrades (🆙),Total Business (💼),Total Accessories (🎧)\n";
+      csv = "Name,Job Title,Shifts Worked,Grand Slams (🏆),Total T@A Sign🆙,Total AppleCare+ (🍎),Total PZ Conversion (🔄),Total Upgrades (🆙),Total Business (💼),Total Accessories (🎧)\n";
       const exportData = [...list].sort((a, b) => b.ac - a.ac);
       exportData.forEach(p => {
         csv += `"${formatMemberName(p.name)}","${p.role}",${p.shiftsWorked},${p.slamsAchieved || 0},${p.demo || 0},${p.ac},${p.pz},${p.upgrade || 0},${p.biz},${p.acc}\n`;
@@ -3949,7 +3949,7 @@
     if (!confirm(
       "RESET TODAY'S LIVE TRACKER ON ALL IPADS?\n\n" +
       "This will clear ALL live Daily data for EVERY team member on every iPad:\n" +
-      "• Check-ins\n• Demo\n• AppleCare+\n• Upgrades\n• Business\n• Accessories\n• Steps of Service\n• Notes / Focus\n\n" +
+      "• Check-ins\n• T@A Sign🆙\n• AppleCare+\n• Upgrades\n• Business\n• Accessories\n• Steps of Service\n• Notes / Focus\n\n" +
       "Historical / previous-day records will NOT be deleted."
     )) return;
 
@@ -4422,6 +4422,7 @@
   let gbChallengeChannel = null;
   let gbChallengeRefreshTimer = null;
   const GB_CHALLENGE_START_DATE = '2026-08-31';
+  const GB_TAA_SIGNUP_POINTS_START = '2026-11-23';
   // PZ-only support employees are intentionally excluded from the GB competition.
   const GB_CHALLENGE_EXCLUDED_NAMES = new Set(['angelom','josiahb','lucasm']);
 
@@ -4486,12 +4487,13 @@
           'AppleCare+':Math.max(0,...rows.map(row=>Number(row.ac||0))),
           'PZ Conversion':Math.max(0,...rows.map(row=>Number(row.pz||row.upgrade||0))),
           'Business':Math.max(0,...rows.map(row=>Number(row.biz||0))),
-          'Accessories':Math.max(0,...rows.map(row=>Number(row.acc||0)))
+          'Accessories':Math.max(0,...rows.map(row=>Number(row.acc||0))),
+          'T@A Sign🆙':String(day.date||'')>=GB_TAA_SIGNUP_POINTS_START?Math.max(0,...rows.map(row=>Number(row.demo||0))):0
         };
         if (challengeMatches.length !== 1) {
           if (challengeMatches.length === 0 && Object.values(values).some(v=>v>0)) {
             const displayName=String(rows[0].name||'').trim();
-            if (!unassigned.has(displayName)) unassigned.set(displayName,{cats:{'AppleCare+':0,'PZ Conversion':0,'Business':0,'Accessories':0},days:new Map()});
+            if (!unassigned.has(displayName)) unassigned.set(displayName,{cats:{'AppleCare+':0,'PZ Conversion':0,'Business':0,'Accessories':0,'T@A Sign🆙':0},days:new Map()});
             const u=unassigned.get(displayName);
             Object.keys(values).forEach(k=>u.cats[k]+=values[k]);
             if(Object.values(values).every(v=>v>0))u.days.set(day.date,true);
@@ -4499,10 +4501,10 @@
           return;
         }
         const member = challengeMatches[0];
-        if (!totals.has(member.id)) totals.set(member.id,{cats:{'AppleCare+':0,'PZ Conversion':0,'Business':0,'Accessories':0},days:new Map()});
+        if (!totals.has(member.id)) totals.set(member.id,{cats:{'AppleCare+':0,'PZ Conversion':0,'Business':0,'Accessories':0,'T@A Sign🆙':0},days:new Map()});
         const t = totals.get(member.id);
         Object.keys(values).forEach(k => t.cats[k] += values[k]);
-        if (Object.values(values).every(v => v > 0)) t.days.set(day.date,true);
+        if ([values['AppleCare+'],values['PZ Conversion'],values['Business'],values['Accessories']].every(v => v > 0)) t.days.set(day.date,true);
       });
     });
     return {totals,ambiguous,unassigned};
@@ -4539,7 +4541,7 @@
     const [m,e,live,history] = await Promise.all([
       gbSupabase.from('gb_challenge_members').select('*').order('name'),
       loadAllGBChallengeEvents(),
-      gbSupabase.from('gb_focus_follow_members').select('id,name,ac,pz,biz,acc,shift_date,removed').eq('removed',false),
+      gbSupabase.from('gb_focus_follow_members').select('id,name,ac,pz,biz,acc,demo,shift_date,removed').eq('removed',false),
       gbSupabase.from('gb_focus_follow_history').select('history_date,snapshot').gte('history_date',GB_CHALLENGE_START_DATE).order('history_date',{ascending:true})
     ]);
     const failure=m.error||e.error||live.error||history.error;
@@ -4586,7 +4588,7 @@
   }
   function renderGBChallenge() {
     const members=gbChallengeMembers, events=gbChallengeEvents;
-    const cats=[['AppleCare+','🍎 AppleCare+'],['PZ Conversion','🔄 PZ Conversion'],['Business','💼 Business'],['Accessories','🎧 Accessories']];
+    const cats=[['AppleCare+','🍎 AppleCare+'],['PZ Conversion','🔄 PZ Conversion'],['Business','💼 Business'],['Accessories','🎧 Accessories'],['T@A Sign🆙','🆙 T@A Sign🆙']];
     const defs=[{value:'Team A',label:'Coach Jerome'},{value:'Team B',label:'Coach Shane'}];
     const daily=gbChallengeDailyTotals();
     const by={}; members.forEach(m=>{const d=daily.totals.get(m.id);by[m.id]={...m,cats:d?{...d.cats}:Object.fromEntries(cats.map(([k])=>[k,0])),tx:0,slams:d?d.days.size:0,slamBonus:d?d.days.size*10:0,npsStreaks:0,npsBonus:0,coachRequests:0,coachBonus:0};});
