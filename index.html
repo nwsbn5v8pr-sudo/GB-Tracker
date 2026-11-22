@@ -4497,7 +4497,7 @@
             if (!unassigned.has(displayName)) unassigned.set(displayName,{cats:{'AppleCare+':0,'PZ Conversion':0,'Business':0,'Accessories':0,'T@A Sign🆙':0},days:new Map()});
             const u=unassigned.get(displayName);
             Object.keys(values).forEach(k=>u.cats[k]+=values[k]);
-            if(Object.values(values).every(v=>v>0))u.days.set(day.date,true);
+            if([values['AppleCare+'],values['PZ Conversion'],values['Business'],values['Accessories']].every(v=>v>0))u.days.set(day.date,true);
           } else if(challengeMatches.length>1) ambiguous.add(key);
           return;
         }
