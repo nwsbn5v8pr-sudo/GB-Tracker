@@ -4518,11 +4518,23 @@
     document.body.classList.remove('gb-challenge-open');
     document.getElementById('gbChallengeView').classList.remove('active');
   }
+  async function loadAllGBChallengeEvents() {
+    const all=[];
+    for(let from=0;;from+=1000){
+      const page=await gbSupabase.from('gb_challenge_events').select('*')
+        .order('created_at',{ascending:false}).range(from,from+999);
+      if(page.error)return {data:null,error:page.error};
+      const rows=page.data||[];
+      all.push(...rows);
+      if(rows.length<1000)break;
+    }
+    return {data:all,error:null};
+  }
   async function loadGBChallenge() {
     if (!gbSupabase) { document.getElementById('gbChallengeStandings').textContent='Cloud connection is not ready. Please try again in a moment.'; return; }
     const [m,e,live,history] = await Promise.all([
       gbSupabase.from('gb_challenge_members').select('*').order('name'),
-      gbSupabase.from('gb_challenge_events').select('*').order('created_at',{ascending:false}).limit(1000),
+      loadAllGBChallengeEvents(),
       gbSupabase.from('gb_focus_follow_members').select('id,name,ac,pz,biz,acc,shift_date,removed').eq('removed',false),
       gbSupabase.from('gb_focus_follow_history').select('history_date,snapshot').gte('history_date',GB_CHALLENGE_START_DATE).order('history_date',{ascending:true})
     ]);
