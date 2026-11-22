@@ -4422,6 +4422,8 @@
   let gbChallengeChannel = null;
   let gbChallengeRefreshTimer = null;
   const GB_CHALLENGE_START_DATE = '2026-08-31';
+  // PZ-only support employees are intentionally excluded from the GB competition.
+  const GB_CHALLENGE_EXCLUDED_NAMES = new Set(['angelom','josiahb','lucasm']);
 
   function watchGBChallengeDailyMetrics() {
     if (!gbSupabase || gbChallengeChannel) return;
@@ -4462,6 +4464,8 @@
     gbDailyChallengeRows.forEach(day => {
       const grouped = new Map();
       (day.data || []).forEach(row => {
+        const fullNameKey=String(row.name||'').toLowerCase().replace(/[^a-z0-9]/g,'');
+        if(GB_CHALLENGE_EXCLUDED_NAMES.has(fullNameKey))return;
         const key = gbChallengeNameKey(row.name);
         if (!key) return;
         if (!grouped.has(key)) grouped.set(key, []);
