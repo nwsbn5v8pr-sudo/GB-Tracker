@@ -1110,6 +1110,7 @@
       <div class="gb-challenge-card"><h3>⭐ Base Points</h3><div class="team-metric-grid">
         <div class="team-metric"><span>🍎 AppleCare+</span><strong>1 pt</strong></div>
         <div class="team-metric"><span>🔄 PZ Conversion</span><strong>1 pt</strong></div>
+        <div class="team-metric"><span>🆙 Upgrades</span><strong>1 pt</strong></div>
         <div class="team-metric"><span>💼 Business</span><strong>1 pt</strong></div>
         <div class="team-metric"><span>🎧 Accessories</span><strong>1 pt</strong></div>
         <div class="team-metric"><span>🆙 T@A Sign🆙</span><strong>1 pt per signup</strong></div>
@@ -2997,7 +2998,7 @@
   function hasGbActivity(rows) {
     return Array.isArray(rows) && rows.some(d =>
       d.checkedIn || d.ac > 0 || d.pz > 0 || d.upgrade > 0 ||
-      d.biz > 0 || d.acc > 0 || d.notes || d.step
+      d.biz > 0 || d.acc > 0 || d.demo > 0 || d.services > 0 || d.notes || d.step
     );
   }
 
@@ -4486,7 +4487,8 @@
         // twice. Distinct names that collide on the short key remain excluded.
         const values = {
           'AppleCare+':Math.max(0,...rows.map(row=>Number(row.ac||0))),
-          'PZ Conversion':Math.max(0,...rows.map(row=>Number(row.pz||row.upgrade||0))),
+          'PZ Conversion':Math.max(0,...rows.map(row=>Number(row.pz||0))),
+          'Upgrades':Math.max(0,...rows.map(row=>Number(row.upgrade||0))),
           'Business':Math.max(0,...rows.map(row=>Number(row.biz||0))),
           'Accessories':Math.max(0,...rows.map(row=>Number(row.acc||0))),
           'T@A Sign🆙':String(day.date||'')>=GB_TAA_SIGNUP_POINTS_START?Math.max(0,...rows.map(row=>Number(row.demo||0))):0
@@ -4494,7 +4496,7 @@
         if (challengeMatches.length !== 1) {
           if (challengeMatches.length === 0 && Object.values(values).some(v=>v>0)) {
             const displayName=String(rows[0].name||'').trim();
-            if (!unassigned.has(displayName)) unassigned.set(displayName,{cats:{'AppleCare+':0,'PZ Conversion':0,'Business':0,'Accessories':0,'T@A Sign🆙':0},days:new Map(),taaSlamDays:new Map()});
+            if (!unassigned.has(displayName)) unassigned.set(displayName,{cats:{'AppleCare+':0,'PZ Conversion':0,'Upgrades':0,'Business':0,'Accessories':0,'T@A Sign🆙':0},days:new Map(),taaSlamDays:new Map()});
             const u=unassigned.get(displayName);
             Object.keys(values).forEach(k=>u.cats[k]+=values[k]);
             if([values['AppleCare+'],values['PZ Conversion'],values['Business'],values['Accessories']].every(v=>v>0)){u.days.set(day.date,true);if(values['T@A Sign🆙']>0)u.taaSlamDays.set(day.date,true);}
@@ -4502,7 +4504,7 @@
           return;
         }
         const member = challengeMatches[0];
-        if (!totals.has(member.id)) totals.set(member.id,{cats:{'AppleCare+':0,'PZ Conversion':0,'Business':0,'Accessories':0,'T@A Sign🆙':0},days:new Map(),taaSlamDays:new Map()});
+        if (!totals.has(member.id)) totals.set(member.id,{cats:{'AppleCare+':0,'PZ Conversion':0,'Upgrades':0,'Business':0,'Accessories':0,'T@A Sign🆙':0},days:new Map(),taaSlamDays:new Map()});
         const t = totals.get(member.id);
         Object.keys(values).forEach(k => t.cats[k] += values[k]);
         if ([values['AppleCare+'],values['PZ Conversion'],values['Business'],values['Accessories']].every(v => v > 0)){t.days.set(day.date,true);if(values['T@A Sign🆙']>0)t.taaSlamDays.set(day.date,true);}
@@ -4542,7 +4544,7 @@
     const [m,e,live,history] = await Promise.all([
       gbSupabase.from('gb_challenge_members').select('*').order('name'),
       loadAllGBChallengeEvents(),
-      gbSupabase.from('gb_focus_follow_members').select('id,name,ac,pz,biz,acc,demo,shift_date,removed').eq('removed',false),
+      gbSupabase.from('gb_focus_follow_members').select('id,name,ac,pz,upgrade,biz,acc,demo,shift_date,removed').eq('removed',false),
       gbSupabase.from('gb_focus_follow_history').select('history_date,snapshot').gte('history_date',GB_CHALLENGE_START_DATE).order('history_date',{ascending:true})
     ]);
     const failure=m.error||e.error||live.error||history.error;
@@ -4589,7 +4591,7 @@
   }
   function renderGBChallenge() {
     const members=gbChallengeMembers, events=gbChallengeEvents;
-    const cats=[['AppleCare+','🍎 AppleCare+'],['PZ Conversion','🔄 PZ Conversion'],['Business','💼 Business'],['Accessories','🎧 Accessories'],['T@A Sign🆙','🆙 T@A Sign🆙']];
+    const cats=[['AppleCare+','🍎 AppleCare+'],['PZ Conversion','🔄 PZ Conversion'],['Upgrades','🆙 Upgrades'],['Business','💼 Business'],['Accessories','🎧 Accessories'],['T@A Sign🆙','🆙 T@A Sign🆙']];
     const defs=[{value:'Team A',label:'Coach Jerome'},{value:'Team B',label:'Coach Shane'}];
     const daily=gbChallengeDailyTotals();
     const by={}; members.forEach(m=>{const d=daily.totals.get(m.id);by[m.id]={...m,cats:d?{...d.cats}:Object.fromEntries(cats.map(([k])=>[k,0])),tx:0,slams:d?d.days.size:0,slamBonus:d?d.days.size*10:0,taaSlamBonus:d?d.taaSlamDays.size*10:0,npsStreaks:0,npsBonus:0,coachRequests:0,coachBonus:0};});
