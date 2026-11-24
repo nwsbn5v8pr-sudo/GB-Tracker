@@ -2227,13 +2227,7 @@
             <button type="button" class="cnt-btn plus" onclick="event.stopPropagation(); updateCounts('${String(p.id).replace(/'/g, "\'")}', 'pz', 1)">+</button>
           </div>
         </td>
-        <td style="text-align:center;">
-          <div class="counter-box">
-            <button type="button" class="cnt-btn minus" onclick="event.stopPropagation(); updateCounts('${String(p.id).replace(/'/g, "\'")}', 'upgrade', -1)">−</button>
-            <span class="cnt-val" id="val-upgrade-${p.id}" title="Tap to set exact total" onclick="event.stopPropagation(); setExactValue('${String(p.id).replace(/'/g, "\'")}', 'upgrade')">${p.upgrade || 0}</span>
-            <button type="button" class="cnt-btn plus" onclick="event.stopPropagation(); updateCounts('${String(p.id).replace(/'/g, "\'")}', 'upgrade', 1)">+</button>
-          </div>
-        </td>
+        
         <td style="text-align:center;">
           <div class="counter-box">
             <button type="button" class="cnt-btn minus" onclick="event.stopPropagation(); updateCounts('${String(p.id).replace(/'/g, "\'")}', 'biz', -1)">−</button>
@@ -2283,7 +2277,7 @@
         <td style="text-align:center;"><span class="aggregate-val">${p.demo || 0}</span></td>
         <td style="text-align:center;"><span class="aggregate-val">${p.ac || 0}</span></td>
         <td style="text-align:center;"><span class="aggregate-val">${p.pz || 0}</span></td>
-        <td style="text-align:center;"><span class="aggregate-val">${p.upgrade || 0}</span></td>
+        
         <td style="text-align:center;"><span class="aggregate-val">${p.biz || 0}</span></td>
         <td style="text-align:center;"><span class="aggregate-val">${p.acc || 0}</span></td>
         <td style="text-align:center;"><span style="font-weight:600; font-size:12px;">${escapeHtml(p.step || '-')}</span></td>
